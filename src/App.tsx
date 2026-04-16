@@ -28,15 +28,15 @@ function App() {
             <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
               <div className="max-w-3xl animate-rise">
                 <p className="mb-3 inline-flex rounded-full border border-surge/30 bg-surge/10 px-3 py-1 text-xs font-medium uppercase tracking-[0.24em] text-surge">
-                  Active incident intelligence dashboard
+                  Active sensor intelligence dashboard
                 </p>
                 <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">
-                  Detect anomalies, map them to previous incidents, and surface the fastest response path.
+                  Detect sensor anomalies, match them to prior equipment incidents, and surface the fastest field response.
                 </h1>
                 <p className="mt-4 max-w-2xl text-sm leading-7 text-mist/80 sm:text-base">
-                  This view compares live operating data against expected ranges, identifies abnormal
-                  behavior, and then retrieves historically similar incidents so responders can act on
-                  proven resolutions instead of starting from zero.
+                  This view compares live telemetry against expected operating ranges, identifies abnormal
+                  equipment behavior, and then retrieves historically similar incidents so operators can
+                  act on proven corrective actions instead of starting from zero.
                 </p>
               </div>
 
@@ -69,7 +69,7 @@ function App() {
                   <div>
                     <h2 className="text-xl font-semibold text-white">Anomaly pressure map</h2>
                     <p className="mt-1 text-sm text-mist/70">
-                      Current deltas against learned baseline ranges
+                      Current sensor deltas against learned baseline ranges
                     </p>
                   </div>
                   <div className="rounded-full border border-ember/30 bg-ember/10 px-3 py-1 text-xs uppercase tracking-[0.2em] text-ember">
@@ -118,7 +118,7 @@ function App() {
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-xl font-semibold text-white">Closest prior incident</h2>
-                    <p className="mt-1 text-sm text-mist/70">Top historical match for current anomaly mix</p>
+                    <p className="mt-1 text-sm text-mist/70">Top historical match for the current telemetry pattern</p>
                   </div>
                   <div className="rounded-full border border-surge/30 bg-surge/10 px-3 py-1 text-xs font-medium text-surge">
                     {primaryIncident.similarity}% match
@@ -166,7 +166,7 @@ function App() {
                   <div>
                     <h2 className="text-xl font-semibold text-white">Incident library matches</h2>
                     <p className="mt-1 text-sm text-mist/70">
-                      Past incidents ranked by signal similarity and recovery usefulness
+                      Past equipment incidents ranked by signal similarity and recovery usefulness
                     </p>
                   </div>
                 </div>
@@ -225,7 +225,7 @@ function App() {
                 <div className="rounded-[28px] border border-white/10 bg-white/5 p-5">
                   <h2 className="text-xl font-semibold text-white">Baseline comparison</h2>
                   <p className="mt-1 text-sm text-mist/70">
-                    Visual shorthand for current vs expected operating envelope
+                    Visual shorthand for current vs expected sensor operating envelope
                   </p>
 
                   <div className="mt-6 space-y-5">
