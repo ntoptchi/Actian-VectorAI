@@ -5,21 +5,25 @@ export default {
   theme: {
     extend: {
       colors: {
-        ink: "#07111f",
-        mist: "#d9e5f3",
-        ember: "#ff7a59",
-        surge: "#32c8a2",
-        signal: "#7dd3fc",
-        midnight: "#0d1728",
+        ink: "#0b1220",
+        mist: "#f3f7fa",
+        ember: "#f97316",
+        surge: "#14b8a6",
+        signal: "#3b82f6",
+        midnight: "#0f1726",
+        cyan: "#22d3ee",
+        warning: "#f59e0b",
+        danger: "#ef4444",
       },
       boxShadow: {
-        glow: "0 24px 80px rgba(11, 20, 37, 0.35)",
+        glow: "0 22px 60px rgba(0, 0, 0, 0.38)",
       },
       fontFamily: {
-        sans: ["'Space Grotesk'", "ui-sans-serif", "system-ui", "sans-serif"],
+        sans: ["'Noto Sans'", "ui-sans-serif", "system-ui", "sans-serif"],
+        mono: ["'Roboto Mono'", "ui-monospace", "SFMono-Regular", "monospace"],
       },
       backgroundImage: {
-        grid: "linear-gradient(rgba(125, 211, 252, 0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(125, 211, 252, 0.08) 1px, transparent 1px)",
+        grid: "linear-gradient(rgba(59, 130, 246, 0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(59, 130, 246, 0.07) 1px, transparent 1px)",
       },
       keyframes: {
         rise: {

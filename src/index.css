@@ -3,11 +3,23 @@
 @tailwind utilities;
 
 :root {
-  color: #d9e5f3;
+  color: #f3f7fa;
+  --app-bg: #05070b;
+  --page-start: #070b11;
+  --page-end: #09111a;
+  --panel-1: #0b1220;
+  --panel-2: #0f1726;
+  --surface-1: rgba(11, 18, 32, 0.9);
+  --surface-2: rgba(15, 23, 38, 0.96);
+  --surface-3: rgba(18, 28, 44, 0.98);
+  --border-soft: rgba(120, 160, 255, 0.1);
+  --border-strong: rgba(120, 160, 255, 0.18);
+  --font-sans: "Noto Sans", system-ui, sans-serif;
+  --font-mono: "Roboto Mono", ui-monospace, monospace;
   background:
-    radial-gradient(circle at top, rgba(50, 200, 162, 0.2), transparent 34%),
-    radial-gradient(circle at right, rgba(255, 122, 89, 0.2), transparent 26%),
-    linear-gradient(160deg, #07111f 0%, #0d1728 58%, #13213a 100%);
+    radial-gradient(circle at top, rgba(59, 130, 246, 0.08), transparent 30%),
+    radial-gradient(circle at right, rgba(34, 211, 238, 0.05), transparent 24%),
+    linear-gradient(180deg, var(--page-start) 0%, var(--page-end) 100%);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -26,11 +38,82 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  font-family: var(--font-sans);
+  background-color: var(--app-bg);
   background-image:
-    radial-gradient(circle at top, rgba(50, 200, 162, 0.16), transparent 28%),
-    linear-gradient(160deg, #07111f 0%, #0d1728 58%, #13213a 100%);
+    radial-gradient(circle at top, rgba(59, 130, 246, 0.07), transparent 24%),
+    radial-gradient(circle at 85% 12%, rgba(34, 211, 238, 0.04), transparent 18%),
+    linear-gradient(180deg, var(--page-start) 0%, var(--page-end) 100%);
 }
 
 #root {
   min-height: 100vh;
+}
+
+@keyframes rig-critical-node-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.88;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes rig-critical-ring-pulse {
+  0%,
+  100% {
+    opacity: 0.34;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.14;
+    transform: scale(1.22);
+  }
+}
+
+@layer components {
+  .dashboard-card {
+    @apply rounded-[26px] border shadow-[0_10px_26px_rgba(0,0,0,0.22),inset_0_1px_0_rgba(255,255,255,0.02)];
+    background: linear-gradient(180deg, rgba(11, 18, 32, 0.96), rgba(15, 23, 38, 0.92));
+    border-color: var(--border-soft);
+  }
+
+  .dashboard-card-strong {
+    background: linear-gradient(180deg, rgba(15, 23, 38, 0.98), rgba(11, 18, 32, 0.98));
+    border-color: var(--border-strong);
+  }
+
+  .dashboard-eyebrow {
+    @apply inline-flex rounded-full border px-3 py-1 font-mono text-[10px] font-medium uppercase tracking-[0.22em];
+    color: rgba(148, 163, 184, 0.92);
+    border-color: rgba(59, 130, 246, 0.18);
+    background: rgba(59, 130, 246, 0.08);
+  }
+
+  .dashboard-meta {
+    @apply font-mono text-[11px] font-medium uppercase tracking-[0.18em];
+  }
+
+  .dashboard-meta-soft {
+    @apply font-mono text-[11px] font-medium tracking-[0.14em];
+  }
+
+  .dashboard-id {
+    @apply font-mono text-[11px] font-medium tracking-[0.14em];
+  }
+
+  .rig-critical-node {
+    animation: rig-critical-node-pulse 1.9s ease-in-out infinite;
+    transform-origin: center;
+  }
+
+  .rig-critical-ring {
+    animation: rig-critical-ring-pulse 1.9s ease-in-out infinite;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
 }
