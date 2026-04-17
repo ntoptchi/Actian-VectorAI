@@ -210,32 +210,32 @@ export function AnomalyOverviewChart({ points }: { points: ChartPoint[] }) {
 
       {hoveredPoint && hoveredX !== null && hoveredY !== null ? (
         <div
-          className="pointer-events-none absolute z-10 w-[118px] rounded-[9px] border border-[rgba(120,160,255,0.018)] bg-[rgba(11,18,32,0.72)] p-[2px] shadow-[0_1px_3px_rgba(0,0,0,0.09)]"
+          className="pointer-events-none absolute z-10 w-[94px] rounded-[7px] border border-[rgba(120,160,255,0.01)] bg-[rgba(11,18,32,0.62)] p-[1.5px] shadow-[0_1px_2px_rgba(0,0,0,0.05)]"
           style={{
-            left: `clamp(12px, calc(${((hoveredX / width) * 100).toFixed(2)}% - 59px), calc(100% - 130px))`,
-            top: hoveredY < 110 ? hoveredY + 6 : hoveredY - 44,
+            left: `clamp(12px, calc(${((hoveredX / width) * 100).toFixed(2)}% - 47px), calc(100% - 106px))`,
+            top: hoveredY < 110 ? hoveredY + 2 : hoveredY - 31,
           }}
         >
           <div className="flex items-start justify-between gap-2">
             <div>
               <p className="dashboard-meta text-mist/44">Time</p>
-              <p className="mt-0.5 text-[9.5px] font-medium text-white">{formatTimestampLabel(hoveredPoint.timestamp)}</p>
+              <p className="mt-0.5 text-[8.5px] font-medium text-white">{formatTimestampLabel(hoveredPoint.timestamp)}</p>
             </div>
             <span className={`dashboard-meta ${severityText[hoveredPoint.severity]}`}>{hoveredPoint.severity}</span>
           </div>
 
-          <div className="mt-0.5 space-y-0 text-[9px]">
-            <div className="flex items-center justify-between gap-3">
+          <div className="mt-0.5 space-y-px text-[8px]">
+            <div className="flex items-center justify-between gap-2">
               <span className="dashboard-meta text-mist/52">Actual</span>
               <span className="font-mono font-semibold text-white">{hoveredPoint.actual.toFixed(1)} mm/s</span>
             </div>
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center justify-between gap-2">
               <span className="dashboard-meta text-mist/52">Tolerance</span>
               <span className="font-mono font-semibold text-white">
                 {hoveredPoint.expectedMin.toFixed(1)}-{hoveredPoint.expectedMax.toFixed(1)} mm/s
               </span>
             </div>
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center justify-between gap-2">
               <span className="dashboard-meta text-mist/52">Deviation</span>
               <span className="font-mono font-semibold text-ember">{getDeviation(hoveredPoint.actual, hoveredPoint.expectedMin, hoveredPoint.expectedMax).toFixed(0)}%</span>
             </div>

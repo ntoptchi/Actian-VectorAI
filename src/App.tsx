@@ -79,29 +79,29 @@ function KpiCard({
     <article
       className={`dashboard-card min-h-[108px] transition-colors duration-200 ${
         featured
-          ? "border-[rgba(120,160,255,0.14)] bg-[linear-gradient(180deg,rgba(16,24,38,0.98),rgba(11,18,32,0.96))] p-4 shadow-[0_14px_24px_rgba(0,0,0,0.16)]"
+          ? "border-[rgba(120,160,255,0.18)] bg-[linear-gradient(180deg,rgba(18,28,44,0.995),rgba(11,18,32,0.975))] p-4 shadow-[0_16px_28px_rgba(0,0,0,0.18)]"
           : secondary
-            ? "border-[rgba(120,160,255,0.1)] bg-[linear-gradient(180deg,rgba(12,20,34,0.95),rgba(15,23,38,0.89))] p-4 shadow-[0_11px_22px_rgba(0,0,0,0.15)]"
+            ? "border-[rgba(120,160,255,0.1)] bg-[linear-gradient(180deg,rgba(12,20,34,0.95),rgba(15,23,38,0.89))] p-4 shadow-[0_10px_20px_rgba(0,0,0,0.14)]"
           : subdued
-            ? "border-[rgba(120,160,255,0.05)] bg-[linear-gradient(180deg,rgba(11,18,32,0.88),rgba(15,23,38,0.82))] p-4 shadow-[0_6px_14px_rgba(0,0,0,0.12)]"
+            ? "border-[rgba(120,160,255,0.03)] bg-[linear-gradient(180deg,rgba(10,16,28,0.78),rgba(14,20,32,0.74))] p-4 shadow-[0_3px_8px_rgba(0,0,0,0.08)]"
             : "border-[rgba(120,160,255,0.08)] bg-[linear-gradient(180deg,rgba(11,18,32,0.92),rgba(15,23,38,0.88))] p-4 shadow-[0_8px_18px_rgba(0,0,0,0.14)]"
       }`}
     >
       <div className="flex h-full min-h-[72px] flex-col">
-        <p className={`dashboard-meta ${featured ? "text-cyan/80" : secondary ? "text-mist/64" : subdued ? "text-mist/38" : "text-mist/54"}`}>{label}</p>
+        <p className={`dashboard-meta ${featured ? "text-cyan/88" : secondary ? "text-mist/72" : subdued ? "text-mist/34" : "text-mist/58"}`}>{label}</p>
         <div className="mt-auto flex items-end justify-between gap-4 pt-4">
           <div className="min-w-0">
             <div className="flex items-end gap-1.5">
-              <span className={`${featured ? "text-[2.12rem]" : secondary ? "text-[2.08rem]" : "text-[2rem]"} font-semibold leading-none ${subdued ? "text-mist/86" : "text-white"}`}>
+              <span className={`${featured ? "text-[2.18rem]" : secondary ? "text-[2.06rem]" : subdued ? "text-[1.82rem]" : "text-[1.98rem]"} font-semibold leading-none ${subdued ? "text-mist/72" : featured ? "text-white" : "text-white/96"}`}>
                 {parts.primary}
               </span>
               {parts.secondary ? (
-                <span className={`dashboard-meta-soft pb-1 ${subdued ? "text-mist/48" : "text-mist/58"}`}>{parts.secondary}</span>
+                <span className={`dashboard-meta-soft pb-1 ${featured ? "text-mist/64" : subdued ? "text-mist/38" : "text-mist/56"}`}>{parts.secondary}</span>
               ) : null}
             </div>
           </div>
           <span
-            className={`self-end text-sm font-medium ${trend === "up" ? "text-ember" : "text-surge"} ${subdued ? "opacity-72" : ""}`}
+            className={`self-end text-sm font-medium ${trend === "up" ? "text-ember" : "text-surge"} ${featured ? "" : subdued ? "opacity-45" : "opacity-80"}`}
           >
             {change}
           </span>
@@ -126,10 +126,10 @@ function AlertRailCard({
 }) {
   return (
     <article
-      className={`dashboard-card transition-colors duration-200 hover:border-[rgba(120,160,255,0.18)] ${
+      className={`transition-colors duration-200 ${
         featured
           ? "min-h-[132px] border-[rgba(245,158,11,0.18)] bg-[linear-gradient(180deg,rgba(22,28,40,0.985),rgba(11,18,32,0.96))] p-4 shadow-[0_14px_24px_rgba(0,0,0,0.18)]"
-          : "min-h-[132px] border-[rgba(120,160,255,0.06)] bg-[linear-gradient(180deg,rgba(11,18,32,0.9),rgba(15,23,38,0.84))] p-4 shadow-[0_8px_18px_rgba(0,0,0,0.13)]"
+          : "rounded-[16px] border border-[rgba(120,160,255,0.025)] bg-[rgba(15,23,38,0.28)] px-3 py-1.5 shadow-[0_1px_4px_rgba(0,0,0,0.05)]"
       }`}
     >
       <div className="flex h-full flex-col">
@@ -138,16 +138,16 @@ function AlertRailCard({
             <p className={`dashboard-meta ${featured ? "text-warning/74" : "text-mist/44"}`}>{label}</p>
           </div>
           <span
-            className={`dashboard-meta shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] tracking-[0.04em] ${railBadgeStyles[severity]}`}
+            className={`dashboard-meta shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] tracking-[0.02em] ${featured ? railBadgeStyles[severity] : "border-white/6 bg-white/[0.03] text-mist/46"}`}
           >
             {severity}
           </span>
         </div>
-        <div className="mt-3">
-          <p className={`font-semibold text-white ${featured ? "text-[1.35rem] leading-none" : "text-base"}`}>{value}</p>
+        <div className={featured ? "mt-3" : "mt-1.5"}>
+          <p className={`font-semibold text-white ${featured ? "text-[1.35rem] leading-none" : "text-[0.98rem] leading-tight"}`}>{value}</p>
         </div>
         <p
-          className={`min-w-0 text-sm text-mist/64 ${featured ? "mt-2.5 leading-5" : "mt-2.5 leading-5"}`}
+          className={`min-w-0 text-sm text-mist/64 ${featured ? "mt-2.5 leading-5" : "mt-0.5 leading-[1.15rem] text-mist/56"}`}
           style={{
             whiteSpace: "normal",
             overflow: "hidden",
@@ -175,8 +175,8 @@ function StatusBanner({
   statusTokens: [string, string, string];
 }) {
   return (
-    <div className="dashboard-card dashboard-card-strong p-2.5">
-      <div className="flex flex-col gap-2 md:grid md:grid-cols-[minmax(272px,auto)_minmax(0,1fr)] md:items-center md:gap-2.5">
+    <div className="dashboard-card dashboard-card-strong p-1">
+      <div className="flex flex-col gap-1 md:grid md:grid-cols-[minmax(272px,auto)_minmax(0,1fr)] md:items-center md:gap-1">
         <div className="flex flex-wrap items-center gap-2 md:min-w-[286px]">
           <span className="dashboard-meta rounded-full border border-danger/35 bg-danger/10 px-2.5 py-0.5 text-ember">
             {severity}
@@ -348,11 +348,23 @@ function BaselineComparisonCard({ anomaly }: { anomaly: (typeof anomalies)[numbe
 
 function App() {
   const primaryIncident = incidentMatches[0];
+  const orderedMetrics = [
+    metrics.find((metric) => metric.label === "Systems affected"),
+    metrics.find((metric) => metric.label === "Median restore path"),
+    metrics.find((metric) => metric.label === "Active excursions"),
+    metrics.find((metric) => metric.label === "Prior events linked"),
+  ].filter(Boolean) as typeof metrics;
+  const orderedAlertSummary = [
+    ...alertSummary.filter((item) => item.label === "Critical window"),
+    ...alertSummary.filter((item) => item.label === "Affected asset"),
+    ...alertSummary.filter((item) => item.label === "Top driver"),
+    ...alertSummary.filter((item) => item.label !== "Critical window" && item.label !== "Affected asset" && item.label !== "Top driver"),
+  ];
 
   return (
     <main className="min-h-screen overflow-hidden text-mist">
       <div className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
-        <div className="relative overflow-hidden rounded-[30px] border border-[rgba(120,160,255,0.1)] bg-[rgba(11,18,32,0.94)] px-4 py-5 shadow-glow sm:px-6 sm:py-6 lg:px-7 lg:py-7">
+        <div className="relative overflow-hidden rounded-[30px] border border-[rgba(120,160,255,0.1)] bg-[rgba(11,18,32,0.94)] px-4 py-4.5 shadow-glow sm:px-6 sm:py-5.5 lg:px-7 lg:py-6">
           <div className="pointer-events-none absolute inset-0 bg-grid bg-[size:42px_42px] opacity-[0.07]" />
           <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-signal/6 to-transparent" />
           <div className="pointer-events-none absolute -left-16 top-20 h-52 w-52 rounded-full bg-signal/6 blur-3xl" />
@@ -370,62 +382,62 @@ function App() {
                 ]}
               />
 
-              <div className="grid gap-5 xl:grid-cols-[1.02fr_0.98fr] xl:items-end">
-                <div className="max-w-[34rem]">
-                  <h1 className="max-w-[12ch] text-[2.12rem] font-bold tracking-tight text-white sm:text-[2.3rem] sm:leading-[1.03]">
-                    <span className="block whitespace-nowrap">Excursion status</span>
-                  </h1>
-                  <div className="mt-0.5 max-w-[33rem] space-y-0 text-sm leading-5.5 text-mist/82 sm:text-[0.95rem]">
-                    <p>Compressor L3 remains in sustained breach with elevated thermal load.</p>
-                    <p>Maintain reduced load and inspection readiness until the trace stabilizes.</p>
+              <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
+                <div className="space-y-4">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {orderedMetrics.map((metric) => (
+                      <KpiCard
+                        key={metric.label}
+                        {...metric}
+                        featured={metric.label === "Systems affected"}
+                        secondary={metric.label === "Median restore path"}
+                        subdued={metric.label === "Prior events linked"}
+                      />
+                    ))}
                   </div>
-                </div>
 
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {metrics.map((metric) => (
-                    <KpiCard
-                      key={metric.label}
-                      {...metric}
-                      featured={metric.label === "Systems affected"}
-                      secondary={metric.label === "Median restore path"}
-                      subdued={metric.label === "Prior events linked"}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid gap-5 pt-0.5 xl:grid-cols-[minmax(0,1fr)_300px]">
-                <div className="dashboard-card dashboard-card-strong border-[rgba(120,160,255,0.2)] bg-[linear-gradient(180deg,rgba(16,24,40,0.995),rgba(11,18,32,0.98))] p-5 shadow-[0_24px_46px_rgba(0,0,0,0.28)] sm:p-6">
-                  <div className="flex flex-col gap-2.5 border-b border-white/8 pb-4 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <h2 className="text-[1.28rem] font-medium text-white/68">Excursion Trace</h2>
-                      <p className="mt-1 max-w-2xl text-sm leading-5.5 text-mist/64">
-                        Compressor line 3 vibration against operating tolerance.
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-4 text-[12px] sm:max-w-[24rem] sm:justify-end">
-                      <span className="dashboard-meta-soft inline-flex items-center gap-1.5 whitespace-nowrap text-mist/60">
-                        <span className="h-1.5 w-3 rounded-full bg-[rgba(59,130,246,0.46)]" />
-                        Tolerance band
-                      </span>
-                      <span className="dashboard-meta-soft inline-flex items-center gap-1.5 whitespace-nowrap text-cyan/84">
-                        <span className="h-1.5 w-3 rounded-full bg-cyan/70" />
-                        Sustained excursion
-                      </span>
-                      <span className="dashboard-meta-soft inline-flex items-center gap-1.5 whitespace-nowrap text-ember/84">
-                        <span className="h-1.5 w-1.5 rounded-full bg-danger/85" />
-                        Breach points
-                      </span>
+                  <div className="max-w-[34rem]">
+                    <h1 className="max-w-[12ch] text-[2.12rem] font-bold tracking-tight text-white sm:text-[2.3rem] sm:leading-[1.03]">
+                      <span className="block whitespace-nowrap">Excursion status</span>
+                    </h1>
+                    <div className="mt-0.5 max-w-[33rem] space-y-0 text-sm leading-5.5 text-mist/82 sm:text-[0.95rem]">
+                      <p>Compressor L3 remains in sustained breach with elevated thermal load.</p>
+                      <p>Maintain reduced load and inspection readiness until the trace stabilizes.</p>
                     </div>
                   </div>
 
-                  <div className="mt-4.5">
-                    <AnomalyOverviewChart points={anomalyChart} />
+                  <div className="dashboard-card dashboard-card-strong border-[rgba(120,160,255,0.2)] bg-[linear-gradient(180deg,rgba(16,24,40,0.995),rgba(11,18,32,0.98))] p-5 shadow-[0_24px_46px_rgba(0,0,0,0.28)] sm:p-6">
+                    <div className="flex flex-col gap-2.5 border-b border-white/8 pb-4 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <h2 className="text-[1.28rem] font-medium text-white/68">Excursion Trace</h2>
+                        <p className="mt-1 max-w-2xl text-sm leading-5.5 text-mist/64">
+                          Compressor line 3 vibration against operating tolerance.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-4 text-[12px] sm:max-w-[24rem] sm:justify-end">
+                        <span className="dashboard-meta-soft inline-flex items-center gap-1.5 whitespace-nowrap text-mist/60">
+                          <span className="h-1.5 w-3 rounded-full bg-[rgba(59,130,246,0.46)]" />
+                          Tolerance band
+                        </span>
+                        <span className="dashboard-meta-soft inline-flex items-center gap-1.5 whitespace-nowrap text-cyan/84">
+                          <span className="h-1.5 w-3 rounded-full bg-cyan/70" />
+                          Sustained excursion
+                        </span>
+                        <span className="dashboard-meta-soft inline-flex items-center gap-1.5 whitespace-nowrap text-ember/84">
+                          <span className="h-1.5 w-1.5 rounded-full bg-danger/85" />
+                          Breach points
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="mt-4.5">
+                      <AnomalyOverviewChart points={anomalyChart} />
+                    </div>
                   </div>
                 </div>
 
-                <aside className="grid gap-3">
-                  {alertSummary.map((item) => (
+                <aside className="grid gap-2.5">
+                  {orderedAlertSummary.map((item) => (
                     <AlertRailCard key={item.label} {...item} featured={item.label === "Critical window"} />
                   ))}
                 </aside>
