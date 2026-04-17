@@ -87,22 +87,22 @@ body {
   }
 
   .dashboard-eyebrow {
-    @apply inline-flex rounded-full border px-3 py-1 font-mono text-[10px] font-medium uppercase tracking-[0.22em];
+    @apply inline-flex rounded-full border px-3 py-1 font-mono text-[13px] font-medium uppercase tracking-[0.01em];
     color: rgba(148, 163, 184, 0.92);
     border-color: rgba(59, 130, 246, 0.18);
     background: rgba(59, 130, 246, 0.08);
   }
 
   .dashboard-meta {
-    @apply font-mono text-[11px] font-medium uppercase tracking-[0.18em];
+    @apply font-mono text-[13.5px] font-medium uppercase tracking-[0em];
   }
 
   .dashboard-meta-soft {
-    @apply font-mono text-[11px] font-medium tracking-[0.14em];
+    @apply font-mono text-[13px] font-medium tracking-[0em];
   }
 
   .dashboard-id {
-    @apply font-mono text-[11px] font-medium tracking-[0.14em];
+    @apply font-mono text-[13px] font-medium tracking-[0em];
   }
 
   .rig-critical-node {

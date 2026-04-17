@@ -90,17 +90,17 @@ export type RigTopologyConfig = {
 };
 
 export const metrics: Metric[] = [
-  { label: "Active anomalies", value: "12", change: "+4 vs 1h", trend: "up" },
-  { label: "Services affected", value: "5", change: "2 critical", trend: "up" },
-  { label: "Matched incidents", value: "28", change: "86% precision", trend: "up" },
-  { label: "Median recovery path", value: "42 min", change: "-13 min", trend: "down" },
+  { label: "Active excursions", value: "12", change: "+4 vs 1h", trend: "up" },
+  { label: "Systems affected", value: "5", change: "2 trip-risk", trend: "up" },
+  { label: "Prior events linked", value: "28", change: "86% correlation", trend: "up" },
+  { label: "Median restore path", value: "42 min", change: "-13 min", trend: "down" },
 ];
 
 export const alertSummary: AlertSummary[] = [
   {
     label: "Critical window",
     value: "14 min",
-    detail: "Sustained out-of-band vibration",
+    detail: "Sustained high-vibration breach",
     severity: "Critical",
   },
   {
@@ -118,7 +118,7 @@ export const alertSummary: AlertSummary[] = [
   {
     label: "Match confidence",
     value: "94%",
-    detail: "Top prior incident",
+    detail: "Closest prior event",
     severity: "Elevated",
   },
 ];
@@ -198,17 +198,17 @@ export const incidentMatches: IncidentMatch[] = [
 
 export const insights: Insight[] = [
   {
-    title: "Most likely root cause",
+    title: "Probable failure mode",
     detail:
       "Signals align with prior load-transition and restricted-flow incidents. Reduce load and inspect mechanically first.",
   },
   {
-    title: "Best historical recovery path",
+    title: "Fastest prior recovery",
     detail:
       "Fastest recoveries combined immediate load reduction with targeted mechanical correction. Alarm suppression alone led to slower recovery and more repeat noise.",
   },
   {
-    title: "Next action",
+    title: "Next field action",
     detail:
       "Check the 21:10 load transition against vibration, lubricant pressure, and valve cycling. If all three moved together, cut line load first, then inspect the bearing assembly and control valve.",
   },
@@ -216,9 +216,9 @@ export const insights: Insight[] = [
 
 export const responseTimeline = [
   "21:10 load transition started",
-  "21:14 vibration broke baseline",
-  "21:17 bearing temperature crossed critical",
-  "21:21 match confidence passed 90%",
+  "21:14 vibration exceeded tolerance",
+  "21:17 bearing temperature entered trip-risk range",
+  "21:21 prior-event correlation passed 90%",
   "21:25 field response issued",
 ];
 
@@ -243,7 +243,7 @@ export const anomalyChart: ChartPoint[] = [
 export const demoRigTopology: RigTopologyConfig = {
   rigId: "rig-north-atlas-07",
   rigName: "North Atlas 07",
-  viewLabel: "Operational schematic by zone",
+  viewLabel: "System layout by operating zone",
   zones: [
     {
       id: "compression",

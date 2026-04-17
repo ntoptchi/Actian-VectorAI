@@ -96,9 +96,9 @@ export function AnomalyOverviewChart({ points }: { points: ChartPoint[] }) {
       <div className="rounded-[24px] border border-[rgba(120,160,255,0.1)] bg-[rgba(11,18,32,0.96)] p-3 sm:p-4">
         <svg
           viewBox={`0 0 ${width} ${height}`}
-          className="h-[340px] w-full"
+          className="h-[324px] w-full sm:h-[336px]"
           role="img"
-          aria-label="Anomaly overview time series showing actual vibration against expected operating range"
+          aria-label="Excursion trace showing vibration against operating tolerance"
           onMouseLeave={() => setHoveredIndex(points.length - 1)}
         >
           {[0, 1, 2, 3].map((tick) => {
@@ -107,8 +107,8 @@ export function AnomalyOverviewChart({ points }: { points: ChartPoint[] }) {
 
             return (
               <g key={tick}>
-                <line x1={padding.left} x2={width - padding.right} y1={y} y2={y} stroke="rgba(148,163,184,0.14)" strokeDasharray="5 8" />
-                <text x={16} y={y + 4} fill="rgba(148,163,184,0.72)" fontSize="11" fontFamily="var(--font-mono)">
+              <line x1={padding.left} x2={width - padding.right} y1={y} y2={y} stroke="rgba(148,163,184,0.12)" strokeDasharray="5 8" />
+                <text x={16} y={y + 4} fill="rgba(148,163,184,0.74)" fontSize="12" fontFamily="var(--font-mono)">
                   {value.toFixed(0)} mm/s
                 </text>
               </g>
@@ -122,7 +122,7 @@ export function AnomalyOverviewChart({ points }: { points: ChartPoint[] }) {
                 x2={xForIndex(index)}
                 y1={padding.top}
                 y2={height - padding.bottom}
-                stroke="rgba(148,163,184,0.08)"
+                stroke="rgba(148,163,184,0.07)"
               />
               {index < points.length - 1 ? null : (
                 <text
@@ -130,7 +130,7 @@ export function AnomalyOverviewChart({ points }: { points: ChartPoint[] }) {
                   y={height - 12}
                   textAnchor="middle"
                   fill="rgba(148,163,184,0.72)"
-                  fontSize="11"
+                  fontSize="12"
                   fontFamily="var(--font-mono)"
                 >
                   {point.timestamp}
@@ -142,7 +142,7 @@ export function AnomalyOverviewChart({ points }: { points: ChartPoint[] }) {
                   y={height - 12}
                   textAnchor="middle"
                   fill="rgba(148,163,184,0.72)"
-                  fontSize="11"
+                  fontSize="12"
                   fontFamily="var(--font-mono)"
                 >
                   {point.timestamp}
@@ -154,7 +154,7 @@ export function AnomalyOverviewChart({ points }: { points: ChartPoint[] }) {
           {anomalyWindows.map((window, index) => {
             const startX = xForIndex(window.start) - xStep / 2;
             const endX = xForIndex(window.end) + xStep / 2;
-            const tone = window.severity === "Critical" ? "rgba(239,68,68,0.12)" : "rgba(59,130,246,0.09)";
+            const tone = window.severity === "Critical" ? "rgba(239,68,68,0.1)" : "rgba(59,130,246,0.075)";
 
             return (
               <rect
@@ -168,8 +168,8 @@ export function AnomalyOverviewChart({ points }: { points: ChartPoint[] }) {
             );
           })}
 
-          <path d={expectedBandPath} fill="rgba(59,130,246,0.14)" stroke="rgba(59,130,246,0.12)" strokeWidth="1" />
-          <path d={centerLinePath} fill="none" stroke="rgba(148,163,184,0.34)" strokeDasharray="6 7" strokeWidth="1.1" />
+          <path d={expectedBandPath} fill="rgba(59,130,246,0.12)" stroke="rgba(59,130,246,0.1)" strokeWidth="1" />
+          <path d={centerLinePath} fill="none" stroke="rgba(148,163,184,0.28)" strokeDasharray="6 7" strokeWidth="1" />
           <path d={actualLinePath} fill="none" stroke="#f3f7fa" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
 
           {points.map((point, index) => {
@@ -183,7 +183,7 @@ export function AnomalyOverviewChart({ points }: { points: ChartPoint[] }) {
                 <circle
                   cx={xForIndex(index)}
                   cy={yForValue(point.actual)}
-                  r={hoveredIndex === index ? 6.5 : 4}
+                  r={hoveredIndex === index ? 6 : 3.8}
                   fill={isAnomaly ? severityDot[point.severity] : "#f3f7fa"}
                   stroke={isAnomaly ? "rgba(255,255,255,0.28)" : "rgba(11,18,32,0.9)"}
                   strokeWidth={hoveredIndex === index ? 2 : 1.5}
@@ -199,7 +199,7 @@ export function AnomalyOverviewChart({ points }: { points: ChartPoint[] }) {
                 x2={hoveredX}
                 y1={padding.top}
                 y2={height - padding.bottom}
-                stroke="rgba(148,163,184,0.42)"
+                stroke="rgba(148,163,184,0.34)"
                 strokeDasharray="4 6"
               />
               <circle cx={hoveredX} cy={hoveredY} r={8} fill="transparent" stroke="rgba(59,130,246,0.3)" strokeWidth="1.5" />
@@ -210,32 +210,32 @@ export function AnomalyOverviewChart({ points }: { points: ChartPoint[] }) {
 
       {hoveredPoint && hoveredX !== null && hoveredY !== null ? (
         <div
-          className="pointer-events-none absolute z-10 w-[220px] rounded-2xl border border-[rgba(120,160,255,0.12)] bg-[rgba(11,18,32,0.98)] p-4 shadow-[0_18px_40px_rgba(0,0,0,0.42)]"
+          className="pointer-events-none absolute z-10 w-[118px] rounded-[9px] border border-[rgba(120,160,255,0.018)] bg-[rgba(11,18,32,0.72)] p-[2px] shadow-[0_1px_3px_rgba(0,0,0,0.09)]"
           style={{
-            left: `clamp(12px, calc(${((hoveredX / width) * 100).toFixed(2)}% - 110px), calc(100% - 232px))`,
-            top: hoveredY < 110 ? hoveredY + 40 : hoveredY - 104,
+            left: `clamp(12px, calc(${((hoveredX / width) * 100).toFixed(2)}% - 59px), calc(100% - 130px))`,
+            top: hoveredY < 110 ? hoveredY + 6 : hoveredY - 44,
           }}
         >
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start justify-between gap-2">
             <div>
               <p className="dashboard-meta text-mist/44">Time</p>
-              <p className="mt-1 text-sm font-medium text-white">{formatTimestampLabel(hoveredPoint.timestamp)}</p>
+              <p className="mt-0.5 text-[9.5px] font-medium text-white">{formatTimestampLabel(hoveredPoint.timestamp)}</p>
             </div>
             <span className={`dashboard-meta ${severityText[hoveredPoint.severity]}`}>{hoveredPoint.severity}</span>
           </div>
 
-          <div className="mt-4 space-y-3 text-sm">
-            <div className="flex items-center justify-between gap-4">
+          <div className="mt-0.5 space-y-0 text-[9px]">
+            <div className="flex items-center justify-between gap-3">
               <span className="dashboard-meta text-mist/52">Actual</span>
               <span className="font-mono font-semibold text-white">{hoveredPoint.actual.toFixed(1)} mm/s</span>
             </div>
-            <div className="flex items-center justify-between gap-4">
-              <span className="dashboard-meta text-mist/52">Expected</span>
+            <div className="flex items-center justify-between gap-3">
+              <span className="dashboard-meta text-mist/52">Tolerance</span>
               <span className="font-mono font-semibold text-white">
                 {hoveredPoint.expectedMin.toFixed(1)}-{hoveredPoint.expectedMax.toFixed(1)} mm/s
               </span>
             </div>
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center justify-between gap-3">
               <span className="dashboard-meta text-mist/52">Deviation</span>
               <span className="font-mono font-semibold text-ember">{getDeviation(hoveredPoint.actual, hoveredPoint.expectedMin, hoveredPoint.expectedMax).toFixed(0)}%</span>
             </div>

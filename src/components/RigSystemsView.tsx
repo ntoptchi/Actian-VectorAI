@@ -191,11 +191,11 @@ export function RigSystemsView({ config }: { config: RigTopologyConfig }) {
 
   return (
     <section className="dashboard-card dashboard-card-strong p-5">
-      <div className="flex flex-col gap-4 border-b border-[rgba(120,160,255,0.08)] pb-4 lg:flex-row lg:items-start lg:justify-between">
+      <div className="flex flex-col gap-3.5 border-b border-[rgba(120,160,255,0.08)] pb-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="dashboard-eyebrow">Rig Systems View</p>
           <h3 className="mt-2 text-xl font-semibold text-white">Asset Topology</h3>
-          <p className="mt-2 text-sm text-mist/66">{config.viewLabel ?? "Operational schematic by zone"}</p>
+          <p className="mt-1.5 text-sm text-mist/64">{config.viewLabel ?? "System layout by operating zone"}</p>
         </div>
         <div className="rounded-2xl border border-[rgba(120,160,255,0.12)] bg-[rgba(15,23,38,0.78)] px-4 py-3">
           <p className="dashboard-meta text-mist/42">Rig</p>
@@ -209,16 +209,16 @@ export function RigSystemsView({ config }: { config: RigTopologyConfig }) {
           <p className="mt-2 text-2xl font-semibold text-white">{stats.total}</p>
         </div>
         <div className="rounded-2xl border border-[rgba(120,160,255,0.08)] bg-[rgba(15,23,38,0.72)] px-4 py-3">
-          <p className="dashboard-meta text-mist/42">Active anomalies</p>
+          <p className="dashboard-meta text-mist/42">Active excursions</p>
           <p className="mt-2 text-2xl font-semibold text-warning">{stats.active}</p>
         </div>
         <div className="rounded-2xl border border-[rgba(120,160,255,0.08)] bg-[rgba(15,23,38,0.72)] px-4 py-3">
-          <p className="dashboard-meta text-mist/42">Critical assets</p>
+          <p className="dashboard-meta text-mist/42">Trip-risk assets</p>
           <p className="mt-2 text-2xl font-semibold text-ember">{stats.critical}</p>
         </div>
       </div>
 
-      <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_220px]">
+      <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_228px]">
         <div className="relative overflow-hidden rounded-[24px] border border-[rgba(120,160,255,0.08)] bg-[rgba(8,12,20,0.94)] p-3 sm:p-4">
           <div className="pointer-events-none absolute inset-0 bg-grid bg-[size:34px_34px] opacity-[0.05]" />
           <div className="pointer-events-none absolute inset-x-10 top-0 h-28 bg-gradient-to-b from-signal/6 to-transparent" />
@@ -378,7 +378,7 @@ export function RigSystemsView({ config }: { config: RigTopologyConfig }) {
                     <span className="font-mono font-medium text-white">{hoveredAsset.anomalyScore ?? "--"}</span>
                   </div>
                   <div className="flex items-center justify-between gap-4">
-                    <span className="dashboard-meta text-mist/52">Metric</span>
+                    <span className="dashboard-meta text-mist/52">Reading</span>
                     <span className="font-mono font-medium text-white">{hoveredAsset.metricValue ?? "--"}</span>
                   </div>
                 </div>
@@ -399,32 +399,32 @@ export function RigSystemsView({ config }: { config: RigTopologyConfig }) {
           </div>
         </div>
 
-        <aside className="rounded-[24px] border border-[rgba(120,160,255,0.08)] bg-[rgba(15,23,38,0.74)] p-4">
+        <aside className="rounded-[24px] border border-[rgba(120,160,255,0.1)] bg-[linear-gradient(180deg,rgba(18,28,44,0.9),rgba(11,18,32,0.84))] p-4">
           <p className="dashboard-meta text-mist/42">Selected asset</p>
           {selectedAsset ? (
             <div className="mt-3">
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start justify-between gap-3 border-b border-[rgba(120,160,255,0.08)] pb-3">
                 <div>
-                  <h4 className="text-base font-semibold text-white">{selectedAsset.label}</h4>
-                  <p className="dashboard-meta mt-1 text-mist/58">{selectedAsset.type}</p>
+                  <h4 className="text-[1.02rem] font-semibold text-white">{selectedAsset.label}</h4>
+                  <p className="dashboard-meta mt-1 text-mist/54">{selectedAsset.type}</p>
                 </div>
                 <span className={`dashboard-meta rounded-full border px-2.5 py-1 ${statusStyles[selectedAsset.status].badge}`}>
                   {formatStatus(selectedAsset.status)}
                 </span>
               </div>
 
-              <div className="mt-4 space-y-3">
-                <div className="rounded-2xl border border-[rgba(120,160,255,0.08)] bg-[rgba(11,18,32,0.72)] p-3">
-                  <p className="dashboard-meta text-mist/42">Latest metric</p>
-                  <p className="font-mono mt-2 text-sm font-medium text-white">{selectedAsset.metricValue ?? "--"}</p>
+              <div className="mt-3.5 space-y-2.5">
+                <div className="rounded-2xl border border-[rgba(120,160,255,0.08)] bg-[rgba(11,18,32,0.76)] p-3">
+                  <p className="dashboard-meta text-mist/42">Latest reading</p>
+                  <p className="font-mono mt-1.5 text-sm font-medium text-white">{selectedAsset.metricValue ?? "--"}</p>
                 </div>
-                <div className="rounded-2xl border border-[rgba(120,160,255,0.08)] bg-[rgba(11,18,32,0.72)] p-3">
+                <div className="rounded-2xl border border-[rgba(120,160,255,0.08)] bg-[rgba(11,18,32,0.76)] p-3">
                   <p className="dashboard-meta text-mist/42">Score</p>
-                  <p className="font-mono mt-2 text-sm font-medium text-white">{selectedAsset.anomalyScore ?? "--"}</p>
+                  <p className="font-mono mt-1.5 text-sm font-medium text-white">{selectedAsset.anomalyScore ?? "--"}</p>
                 </div>
-                <div className="rounded-2xl border border-[rgba(120,160,255,0.08)] bg-[rgba(11,18,32,0.72)] p-3">
+                <div className="rounded-2xl border border-[rgba(120,160,255,0.08)] bg-[rgba(11,18,32,0.76)] p-3">
                   <p className="dashboard-meta text-mist/42">Last updated</p>
-                  <p className="font-mono mt-2 text-sm font-medium text-white">{selectedAsset.lastUpdated ?? "--"}</p>
+                  <p className="font-mono mt-1.5 text-sm font-medium text-white">{selectedAsset.lastUpdated ?? "--"}</p>
                 </div>
               </div>
             </div>
