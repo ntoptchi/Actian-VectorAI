@@ -31,11 +31,20 @@ INDEXED_PAYLOAD_FIELDS: tuple[str, ...] = (
 
 @lru_cache(maxsize=1)
 def get_client():  # type: ignore[no-untyped-def]
-    """Return a process-cached ``VectorAIClient`` connected to the DB."""
+    """Return a process-cached ``VectorAIClient`` connected to the DB.
+
+    The sync client requires an explicit ``connect()`` (or ``with`` block)
+    before any RPC; we call it here so callers don't have to think about it.
+    """
     from actian_vectorai import VectorAIClient
 
     settings = get_settings()
-    return VectorAIClient(settings.vdb_address)
+    client = VectorAIClient(settings.vdb_address)
+    try:
+        client.connect()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("VDB connect failed at %s: %s", settings.vdb_address, exc)
+    return client
 
 
 def ensure_collection() -> None:

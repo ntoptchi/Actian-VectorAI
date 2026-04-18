@@ -20,15 +20,19 @@ dist/
 node_modules/
 .pnp
 .pnp.js
-/coverage
-/.next/
-/out/
+coverage/
+.next/
+out/
 next-env.d.ts
-/build
+build/
 *.tsbuildinfo
 
-# nested project node_modules (e.g. routewise/node_modules)
+# nested project build output / deps (e.g. routewise/.next, routewise/node_modules)
 **/node_modules/
+**/.next/
+**/out/
+**/build/
+**/coverage/
 
 # debug logs
 npm-debug.log*

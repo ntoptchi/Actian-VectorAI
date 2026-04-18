@@ -2,7 +2,9 @@
 # Minimal, install-script-driven; pinned loosely to mirror RigSense.
 
 # --- Embeddings (offline MiniLM) ---
-sentence-transformers>=3.0,<4
+# 5.x is required for the model files in models/all-MiniLM-L6-v2 (modules.json
+# references sentence_transformers.base.modules.transformer.Transformer).
+sentence-transformers>=5.0,<6
 torch>=2.2
 
 # --- Vector DB client (installed from local wheel by install script) ---
