@@ -1,17 +1,20 @@
+import { useEffect, useRef, useState } from "react";
 import { AnomalyOverviewChart } from "./components/AnomalyOverviewChart";
 import { RigSystemsView } from "./components/RigSystemsView";
 import {
-  alertSummary,
-  anomalies,
-  anomalyChart,
-  demoRigTopology,
-  incidentMatches,
-  insights,
-  metrics,
-  responseTimeline,
+  defaultAlertSummary,
+  defaultAnomalies,
+  defaultAnomalyChart,
+  defaultIncidentMatches,
+  defaultInsights,
+  defaultMetrics,
+  defaultResponseTimeline,
+  defaultRigTopology,
+  type Anomaly,
   type IncidentMatch,
   type Severity,
 } from "./data/dashboardData";
+import { useLiveDashboard } from "./hooks/useLiveDashboard";
 
 const severityBadgeStyles: Record<Severity, string> = {
   Critical: "border-danger/40 bg-danger/10 text-ember",
@@ -204,15 +207,21 @@ function StatusBanner({
 function AnomalyCard({
   anomaly,
   index,
+  isFresh,
 }: {
-  anomaly: (typeof anomalies)[number];
+  anomaly: Anomaly;
   index: number;
+  isFresh?: boolean;
 }) {
   const currentValue = splitMetricValue(anomaly.value);
   const expectedValue = splitMetricValue(anomaly.expected);
 
   return (
-    <article className="dashboard-card group relative overflow-hidden p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-[rgba(120,160,255,0.18)]">
+    <article
+      className={`dashboard-card group relative overflow-hidden p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-[rgba(120,160,255,0.18)] ${
+        isFresh ? "animate-pulse ring-1 ring-signal/40" : ""
+      }`}
+    >
       <div className={`absolute inset-y-0 left-0 w-1 ${severityAccentStyles[anomaly.severity]}`} />
       <div className="flex flex-col gap-4 pl-2 xl:flex-row xl:items-start xl:justify-between">
         <div className="min-w-0">
@@ -309,7 +318,7 @@ function InsightCard({
   );
 }
 
-function BaselineComparisonCard({ anomaly }: { anomaly: (typeof anomalies)[number] }) {
+function BaselineComparisonCard({ anomaly }: { anomaly: Anomaly }) {
   const deviationValue = Number.parseInt(anomaly.deviation.replace(/[^\d-]/g, ""), 10);
   const currentRatio = Math.min(92, 38 + deviationValue / 6);
   const expectedStart = Math.max(8, currentRatio - 24);
@@ -347,7 +356,43 @@ function BaselineComparisonCard({ anomaly }: { anomaly: (typeof anomalies)[numbe
 }
 
 function App() {
-  const primaryIncident = incidentMatches[0];
+  const { state, isLive, lastUpdated } = useLiveDashboard();
+
+  const metrics = state?.metrics ?? defaultMetrics;
+  const alertSummary = state?.alertSummary ?? defaultAlertSummary;
+  const anomalies = state?.anomalies?.length ? state.anomalies : defaultAnomalies;
+  const incidentMatches = state?.incidentMatches?.length
+    ? state.incidentMatches
+    : defaultIncidentMatches;
+  const insights = state?.insights?.length ? state.insights : defaultInsights;
+  const anomalyChart = state?.anomalyChart?.length
+    ? state.anomalyChart
+    : defaultAnomalyChart;
+  const responseTimeline = state?.responseTimeline?.length
+    ? state.responseTimeline
+    : defaultResponseTimeline;
+  const rigTopology = state?.rigTopology ?? defaultRigTopology;
+
+  // Flash newly-arrived anomalies for 2s.
+  const [freshIds, setFreshIds] = useState<Set<string>>(new Set());
+  const prevIds = useRef<Set<string>>(new Set(defaultAnomalies.map((a) => a.id)));
+  useEffect(() => {
+    const current = new Set(anomalies.map((a) => a.id));
+    const incoming = [...current].filter((id) => !prevIds.current.has(id));
+    if (incoming.length > 0) {
+      setFreshIds((prev) => new Set([...prev, ...incoming]));
+      window.setTimeout(() => {
+        setFreshIds((prev) => {
+          const next = new Set(prev);
+          incoming.forEach((id) => next.delete(id));
+          return next;
+        });
+      }, 2000);
+    }
+    prevIds.current = current;
+  }, [anomalies]);
+
+  const primaryIncident = incidentMatches[0] ?? defaultIncidentMatches[0];
   const orderedMetrics = [
     metrics.find((metric) => metric.label === "Systems affected"),
     metrics.find((metric) => metric.label === "Median restore path"),
@@ -358,7 +403,12 @@ function App() {
     ...alertSummary.filter((item) => item.label === "Critical window"),
     ...alertSummary.filter((item) => item.label === "Affected asset"),
     ...alertSummary.filter((item) => item.label === "Top driver"),
-    ...alertSummary.filter((item) => item.label !== "Critical window" && item.label !== "Affected asset" && item.label !== "Top driver"),
+    ...alertSummary.filter(
+      (item) =>
+        item.label !== "Critical window" &&
+        item.label !== "Affected asset" &&
+        item.label !== "Top driver",
+    ),
   ];
 
   return (
@@ -372,6 +422,21 @@ function App() {
 
           <div className="relative z-10 space-y-9">
             <section className="space-y-3.5">
+              <div className="flex items-center justify-end gap-2 text-[11px] uppercase tracking-[0.18em]">
+                <span
+                  className={`h-1.5 w-1.5 rounded-full ${
+                    isLive ? "bg-surge animate-pulse" : "bg-mist/30"
+                  }`}
+                />
+                <span className={isLive ? "text-surge/80" : "text-mist/40"}>
+                  {isLive ? "Live" : "Offline · fallback data"}
+                </span>
+                {lastUpdated ? (
+                  <span className="text-mist/40">
+                    · {lastUpdated.toLocaleTimeString()}
+                  </span>
+                ) : null}
+              </div>
               <StatusBanner
                 severity="Critical excursion active"
                 asset="Compressor line 3 / north wing"
@@ -455,7 +520,12 @@ function App() {
                 <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_360px]">
                   <div className="space-y-3.5">
                     {anomalies.map((anomaly, index) => (
-                      <AnomalyCard key={anomaly.id} anomaly={anomaly} index={index} />
+                      <AnomalyCard
+                        key={anomaly.id}
+                        anomaly={anomaly}
+                        index={index}
+                        isFresh={freshIds.has(anomaly.id)}
+                      />
                     ))}
                   </div>
 
@@ -492,7 +562,7 @@ function App() {
                 </div>
 
                 <div className="grid gap-5 xl:grid-cols-[minmax(0,1.65fr)_minmax(320px,1fr)] xl:items-stretch">
-                  <RigSystemsView config={demoRigTopology} />
+                  <RigSystemsView config={rigTopology} />
 
                   <section className="dashboard-card p-5">
                     <div className="flex items-start justify-between gap-4">

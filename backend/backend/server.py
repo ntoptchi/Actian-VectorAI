@@ -1,30 +1,41 @@
-"""Minimal HTTP layer for the RigSense pipeline.
+"""HTTP layer for the RigSense pipeline.
 
-Exposes two endpoints for the React dashboard:
+Endpoints:
 
-* ``GET  /health``  - liveness + VectorAI server version
-* ``GET  /demo``    - run the synthetic stream through the orchestrator
-                       and return every ``AnomalyReport`` as JSON.
-* ``POST /analyze`` - run detect/classify/retrieve on a client-supplied
-                       baseline window + current reading.
+* ``GET  /health``            - liveness + VectorAI server version
+* ``GET  /demo``              - run the synthetic stream through the orchestrator
+* ``POST /analyze``           - run detect/classify/retrieve on a client-supplied
+                                 baseline window + current reading
+* ``POST /ingest``            - feed a live SensorReading into the in-memory
+                                 LiveState; once the window fills, auto-run
+                                 detect/classify/retrieve and cache the report
+* ``GET  /state/dashboard``   - return a DashboardState shape that mirrors
+                                 ``src/data/dashboardData.ts``
 
 Kept deliberately small; the real pipeline lives in ``backend.pipeline``.
 """
 
 from __future__ import annotations
 
+import logging
 from contextlib import asynccontextmanager
+from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from .config import get_settings
 from .db.client import get_client
+from .live import build_dashboard_state
 from .pipeline.detect import BaselineStats
 from .pipeline.orchestrator import analyze, stream_window
 from .schemas import AnomalyReport, SensorReading
 from .seed.sample_sensors import generate_sample_stream
+from .state import WINDOW, get_live_state
+
+
+log = logging.getLogger("rigsense.server")
 
 
 class AnalyzeRequest(BaseModel):
@@ -40,6 +51,8 @@ class HealthResponse(BaseModel):
 
 @asynccontextmanager
 async def _lifespan(_app: FastAPI):
+    # Warm the live-state singleton so /ingest is usable from tick 1.
+    get_live_state()
     yield
 
 
@@ -95,3 +108,37 @@ def analyze_endpoint(req: AnalyzeRequest) -> AnomalyReport | None:
     baseline = BaselineStats.from_window(req.baseline_window)
     with get_client() as client:
         return analyze(client, req.reading, baseline)
+
+
+@app.post("/ingest", status_code=202)
+def ingest(reading: SensorReading) -> Response:
+    """Push a live SensorReading into the per-asset ring buffer.
+
+    Once the buffer has at least ``WINDOW // 2`` samples, we run the pipeline
+    and cache the resulting AnomalyReport (if any) on LiveState. Failures in
+    the pipeline log-and-swallow so a single bad classify call doesn't stop
+    the feed.
+    """
+    live = get_live_state()
+    live.push_reading(reading)
+    window = live.window(reading.asset_id)
+    if len(window) < max(WINDOW // 2, 15):
+        return Response(status_code=202)
+
+    baseline = BaselineStats.from_window(window[:-1] or [reading])
+    try:
+        with get_client() as client:
+            report = analyze(client, reading, baseline)
+    except Exception as exc:
+        log.warning("ingest analyze failed: %s", exc)
+        return Response(status_code=202)
+
+    if report is not None:
+        live.record_report(report)
+    return Response(status_code=202)
+
+
+@app.get("/state/dashboard")
+def state_dashboard() -> dict[str, Any]:
+    live = get_live_state()
+    return build_dashboard_state(live)

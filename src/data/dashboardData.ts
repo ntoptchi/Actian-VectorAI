@@ -89,14 +89,30 @@ export type RigTopologyConfig = {
   links?: TopologyLink[];
 };
 
-export const metrics: Metric[] = [
+export type DashboardState = {
+  metrics: Metric[];
+  alertSummary: AlertSummary[];
+  anomalies: Anomaly[];
+  incidentMatches: IncidentMatch[];
+  insights: Insight[];
+  anomalyChart: ChartPoint[];
+  responseTimeline: string[];
+  rigTopology: RigTopologyConfig;
+  stats?: {
+    assets_tracked: number;
+    reports_total: number;
+    readings_ingested: number;
+  };
+};
+
+export const defaultMetrics: Metric[] = [
   { label: "Active excursions", value: "12", change: "+4 vs 1h", trend: "up" },
   { label: "Systems affected", value: "5", change: "2 trip-risk", trend: "up" },
   { label: "Prior events linked", value: "28", change: "86% correlation", trend: "up" },
   { label: "Median restore path", value: "42 min", change: "-13 min", trend: "down" },
 ];
 
-export const alertSummary: AlertSummary[] = [
+export const defaultAlertSummary: AlertSummary[] = [
   {
     label: "Critical window",
     value: "14 min",
@@ -123,7 +139,7 @@ export const alertSummary: AlertSummary[] = [
   },
 ];
 
-export const anomalies: Anomaly[] = [
+export const defaultAnomalies: Anomaly[] = [
   {
     id: "AN-1042",
     metric: "Vibration amplitude",
@@ -166,7 +182,7 @@ export const anomalies: Anomaly[] = [
   },
 ];
 
-export const incidentMatches: IncidentMatch[] = [
+export const defaultIncidentMatches: IncidentMatch[] = [
   {
     id: "INC-8821",
     incident: "Compressor resonance spike during high-load transition",
@@ -196,7 +212,7 @@ export const incidentMatches: IncidentMatch[] = [
   },
 ];
 
-export const insights: Insight[] = [
+export const defaultInsights: Insight[] = [
   {
     title: "Probable failure mode",
     detail:
@@ -214,7 +230,7 @@ export const insights: Insight[] = [
   },
 ];
 
-export const responseTimeline = [
+export const defaultResponseTimeline: string[] = [
   "21:10 load transition started",
   "21:14 vibration exceeded tolerance",
   "21:17 bearing temperature entered trip-risk range",
@@ -222,7 +238,7 @@ export const responseTimeline = [
   "21:25 field response issued",
 ];
 
-export const anomalyChart: ChartPoint[] = [
+export const defaultAnomalyChart: ChartPoint[] = [
   { timestamp: "20:52", actual: 6.5, expectedMin: 5.6, expectedMax: 8.4, severity: "Watching" },
   { timestamp: "20:56", actual: 6.8, expectedMin: 5.7, expectedMax: 8.5, severity: "Watching" },
   { timestamp: "21:00", actual: 7.2, expectedMin: 5.9, expectedMax: 8.7, severity: "Watching" },
@@ -240,7 +256,7 @@ export const anomalyChart: ChartPoint[] = [
   { timestamp: "21:48", actual: 8.8, expectedMin: 6.3, expectedMax: 9.3, severity: "Watching" },
 ];
 
-export const demoRigTopology: RigTopologyConfig = {
+export const defaultRigTopology: RigTopologyConfig = {
   rigId: "rig-north-atlas-07",
   rigName: "North Atlas 07",
   viewLabel: "System layout by operating zone",
@@ -439,3 +455,13 @@ export const demoRigTopology: RigTopologyConfig = {
     { id: "l4", fromAssetId: "valve-12", toAssetId: "tank-04" },
   ],
 };
+
+export const metrics = defaultMetrics;
+export const alertSummary = defaultAlertSummary;
+export const anomalies = defaultAnomalies;
+export const incidentMatches = defaultIncidentMatches;
+export const insights = defaultInsights;
+export const anomalyChart = defaultAnomalyChart;
+export const responseTimeline = defaultResponseTimeline;
+export const demoRigTopology = defaultRigTopology;
+
