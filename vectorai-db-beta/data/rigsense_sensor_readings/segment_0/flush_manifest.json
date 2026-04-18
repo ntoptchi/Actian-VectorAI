@@ -1,0 +1,17 @@
+{
+  "checksum": "1c2acf1872cb5c4d",
+  "flushed_deleted_count": 0,
+  "format_version": 1,
+  "index_files": {
+    "": {
+      "index": "/data/rigsense_sensor_readings/segment_0/vectors/default/faiss.index",
+      "meta": "/data/rigsense_sensor_readings/segment_0/vectors/default/faiss.index.meta"
+    }
+  },
+  "max_allocated_internal_id": 118,
+  "store_watermarks": {
+    "": 639120830970673797,
+    "id_map": 639120830970688321,
+    "payload": 639120830970671723
+  }
+}
