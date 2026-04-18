@@ -1,0 +1,223 @@
+[2026-04-17 18:49:34.660] [vde] [info] Data store configure CACHE_SIZE_MB succeeded
+[2026-04-17 18:49:34.661] [vde] [info] Data store configure INI succeeded (/data/datastore.ini)
+[2026-04-17 18:49:36.024] [vde] [info] Data store initialization succeeded
+[2026-04-17 18:49:36.024] [vde] [info] VDE Engine initializing with work_dir: /data
+[2026-04-17 18:49:36.025] [vde] [info] [FlushManager] Started (check_interval=30s, min_threshold=100, max_interval=3600s)
+[2026-04-17 18:49:36.025] [vde] [info] VectorIndexRegistry and VectorRepositoryRegistry created
+[2026-04-17 19:00:59.975] [vde] [info] [VDEEngine::CreateCollection(unified)] Creating 'rigsense_sensor_readings' with 1 vector space(s)
+[2026-04-17 19:00:59.982] [vde] [info] [VDECollection::Init(unified)] name=rigsense_sensor_readings, num_vectors=1
+[2026-04-17 19:00:59.983] [vde] [info] [VDECollection::SaveMetadata] Saving metadata for collection 'rigsense_sensor_readings' to: /data/rigsense_sensor_readings/metadata.json
+[2026-04-17 19:00:59.997] [vde] [info] [VDECollection::SaveMetadata] Metadata saved to /data/rigsense_sensor_readings/metadata.json (storage_type=StorageType::BTRIEVE_FILE, index_driver_type=IndexDriverType::FAISS)
+[2026-04-17 19:01:00.122] [vde] [info] [PersistentIdMap::Open] File does not exist, creating: /data/rigsense_sensor_readings/segment_0/id_map.btr
+[2026-04-17 19:01:00.244] [vde] [info] [PersistentIdMap::CreateFileStore] id_map file created: /data/rigsense_sensor_readings/segment_0/id_map.btr
+[2026-04-17 19:01:00.244] [vde] [info] [PersistentIdMap::Open] Opened with 0 mappings, next_internal_id=0
+[2026-04-17 19:01:00.465] [vde] [info] [DenseBtrieveStore::Open] File does not exist, creating: /data/rigsense_sensor_readings/segment_0/vectors/_default/vectors.btr
+[2026-04-17 19:01:00.589] [vde] [info] [DenseBtrieveStore::CreateFile] Created file: /data/rigsense_sensor_readings/segment_0/vectors/_default/vectors.btr (dim=6, record_len=40)
+[2026-04-17 19:01:00.589] [vde] [info] [DenseBtrieveStore::Open] Opened (dim=6, record_len=40)
+[2026-04-17 19:01:00.648] [vde] [info] [SegmentStateStore::Open] File does not exist, creating: /data/rigsense_sensor_readings/segment_0/segment_state.btr
+[2026-04-17 19:01:00.712] [vde] [info] [SegmentStateStore::CreateFile] segment_state file created: /data/rigsense_sensor_readings/segment_0/segment_state.btr
+[2026-04-17 19:01:00.712] [vde] [info] [SegmentStateStore::Open] max_allocated_internal_id=0, schema_version=1, freshly_created=true
+[2026-04-17 19:01:00.713] [vde] [info] [VDECollection::Init(unified)] LocalShard initialized with 1 vector space(s)
+[2026-04-17 19:01:00.713] [vde] [info] [FlushManager] Registered collection 'rigsense_sensor_readings'
+[2026-04-17 19:01:00.713] [vde] [info] [VDEEngine::CreateCollection(unified)] Collection 'rigsense_sensor_readings' created successfully
+[2026-04-17 19:01:00.721] [vde] [info] [VDEEngine::CreateCollection(unified)] Creating 'rigsense_past_incidents' with 1 vector space(s)
+[2026-04-17 19:01:00.726] [vde] [info] [VDECollection::Init(unified)] name=rigsense_past_incidents, num_vectors=1
+[2026-04-17 19:01:00.726] [vde] [info] [VDECollection::SaveMetadata] Saving metadata for collection 'rigsense_past_incidents' to: /data/rigsense_past_incidents/metadata.json
+[2026-04-17 19:01:00.738] [vde] [info] [VDECollection::SaveMetadata] Metadata saved to /data/rigsense_past_incidents/metadata.json (storage_type=StorageType::BTRIEVE_FILE, index_driver_type=IndexDriverType::FAISS)
+[2026-04-17 19:01:00.853] [vde] [info] [PersistentIdMap::Open] File does not exist, creating: /data/rigsense_past_incidents/segment_0/id_map.btr
+[2026-04-17 19:01:00.978] [vde] [info] [PersistentIdMap::CreateFileStore] id_map file created: /data/rigsense_past_incidents/segment_0/id_map.btr
+[2026-04-17 19:01:00.978] [vde] [info] [PersistentIdMap::Open] Opened with 0 mappings, next_internal_id=0
+[2026-04-17 19:01:01.181] [vde] [info] [DenseBtrieveStore::Open] File does not exist, creating: /data/rigsense_past_incidents/segment_0/vectors/_default/vectors.btr
+[2026-04-17 19:01:01.298] [vde] [info] [DenseBtrieveStore::CreateFile] Created file: /data/rigsense_past_incidents/segment_0/vectors/_default/vectors.btr (dim=384, record_len=1552)
+[2026-04-17 19:01:01.299] [vde] [info] [DenseBtrieveStore::Open] Opened (dim=384, record_len=1552)
+[2026-04-17 19:01:01.359] [vde] [info] [SegmentStateStore::Open] File does not exist, creating: /data/rigsense_past_incidents/segment_0/segment_state.btr
+[2026-04-17 19:01:01.422] [vde] [info] [SegmentStateStore::CreateFile] segment_state file created: /data/rigsense_past_incidents/segment_0/segment_state.btr
+[2026-04-17 19:01:01.422] [vde] [info] [SegmentStateStore::Open] max_allocated_internal_id=0, schema_version=1, freshly_created=true
+[2026-04-17 19:01:01.422] [vde] [info] [VDECollection::Init(unified)] LocalShard initialized with 1 vector space(s)
+[2026-04-17 19:01:01.422] [vde] [info] [FlushManager] Registered collection 'rigsense_past_incidents'
+[2026-04-17 19:01:01.422] [vde] [info] [VDEEngine::CreateCollection(unified)] Collection 'rigsense_past_incidents' created successfully
+[2026-04-17 19:01:01.432] [vde] [info] [VDEEngine::CreateCollection(unified)] Creating 'rigsense_manuals' with 1 vector space(s)
+[2026-04-17 19:01:01.437] [vde] [info] [VDECollection::Init(unified)] name=rigsense_manuals, num_vectors=1
+[2026-04-17 19:01:01.437] [vde] [info] [VDECollection::SaveMetadata] Saving metadata for collection 'rigsense_manuals' to: /data/rigsense_manuals/metadata.json
+[2026-04-17 19:01:01.448] [vde] [info] [VDECollection::SaveMetadata] Metadata saved to /data/rigsense_manuals/metadata.json (storage_type=StorageType::BTRIEVE_FILE, index_driver_type=IndexDriverType::FAISS)
+[2026-04-17 19:01:01.571] [vde] [info] [PersistentIdMap::Open] File does not exist, creating: /data/rigsense_manuals/segment_0/id_map.btr
+[2026-04-17 19:01:01.693] [vde] [info] [PersistentIdMap::CreateFileStore] id_map file created: /data/rigsense_manuals/segment_0/id_map.btr
+[2026-04-17 19:01:01.693] [vde] [info] [PersistentIdMap::Open] Opened with 0 mappings, next_internal_id=0
+[2026-04-17 19:01:01.904] [vde] [info] [DenseBtrieveStore::Open] File does not exist, creating: /data/rigsense_manuals/segment_0/vectors/_default/vectors.btr
+[2026-04-17 19:01:02.011] [vde] [info] [DenseBtrieveStore::CreateFile] Created file: /data/rigsense_manuals/segment_0/vectors/_default/vectors.btr (dim=384, record_len=1552)
+[2026-04-17 19:01:02.011] [vde] [info] [DenseBtrieveStore::Open] Opened (dim=384, record_len=1552)
+[2026-04-17 19:01:02.062] [vde] [info] [SegmentStateStore::Open] File does not exist, creating: /data/rigsense_manuals/segment_0/segment_state.btr
+[2026-04-17 19:01:02.123] [vde] [info] [SegmentStateStore::CreateFile] segment_state file created: /data/rigsense_manuals/segment_0/segment_state.btr
+[2026-04-17 19:01:02.123] [vde] [info] [SegmentStateStore::Open] max_allocated_internal_id=0, schema_version=1, freshly_created=true
+[2026-04-17 19:01:02.123] [vde] [info] [VDECollection::Init(unified)] LocalShard initialized with 1 vector space(s)
+[2026-04-17 19:01:02.124] [vde] [info] [FlushManager] Registered collection 'rigsense_manuals'
+[2026-04-17 19:01:02.124] [vde] [info] [VDEEngine::CreateCollection(unified)] Collection 'rigsense_manuals' created successfully
+[2026-04-17 19:01:02.133] [vde] [info] [VDEEngine::CreateCollection(unified)] Creating 'rigsense_manual_chunks' with 1 vector space(s)
+[2026-04-17 19:01:02.137] [vde] [info] [VDECollection::Init(unified)] name=rigsense_manual_chunks, num_vectors=1
+[2026-04-17 19:01:02.137] [vde] [info] [VDECollection::SaveMetadata] Saving metadata for collection 'rigsense_manual_chunks' to: /data/rigsense_manual_chunks/metadata.json
+[2026-04-17 19:01:02.150] [vde] [info] [VDECollection::SaveMetadata] Metadata saved to /data/rigsense_manual_chunks/metadata.json (storage_type=StorageType::BTRIEVE_FILE, index_driver_type=IndexDriverType::FAISS)
+[2026-04-17 19:01:02.272] [vde] [info] [PersistentIdMap::Open] File does not exist, creating: /data/rigsense_manual_chunks/segment_0/id_map.btr
+[2026-04-17 19:01:02.390] [vde] [info] [PersistentIdMap::CreateFileStore] id_map file created: /data/rigsense_manual_chunks/segment_0/id_map.btr
+[2026-04-17 19:01:02.391] [vde] [info] [PersistentIdMap::Open] Opened with 0 mappings, next_internal_id=0
+[2026-04-17 19:01:02.606] [vde] [info] [DenseBtrieveStore::Open] File does not exist, creating: /data/rigsense_manual_chunks/segment_0/vectors/_default/vectors.btr
+[2026-04-17 19:01:02.736] [vde] [info] [DenseBtrieveStore::CreateFile] Created file: /data/rigsense_manual_chunks/segment_0/vectors/_default/vectors.btr (dim=384, record_len=1552)
+[2026-04-17 19:01:02.736] [vde] [info] [DenseBtrieveStore::Open] Opened (dim=384, record_len=1552)
+[2026-04-17 19:01:02.791] [vde] [info] [SegmentStateStore::Open] File does not exist, creating: /data/rigsense_manual_chunks/segment_0/segment_state.btr
+[2026-04-17 19:01:02.843] [vde] [info] [SegmentStateStore::CreateFile] segment_state file created: /data/rigsense_manual_chunks/segment_0/segment_state.btr
+[2026-04-17 19:01:02.844] [vde] [info] [SegmentStateStore::Open] max_allocated_internal_id=0, schema_version=1, freshly_created=true
+[2026-04-17 19:01:02.844] [vde] [info] [VDECollection::Init(unified)] LocalShard initialized with 1 vector space(s)
+[2026-04-17 19:01:02.844] [vde] [info] [FlushManager] Registered collection 'rigsense_manual_chunks'
+[2026-04-17 19:01:02.844] [vde] [info] [VDEEngine::CreateCollection(unified)] Collection 'rigsense_manual_chunks' created successfully
+[2026-04-17 19:01:55.688] [vde] [info] [VDEEngine::DeleteCollection] Deleting collection 'rigsense_sensor_readings'
+[2026-04-17 19:01:55.688] [vde] [info] [FlushManager] Unregistered collection 'rigsense_sensor_readings'
+[2026-04-17 19:01:55.688] [vde] [info] [VDEEngine::DeleteCollection] All operations on 'rigsense_sensor_readings' completed
+[2026-04-17 19:01:55.688] [vde] [info] [VDEEngine::DeleteCollection] Destroying storage resources for 'rigsense_sensor_readings'
+[2026-04-17 19:01:55.727] [vde] [info] [DenseBtrieveStore::Destroy] Destroying: /data/rigsense_sensor_readings/segment_0/vectors/_default/vectors.btr
+[2026-04-17 19:01:55.788] [vde] [info] [DenseBtrieveStore::Destroy] Destroyed: /data/rigsense_sensor_readings/segment_0/vectors/_default/vectors.btr
+[2026-04-17 19:01:55.788] [vde] [info] [VDECollection::~VDECollection] Destroying collection 'rigsense_sensor_readings'
+[2026-04-17 19:01:55.788] [vde] [info] [VDECollection::~VDECollection] Skipping snapshot save for deleted collection 'rigsense_sensor_readings'
+[2026-04-17 19:01:55.788] [vde] [info] [VDECollection::~VDECollection] Collection 'rigsense_sensor_readings' destroyed successfully
+[2026-04-17 19:01:55.793] [vde] [info] [VDEEngine::DeleteCollectionFromDisk] Removing collection directory: /data/rigsense_sensor_readings
+[2026-04-17 19:01:55.854] [vde] [info] [VDEEngine::DeleteCollectionFromDisk] Collection directory removed successfully: /data/rigsense_sensor_readings
+[2026-04-17 19:01:55.859] [vde] [info] [VDEEngine::CreateCollection(unified)] Creating 'rigsense_sensor_readings' with 1 vector space(s)
+[2026-04-17 19:01:55.864] [vde] [info] [VDECollection::Init(unified)] name=rigsense_sensor_readings, num_vectors=1
+[2026-04-17 19:01:55.864] [vde] [info] [VDECollection::SaveMetadata] Saving metadata for collection 'rigsense_sensor_readings' to: /data/rigsense_sensor_readings/metadata.json
+[2026-04-17 19:01:55.877] [vde] [info] [VDECollection::SaveMetadata] Metadata saved to /data/rigsense_sensor_readings/metadata.json (storage_type=StorageType::BTRIEVE_FILE, index_driver_type=IndexDriverType::FAISS)
+[2026-04-17 19:01:55.992] [vde] [info] [PersistentIdMap::Open] File does not exist, creating: /data/rigsense_sensor_readings/segment_0/id_map.btr
+[2026-04-17 19:01:56.103] [vde] [info] [PersistentIdMap::CreateFileStore] id_map file created: /data/rigsense_sensor_readings/segment_0/id_map.btr
+[2026-04-17 19:01:56.103] [vde] [info] [PersistentIdMap::Open] Opened with 0 mappings, next_internal_id=0
+[2026-04-17 19:01:56.303] [vde] [info] [DenseBtrieveStore::Open] File does not exist, creating: /data/rigsense_sensor_readings/segment_0/vectors/_default/vectors.btr
+[2026-04-17 19:01:56.403] [vde] [info] [DenseBtrieveStore::CreateFile] Created file: /data/rigsense_sensor_readings/segment_0/vectors/_default/vectors.btr (dim=6, record_len=40)
+[2026-04-17 19:01:56.404] [vde] [info] [DenseBtrieveStore::Open] Opened (dim=6, record_len=40)
+[2026-04-17 19:01:56.448] [vde] [info] [SegmentStateStore::Open] File does not exist, creating: /data/rigsense_sensor_readings/segment_0/segment_state.btr
+[2026-04-17 19:01:56.505] [vde] [info] [SegmentStateStore::CreateFile] segment_state file created: /data/rigsense_sensor_readings/segment_0/segment_state.btr
+[2026-04-17 19:01:56.505] [vde] [info] [SegmentStateStore::Open] max_allocated_internal_id=0, schema_version=1, freshly_created=true
+[2026-04-17 19:01:56.505] [vde] [info] [VDECollection::Init(unified)] LocalShard initialized with 1 vector space(s)
+[2026-04-17 19:01:56.505] [vde] [info] [FlushManager] Registered collection 'rigsense_sensor_readings'
+[2026-04-17 19:01:56.505] [vde] [info] [VDEEngine::CreateCollection(unified)] Collection 'rigsense_sensor_readings' created successfully
+[2026-04-17 19:01:56.515] [vde] [info] [VDEEngine::DeleteCollection] Deleting collection 'rigsense_past_incidents'
+[2026-04-17 19:01:56.515] [vde] [info] [FlushManager] Unregistered collection 'rigsense_past_incidents'
+[2026-04-17 19:01:56.515] [vde] [info] [VDEEngine::DeleteCollection] All operations on 'rigsense_past_incidents' completed
+[2026-04-17 19:01:56.515] [vde] [info] [VDEEngine::DeleteCollection] Destroying storage resources for 'rigsense_past_incidents'
+[2026-04-17 19:01:56.571] [vde] [info] [DenseBtrieveStore::Destroy] Destroying: /data/rigsense_past_incidents/segment_0/vectors/_default/vectors.btr
+[2026-04-17 19:01:56.646] [vde] [info] [DenseBtrieveStore::Destroy] Destroyed: /data/rigsense_past_incidents/segment_0/vectors/_default/vectors.btr
+[2026-04-17 19:01:56.646] [vde] [info] [VDECollection::~VDECollection] Destroying collection 'rigsense_past_incidents'
+[2026-04-17 19:01:56.646] [vde] [info] [VDECollection::~VDECollection] Skipping snapshot save for deleted collection 'rigsense_past_incidents'
+[2026-04-17 19:01:56.646] [vde] [info] [VDECollection::~VDECollection] Collection 'rigsense_past_incidents' destroyed successfully
+[2026-04-17 19:01:56.650] [vde] [info] [VDEEngine::DeleteCollectionFromDisk] Removing collection directory: /data/rigsense_past_incidents
+[2026-04-17 19:01:56.716] [vde] [info] [VDEEngine::DeleteCollectionFromDisk] Collection directory removed successfully: /data/rigsense_past_incidents
+[2026-04-17 19:01:56.721] [vde] [info] [VDEEngine::CreateCollection(unified)] Creating 'rigsense_past_incidents' with 1 vector space(s)
+[2026-04-17 19:01:56.726] [vde] [info] [VDECollection::Init(unified)] name=rigsense_past_incidents, num_vectors=1
+[2026-04-17 19:01:56.726] [vde] [info] [VDECollection::SaveMetadata] Saving metadata for collection 'rigsense_past_incidents' to: /data/rigsense_past_incidents/metadata.json
+[2026-04-17 19:01:56.738] [vde] [info] [VDECollection::SaveMetadata] Metadata saved to /data/rigsense_past_incidents/metadata.json (storage_type=StorageType::BTRIEVE_FILE, index_driver_type=IndexDriverType::FAISS)
+[2026-04-17 19:01:56.857] [vde] [info] [PersistentIdMap::Open] File does not exist, creating: /data/rigsense_past_incidents/segment_0/id_map.btr
+[2026-04-17 19:01:56.957] [vde] [info] [PersistentIdMap::CreateFileStore] id_map file created: /data/rigsense_past_incidents/segment_0/id_map.btr
+[2026-04-17 19:01:56.957] [vde] [info] [PersistentIdMap::Open] Opened with 0 mappings, next_internal_id=0
+[2026-04-17 19:01:57.163] [vde] [info] [DenseBtrieveStore::Open] File does not exist, creating: /data/rigsense_past_incidents/segment_0/vectors/_default/vectors.btr
+[2026-04-17 19:01:57.283] [vde] [info] [DenseBtrieveStore::CreateFile] Created file: /data/rigsense_past_incidents/segment_0/vectors/_default/vectors.btr (dim=384, record_len=1552)
+[2026-04-17 19:01:57.283] [vde] [info] [DenseBtrieveStore::Open] Opened (dim=384, record_len=1552)
+[2026-04-17 19:01:57.321] [vde] [info] [SegmentStateStore::Open] File does not exist, creating: /data/rigsense_past_incidents/segment_0/segment_state.btr
+[2026-04-17 19:01:57.379] [vde] [info] [SegmentStateStore::CreateFile] segment_state file created: /data/rigsense_past_incidents/segment_0/segment_state.btr
+[2026-04-17 19:01:57.379] [vde] [info] [SegmentStateStore::Open] max_allocated_internal_id=0, schema_version=1, freshly_created=true
+[2026-04-17 19:01:57.379] [vde] [info] [VDECollection::Init(unified)] LocalShard initialized with 1 vector space(s)
+[2026-04-17 19:01:57.379] [vde] [info] [FlushManager] Registered collection 'rigsense_past_incidents'
+[2026-04-17 19:01:57.379] [vde] [info] [VDEEngine::CreateCollection(unified)] Collection 'rigsense_past_incidents' created successfully
+[2026-04-17 19:01:57.389] [vde] [info] [VDEEngine::DeleteCollection] Deleting collection 'rigsense_manuals'
+[2026-04-17 19:01:57.389] [vde] [info] [FlushManager] Unregistered collection 'rigsense_manuals'
+[2026-04-17 19:01:57.389] [vde] [info] [VDEEngine::DeleteCollection] All operations on 'rigsense_manuals' completed
+[2026-04-17 19:01:57.389] [vde] [info] [VDEEngine::DeleteCollection] Destroying storage resources for 'rigsense_manuals'
+[2026-04-17 19:01:57.447] [vde] [info] [DenseBtrieveStore::Destroy] Destroying: /data/rigsense_manuals/segment_0/vectors/_default/vectors.btr
+[2026-04-17 19:01:57.510] [vde] [info] [DenseBtrieveStore::Destroy] Destroyed: /data/rigsense_manuals/segment_0/vectors/_default/vectors.btr
+[2026-04-17 19:01:57.510] [vde] [info] [VDECollection::~VDECollection] Destroying collection 'rigsense_manuals'
+[2026-04-17 19:01:57.510] [vde] [info] [VDECollection::~VDECollection] Skipping snapshot save for deleted collection 'rigsense_manuals'
+[2026-04-17 19:01:57.510] [vde] [info] [VDECollection::~VDECollection] Collection 'rigsense_manuals' destroyed successfully
+[2026-04-17 19:01:57.515] [vde] [info] [VDEEngine::DeleteCollectionFromDisk] Removing collection directory: /data/rigsense_manuals
+[2026-04-17 19:01:57.576] [vde] [info] [VDEEngine::DeleteCollectionFromDisk] Collection directory removed successfully: /data/rigsense_manuals
+[2026-04-17 19:01:57.582] [vde] [info] [VDEEngine::CreateCollection(unified)] Creating 'rigsense_manuals' with 1 vector space(s)
+[2026-04-17 19:01:57.587] [vde] [info] [VDECollection::Init(unified)] name=rigsense_manuals, num_vectors=1
+[2026-04-17 19:01:57.587] [vde] [info] [VDECollection::SaveMetadata] Saving metadata for collection 'rigsense_manuals' to: /data/rigsense_manuals/metadata.json
+[2026-04-17 19:01:57.598] [vde] [info] [VDECollection::SaveMetadata] Metadata saved to /data/rigsense_manuals/metadata.json (storage_type=StorageType::BTRIEVE_FILE, index_driver_type=IndexDriverType::FAISS)
+[2026-04-17 19:01:57.706] [vde] [info] [PersistentIdMap::Open] File does not exist, creating: /data/rigsense_manuals/segment_0/id_map.btr
+[2026-04-17 19:01:57.806] [vde] [info] [PersistentIdMap::CreateFileStore] id_map file created: /data/rigsense_manuals/segment_0/id_map.btr
+[2026-04-17 19:01:57.806] [vde] [info] [PersistentIdMap::Open] Opened with 0 mappings, next_internal_id=0
+[2026-04-17 19:01:58.011] [vde] [info] [DenseBtrieveStore::Open] File does not exist, creating: /data/rigsense_manuals/segment_0/vectors/_default/vectors.btr
+[2026-04-17 19:01:58.116] [vde] [info] [DenseBtrieveStore::CreateFile] Created file: /data/rigsense_manuals/segment_0/vectors/_default/vectors.btr (dim=384, record_len=1552)
+[2026-04-17 19:01:58.116] [vde] [info] [DenseBtrieveStore::Open] Opened (dim=384, record_len=1552)
+[2026-04-17 19:01:58.171] [vde] [info] [SegmentStateStore::Open] File does not exist, creating: /data/rigsense_manuals/segment_0/segment_state.btr
+[2026-04-17 19:01:58.230] [vde] [info] [SegmentStateStore::CreateFile] segment_state file created: /data/rigsense_manuals/segment_0/segment_state.btr
+[2026-04-17 19:01:58.231] [vde] [info] [SegmentStateStore::Open] max_allocated_internal_id=0, schema_version=1, freshly_created=true
+[2026-04-17 19:01:58.231] [vde] [info] [VDECollection::Init(unified)] LocalShard initialized with 1 vector space(s)
+[2026-04-17 19:01:58.231] [vde] [info] [FlushManager] Registered collection 'rigsense_manuals'
+[2026-04-17 19:01:58.231] [vde] [info] [VDEEngine::CreateCollection(unified)] Collection 'rigsense_manuals' created successfully
+[2026-04-17 19:01:58.240] [vde] [info] [VDEEngine::DeleteCollection] Deleting collection 'rigsense_manual_chunks'
+[2026-04-17 19:01:58.240] [vde] [info] [FlushManager] Unregistered collection 'rigsense_manual_chunks'
+[2026-04-17 19:01:58.240] [vde] [info] [VDEEngine::DeleteCollection] All operations on 'rigsense_manual_chunks' completed
+[2026-04-17 19:01:58.240] [vde] [info] [VDEEngine::DeleteCollection] Destroying storage resources for 'rigsense_manual_chunks'
+[2026-04-17 19:01:58.299] [vde] [info] [DenseBtrieveStore::Destroy] Destroying: /data/rigsense_manual_chunks/segment_0/vectors/_default/vectors.btr
+[2026-04-17 19:01:58.364] [vde] [info] [DenseBtrieveStore::Destroy] Destroyed: /data/rigsense_manual_chunks/segment_0/vectors/_default/vectors.btr
+[2026-04-17 19:01:58.364] [vde] [info] [VDECollection::~VDECollection] Destroying collection 'rigsense_manual_chunks'
+[2026-04-17 19:01:58.364] [vde] [info] [VDECollection::~VDECollection] Skipping snapshot save for deleted collection 'rigsense_manual_chunks'
+[2026-04-17 19:01:58.364] [vde] [info] [VDECollection::~VDECollection] Collection 'rigsense_manual_chunks' destroyed successfully
+[2026-04-17 19:01:58.369] [vde] [info] [VDEEngine::DeleteCollectionFromDisk] Removing collection directory: /data/rigsense_manual_chunks
+[2026-04-17 19:01:58.425] [vde] [info] [VDEEngine::DeleteCollectionFromDisk] Collection directory removed successfully: /data/rigsense_manual_chunks
+[2026-04-17 19:01:58.430] [vde] [info] [VDEEngine::CreateCollection(unified)] Creating 'rigsense_manual_chunks' with 1 vector space(s)
+[2026-04-17 19:01:58.435] [vde] [info] [VDECollection::Init(unified)] name=rigsense_manual_chunks, num_vectors=1
+[2026-04-17 19:01:58.435] [vde] [info] [VDECollection::SaveMetadata] Saving metadata for collection 'rigsense_manual_chunks' to: /data/rigsense_manual_chunks/metadata.json
+[2026-04-17 19:01:58.448] [vde] [info] [VDECollection::SaveMetadata] Metadata saved to /data/rigsense_manual_chunks/metadata.json (storage_type=StorageType::BTRIEVE_FILE, index_driver_type=IndexDriverType::FAISS)
+[2026-04-17 19:01:58.558] [vde] [info] [PersistentIdMap::Open] File does not exist, creating: /data/rigsense_manual_chunks/segment_0/id_map.btr
+[2026-04-17 19:01:58.663] [vde] [info] [PersistentIdMap::CreateFileStore] id_map file created: /data/rigsense_manual_chunks/segment_0/id_map.btr
+[2026-04-17 19:01:58.663] [vde] [info] [PersistentIdMap::Open] Opened with 0 mappings, next_internal_id=0
+[2026-04-17 19:01:58.853] [vde] [info] [DenseBtrieveStore::Open] File does not exist, creating: /data/rigsense_manual_chunks/segment_0/vectors/_default/vectors.btr
+[2026-04-17 19:01:58.960] [vde] [info] [DenseBtrieveStore::CreateFile] Created file: /data/rigsense_manual_chunks/segment_0/vectors/_default/vectors.btr (dim=384, record_len=1552)
+[2026-04-17 19:01:58.960] [vde] [info] [DenseBtrieveStore::Open] Opened (dim=384, record_len=1552)
+[2026-04-17 19:01:59.009] [vde] [info] [SegmentStateStore::Open] File does not exist, creating: /data/rigsense_manual_chunks/segment_0/segment_state.btr
+[2026-04-17 19:01:59.069] [vde] [info] [SegmentStateStore::CreateFile] segment_state file created: /data/rigsense_manual_chunks/segment_0/segment_state.btr
+[2026-04-17 19:01:59.069] [vde] [info] [SegmentStateStore::Open] max_allocated_internal_id=0, schema_version=1, freshly_created=true
+[2026-04-17 19:01:59.069] [vde] [info] [VDECollection::Init(unified)] LocalShard initialized with 1 vector space(s)
+[2026-04-17 19:01:59.069] [vde] [info] [FlushManager] Registered collection 'rigsense_manual_chunks'
+[2026-04-17 19:01:59.069] [vde] [info] [VDEEngine::CreateCollection(unified)] Collection 'rigsense_manual_chunks' created successfully
+[2026-04-17 19:02:21.483] [vde] [info] [FaissVectorIndexDriver::Search] === FIRST SEARCH - HNSW Parameters ===
+[2026-04-17 19:02:21.484] [vde] [info] [FaissVectorIndexDriver::Search] Index ntotal: 6
+[2026-04-17 19:02:21.484] [vde] [info] [FaissVectorIndexDriver::Search] Storage ntotal: 6
+[2026-04-17 19:02:21.484] [vde] [info] [FaissVectorIndexDriver::Search] Query top_k: 12
+[2026-04-17 19:02:21.484] [vde] [info] [FaissVectorIndexDriver::Search] Configured efSearch: 64
+[2026-04-17 19:02:21.484] [vde] [info] [FaissVectorIndexDriver::Search] Request hnsw_ef override: 0
+[2026-04-17 19:02:21.484] [vde] [info] [FaissVectorIndexDriver::Search] Effective efSearch for this call: 64
+[2026-04-17 19:02:21.484] [vde] [info] [FaissVectorIndexDriver::Search] efConstruction: 200
+[2026-04-17 19:02:21.484] [vde] [info] [FaissVectorIndexDriver::Search] max_level: 0
+[2026-04-17 19:02:21.484] [vde] [info] [FaissVectorIndexDriver::Search] levels.size(): 6
+[2026-04-17 19:02:21.484] [vde] [info] [FaissVectorIndexDriver::Search] entry_point: 1
+[2026-04-17 19:02:21.484] [vde] [info] [FaissVectorIndexDriver::Search] M (neighbors at level 1): 32
+[2026-04-17 19:02:21.484] [vde] [info] [FaissVectorIndexDriver::Search] Storage exists: true, own_fields: true
+[2026-04-17 19:02:21.484] [vde] [info] [FaissVectorIndexDriver::Search] ============================================
+[2026-04-17 19:02:21.491] [vde] [info] [FaissVectorIndexDriver::Search] === FIRST SEARCH - HNSW Parameters ===
+[2026-04-17 19:02:21.491] [vde] [info] [FaissVectorIndexDriver::Search] Index ntotal: 4
+[2026-04-17 19:02:21.491] [vde] [info] [FaissVectorIndexDriver::Search] Storage ntotal: 4
+[2026-04-17 19:02:21.491] [vde] [info] [FaissVectorIndexDriver::Search] Query top_k: 3
+[2026-04-17 19:02:21.491] [vde] [info] [FaissVectorIndexDriver::Search] Configured efSearch: 64
+[2026-04-17 19:02:21.491] [vde] [info] [FaissVectorIndexDriver::Search] Request hnsw_ef override: 0
+[2026-04-17 19:02:21.491] [vde] [info] [FaissVectorIndexDriver::Search] Effective efSearch for this call: 64
+[2026-04-17 19:02:21.491] [vde] [info] [FaissVectorIndexDriver::Search] efConstruction: 200
+[2026-04-17 19:02:21.491] [vde] [info] [FaissVectorIndexDriver::Search] max_level: 0
+[2026-04-17 19:02:21.491] [vde] [info] [FaissVectorIndexDriver::Search] levels.size(): 4
+[2026-04-17 19:02:21.491] [vde] [info] [FaissVectorIndexDriver::Search] entry_point: 3
+[2026-04-17 19:02:21.491] [vde] [info] [FaissVectorIndexDriver::Search] M (neighbors at level 1): 32
+[2026-04-17 19:02:21.491] [vde] [info] [FaissVectorIndexDriver::Search] Storage exists: true, own_fields: true
+[2026-04-17 19:02:21.491] [vde] [info] [FaissVectorIndexDriver::Search] ============================================
+[2026-04-17 19:02:21.543] [vde] [info] [FaissVectorIndexDriver::Search] === FIRST SEARCH - HNSW Parameters ===
+[2026-04-17 19:02:21.543] [vde] [info] [FaissVectorIndexDriver::Search] Index ntotal: 18
+[2026-04-17 19:02:21.543] [vde] [info] [FaissVectorIndexDriver::Search] Storage ntotal: 18
+[2026-04-17 19:02:21.543] [vde] [info] [FaissVectorIndexDriver::Search] Query top_k: 2
+[2026-04-17 19:02:21.543] [vde] [info] [FaissVectorIndexDriver::Search] Configured efSearch: 64
+[2026-04-17 19:02:21.543] [vde] [info] [FaissVectorIndexDriver::Search] Request hnsw_ef override: 0
+[2026-04-17 19:02:21.543] [vde] [info] [FaissVectorIndexDriver::Search] Effective efSearch for this call: 64
+[2026-04-17 19:02:21.544] [vde] [info] [FaissVectorIndexDriver::Search] efConstruction: 200
+[2026-04-17 19:02:21.544] [vde] [info] [FaissVectorIndexDriver::Search] max_level: 1
+[2026-04-17 19:02:21.544] [vde] [info] [FaissVectorIndexDriver::Search] levels.size(): 18
+[2026-04-17 19:02:21.544] [vde] [info] [FaissVectorIndexDriver::Search] entry_point: 12
+[2026-04-17 19:02:21.544] [vde] [info] [FaissVectorIndexDriver::Search] M (neighbors at level 1): 32
+[2026-04-17 19:02:21.544] [vde] [info] [FaissVectorIndexDriver::Search] Storage exists: true, own_fields: true
+[2026-04-17 19:02:21.544] [vde] [info] [FaissVectorIndexDriver::Search] ============================================
+[2026-04-17 19:02:27.595] [vde] [info] [FlushManager] Timer started for 'rigsense_past_incidents' (interval=3600s)
+[2026-04-17 19:02:27.595] [vde] [info] [FlushManager] Timer started for 'rigsense_manuals' (interval=3600s)
+[2026-04-17 19:02:27.595] [vde] [info] [FlushManager] Tim
