@@ -28,9 +28,20 @@ class Embedder(Protocol):
 
 
 class _MiniLMEmbedder:
-    """Lazy wrapper around a sentence-transformers model."""
+    """Lazy wrapper around a sentence-transformers model.
+
+    If ``model_name`` points at an on-disk directory we run the loader in
+    offline mode, so sentence-transformers / huggingface_hub skip the
+    network roundtrip (and the rate-limit warning) entirely.
+    """
 
     def __init__(self, model_name: str, dim: int) -> None:
+        import os
+
+        if os.path.isdir(model_name):
+            os.environ.setdefault("HF_HUB_OFFLINE", "1")
+            os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+
         from sentence_transformers import SentenceTransformer  # noqa: WPS433
 
         self._model = SentenceTransformer(model_name)

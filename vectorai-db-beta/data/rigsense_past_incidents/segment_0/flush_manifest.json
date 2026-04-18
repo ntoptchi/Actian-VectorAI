@@ -1,6 +1,6 @@
 {
-  "checksum": "16f57072b6736eb1",
-  "flushed_deleted_count": 0,
+  "checksum": "d3a79fab2071d5c7",
+  "flushed_deleted_count": 6,
   "format_version": 1,
   "index_files": {
     "": {
@@ -8,10 +8,10 @@
       "meta": "/data/rigsense_past_incidents/segment_0/vectors/default/faiss.index.meta"
     }
   },
-  "max_allocated_internal_id": 6,
+  "max_allocated_internal_id": 66,
   "store_watermarks": {
-    "": 639120830836900828,
-    "id_map": 639120830836915935,
-    "payload": 639120830836893294
+    "": 639120850183527866,
+    "id_map": 639120850183933013,
+    "payload": 639120850183445919
   }
 }

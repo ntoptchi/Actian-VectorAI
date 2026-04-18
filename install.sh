@@ -61,23 +61,13 @@ log "Installing backend dependencies"
 # requirements.txt resolves correctly (pip resolves relative paths against CWD).
 (cd "$ROOT/backend" && "$VENV_PY" -m pip install -r requirements.txt)
 
-log "Pre-downloading embedding model (all-MiniLM-L6-v2, ~90 MB)"
-# Cached under ~/.cache/huggingface after this; subsequent runs are instant.
-# Skipped when USE_MOCK_EMBEDDINGS=true is set in the environment.
-"$VENV_PY" - <<'PY'
-import os
-if os.environ.get("USE_MOCK_EMBEDDINGS", "").lower() in {"1", "true", "yes"}:
-    print("  USE_MOCK_EMBEDDINGS set, skipping model download")
-    raise SystemExit(0)
-from sentence_transformers import SentenceTransformer
-model_name = os.environ.get(
-    "EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"
-)
-print(f"  downloading {model_name} ...")
-m = SentenceTransformer(model_name)
-v = m.encode(["rigsense install-time warmup"], normalize_embeddings=True)
-print(f"  ok: dim={v.shape[1]}")
-PY
+log "Verifying bundled embedding model"
+if [ -f "$ROOT/models/all-MiniLM-L6-v2/config.json" ]; then
+    echo "  found models/all-MiniLM-L6-v2/ (bundled, no download needed)"
+else
+    echo "  bundled model missing -- falling back to HF Hub on first run"
+    echo "  (set EMBEDDING_MODEL in backend/.env to force a specific source)"
+fi
 
 log "Installing dashboard dependencies"
 (cd "$ROOT" && npm install)
