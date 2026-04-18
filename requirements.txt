@@ -1,0 +1,34 @@
+# RouteWise backend Python dependencies.
+# Minimal, install-script-driven; pinned loosely to mirror RigSense.
+
+# --- Embeddings (offline MiniLM) ---
+sentence-transformers>=3.0,<4
+torch>=2.2
+
+# --- Vector DB client (installed from local wheel by install script) ---
+# actian-vectorai==0.1.0b2  # see vectorai-db-beta/actian_vectorai-0.1.0b2-py3-none-any.whl
+
+# --- API ---
+fastapi>=0.115
+uvicorn[standard]>=0.30
+httpx>=0.27
+pydantic>=2.7
+pydantic-settings>=2.4
+
+# --- Geo / clustering / exposure ---
+h3>=4.0
+shapely>=2.0
+pyproj>=3.6
+scikit-learn>=1.4
+numpy>=1.26
+pandas>=2.1
+
+# --- Sun position ---
+pysolar>=0.11
+
+# --- Storage ---
+pyarrow>=15.0
+
+# --- Dev / convenience ---
+python-dotenv>=1.0
+pytest>=8.0
