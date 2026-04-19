@@ -2,7 +2,7 @@
 
 Run via::
 
-    uvicorn backend.main:app --reload --port 8000
+    uvicorn backend.main:app --reload --port 8080
 
 The ``./start.sh`` script picks this up automatically once it exists.
 """
