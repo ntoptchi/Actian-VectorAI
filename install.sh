@@ -29,8 +29,15 @@ need node    "Install Node.js 20+ (https://nodejs.org/)"
 need npm     "Comes with Node.js"
 
 if [ ! -f ".env" ]; then
-  warn ".env missing — copy .env.example or create one. Required keys: OPEN_ROUTE_SERVICE_API_KEY"
-  warn "                continuing anyway; routing will fall back to OSRM."
+  if [ -f ".env.example" ]; then
+    cp .env.example .env
+    info "created .env from .env.example (placeholder ORS key)."
+    info "  edit .env and drop in a real OPEN_ROUTE_SERVICE_API_KEY for"
+    info "  multi-alternate routing — without it the backend falls back"
+    info "  to OSRM single-route and you only see one route option."
+  else
+    warn ".env missing and no .env.example to copy from. Routing will fall back to OSRM."
+  fi
 fi
 
 # ---------------------------------------------------------------------------
