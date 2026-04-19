@@ -52,10 +52,20 @@ def plan(route: Route) -> FatiguePlan:
         if total_minutes >= 300:
             targets_min.append(300)
 
+        seen_labels: set[str] = set()
         for target in targets_min:
             km_into = (target / total_minutes) * (route.distance_m / 1000.0)
             eta = route.departure_iso + timedelta(minutes=target)
             label = _nearest_plaza_label(route, km_into)
+            # Drop duplicates: when the route runs out of seeded plazas
+            # (e.g. west of Holmes County on I-10) every "nearest plaza"
+            # snaps to the same label, which read as a UX bug in QA
+            # ("Holmes County Rest Area" listed twice). Skip the second
+            # occurrence rather than confidently lying about a phantom
+            # second stop.
+            if label in seen_labels:
+                continue
+            seen_labels.add(label)
             stops.append(FatigueStop(label=label, km_into_trip=km_into, eta_iso=eta))
 
     return FatiguePlan(total_drive_minutes=total_minutes, suggested_stops=stops)

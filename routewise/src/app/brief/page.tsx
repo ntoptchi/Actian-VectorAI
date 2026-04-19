@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { BackendError, fetchTripBrief } from "~/lib/api";
+import { BackendError, fetchTripBrief, parseDepart } from "~/lib/api";
 import type { TripBriefResponse } from "~/lib/types";
 
 type SearchParams = Record<string, string | string[] | undefined>;
@@ -59,7 +59,7 @@ export default async function BriefPage({
     brief = await fetchTripBrief({
       origin: { lat: olat, lon: olon },
       destination: { lat: dlat, lon: dlon },
-      timestamp: depart ? new Date(depart).toISOString() : null,
+      timestamp: parseDepart(depart),
     });
   } catch (e) {
     if (e instanceof BackendError) {

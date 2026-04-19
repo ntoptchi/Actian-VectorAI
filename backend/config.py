@@ -10,10 +10,20 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
+from dotenv import load_dotenv
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+
+# Push every key in .env into os.environ so legacy consumers that read
+# straight from the environment (e.g. ors_client._api_key()) pick up
+# unprefixed secrets like OPEN_ROUTE_SERVICE_API_KEY. Pydantic-settings
+# only binds ROUTEWISE_-prefixed values onto Settings; without this
+# load_dotenv() pass, anything else in .env would be invisible to the
+# rest of the backend, which is exactly the silent-fallback bug we hit
+# in QA (ORS quietly degraded to OSRM single-route).
+load_dotenv(REPO_ROOT / ".env", override=False)
 
 
 class Settings(BaseSettings):

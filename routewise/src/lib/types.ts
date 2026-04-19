@@ -79,6 +79,34 @@ export interface TripBriefRequest {
   timestamp?: string | null;
 }
 
+export type RiskBand = "low" | "moderate" | "elevated" | "high";
+
+export interface RouteSegment {
+  segment_id: string;
+  polyline: [number, number][]; // [lon, lat]
+  from_km: number;
+  to_km: number;
+  aadt: number | null;
+  speed_limit_mph: number | null;
+  n_crashes: number;
+  intensity_ratio: number | null;
+  risk_band: RiskBand;
+  top_factors: FactorWeight[];
+  night_skewed: boolean;
+}
+
+export interface AlternateSummary {
+  route_id: string;
+  polyline: [number, number][]; // [lon, lat]
+  distance_m: number;
+  duration_s: number;
+  risk_score: number;
+  risk_band: RiskBand;
+  n_crashes: number;
+  minutes_delta_vs_fastest: number;
+  risk_delta_vs_fastest: number;
+}
+
 export interface TripBriefResponse {
   trip_id: string;
   route: Route;
@@ -87,6 +115,9 @@ export interface TripBriefResponse {
   sunset_during_trip: boolean;
   hotspots: HotspotSummary[];
   pre_trip_checklist: string[];
+  chosen_route_id: string | null;
+  alternates: AlternateSummary[];
+  segments: RouteSegment[];
 }
 
 export interface CrashExcerpt {

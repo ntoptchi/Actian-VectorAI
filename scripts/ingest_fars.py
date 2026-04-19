@@ -30,6 +30,23 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(mes
 logger = logging.getLogger("ingest_fars")
 
 
+def _candidate_year_dirs(raw_root: Path, year: int) -> list[Path]:
+    """Find a per-year FARS directory across the layouts the user has used.
+
+    We accept any of:
+      - data/raw/FARS/<year>/                (canonical)
+      - data/raw/FARS<year>NationalCSV/      (NHTSA's zip filename)
+      - data/raw/FARS_<year>/                (alt)
+    """
+    candidates = [
+        raw_root / "FARS" / str(year),
+        raw_root / f"FARS{year}NationalCSV",
+        raw_root / f"FARS_{year}",
+        raw_root / f"FARS{year}",
+    ]
+    return [c for c in candidates if c.exists()]
+
+
 def _iter_rows(year_dir: Path) -> Iterator[dict]:
     accident_csv = next(
         (p for p in year_dir.glob("*.[Cc][Ss][Vv]") if p.stem.lower() == "accident"),
@@ -47,28 +64,25 @@ def _iter_rows(year_dir: Path) -> Iterator[dict]:
 
 
 def _docs(years: list[int], limit: int | None) -> Iterator[SituationDoc]:
-    raw_root = get_settings().raw_dir / "FARS"
+    raw_root = get_settings().raw_dir
     n = 0
     for year in years:
-        year_dir = raw_root / str(year)
-        if not year_dir.exists():
-            logger.warning("missing FARS year dir %s; skipping", year_dir)
+        year_dirs = _candidate_year_dirs(raw_root, year)
+        if not year_dirs:
+            logger.warning(
+                "no FARS dir for %d under %s (tried FARS/<year>, FARS<year>NationalCSV); skipping",
+                year, raw_root,
+            )
             continue
-        for row in _iter_rows(year_dir):
-            try:
+        for year_dir in year_dirs:
+            for row in _iter_rows(year_dir):
                 doc = from_fars_row(row)
-            except NotImplementedError:
-                logger.error(
-                    "from_fars_row is still a stub. Implement it (see "
-                    "backend/ingest/normalize.py) before running ingest_fars."
-                )
-                return
-            if doc is None:
-                continue
-            yield doc
-            n += 1
-            if limit is not None and n >= limit:
-                return
+                if doc is None:
+                    continue
+                yield doc
+                n += 1
+                if limit is not None and n >= limit:
+                    return
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -89,7 +103,7 @@ def main(argv: list[str] | None = None) -> int:
     elif args.year:
         years = [args.year]
     else:
-        years = [2018, 2019, 2020, 2021, 2022]
+        years = [2021, 2022, 2023, 2024]
 
     n = upsert_docs(_docs(years, args.limit), batch_size=args.batch_size)
     logger.info("FARS ingest complete: %d points upserted", n)

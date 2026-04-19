@@ -195,6 +195,53 @@ class HotspotSummary(BaseModel):
     coaching_line: str
 
 
+# --- Routing pivot: per-segment risk + alternates --------------------------
+
+
+RiskBand = Literal["low", "moderate", "elevated", "high"]
+
+
+class RouteSegment(BaseModel):
+    """One sliced piece of the chosen route, scored independently.
+
+    The ``polyline`` is the segment's geometry (always a list of
+    ``[lon, lat]`` pairs so the frontend can paint it directly with
+    Leaflet). Risk fields are populated from VDB-retrieved crashes
+    intersected with the segment's H3 cells.
+    """
+
+    segment_id: str
+    polyline: list[list[float]]
+    from_km: float
+    to_km: float
+    aadt: int | None = None
+    speed_limit_mph: int | None = None
+    n_crashes: int = 0
+    intensity_ratio: float | None = None
+    risk_band: RiskBand = "low"
+    top_factors: list[FactorWeight] = Field(default_factory=list)
+    night_skewed: bool = False
+
+
+class AlternateSummary(BaseModel):
+    """One ORS-suggested route alternative, scored end-to-end.
+
+    Frontend uses these to render the "+3 min, -38% risk" deltas in the
+    alternates panel; the chosen route is identified by
+    ``TripBriefResponse.chosen_route_id``.
+    """
+
+    route_id: str
+    polyline: list[list[float]]
+    distance_m: float
+    duration_s: float
+    risk_score: float
+    risk_band: RiskBand
+    n_crashes: int
+    minutes_delta_vs_fastest: float
+    risk_delta_vs_fastest: float
+
+
 class TripBriefResponse(BaseModel):
     trip_id: str
     route: Route
@@ -203,6 +250,11 @@ class TripBriefResponse(BaseModel):
     sunset_during_trip: bool = False
     hotspots: list[HotspotSummary] = Field(default_factory=list)
     pre_trip_checklist: list[str] = Field(default_factory=list)
+
+    # Pivot additions: candidate-and-rerank + per-segment risk on the map.
+    chosen_route_id: str | None = None
+    alternates: list[AlternateSummary] = Field(default_factory=list)
+    segments: list[RouteSegment] = Field(default_factory=list)
 
 
 # --- /hotspots/{id} response (s6.3) ----------------------------------------

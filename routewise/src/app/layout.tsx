@@ -1,28 +1,46 @@
 import "~/styles/globals.css";
 
 import { type Metadata } from "next";
-import { Geist } from "next/font/google";
+import { Fraunces, Inter_Tight, IBM_Plex_Mono } from "next/font/google";
 
 import { TRPCReactProvider } from "~/trpc/react";
 
 export const metadata: Metadata = {
-  title: "RouteWise",
+  title: "RouteWise — Safety is the new shortest path",
   description:
-    "A pre-trip briefing for unfamiliar long drives. Powered by Actian VectorAI DB.",
+    "RouteWise re-ranks driving routes by crash risk for tonight's conditions, powered by Actian VectorAI DB.",
   icons: [{ rel: "icon", url: "/favicon.ico" }],
 };
 
-const geist = Geist({
+const fraunces = Fraunces({
   subsets: ["latin"],
-  variable: "--font-geist-sans",
+  variable: "--font-fraunces",
+  display: "swap",
+  axes: ["opsz", "SOFT"],
+});
+
+const interTight = Inter_Tight({
+  subsets: ["latin"],
+  variable: "--font-inter-tight",
+  display: "swap",
+});
+
+const plexMono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-plex-mono",
+  display: "swap",
 });
 
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${geist.variable}`}>
-      <body>
+    <html
+      lang="en"
+      className={`${fraunces.variable} ${interTight.variable} ${plexMono.variable}`}
+    >
+      <body className="bg-paper text-ink antialiased">
         <TRPCReactProvider>{children}</TRPCReactProvider>
       </body>
     </html>

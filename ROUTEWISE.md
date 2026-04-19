@@ -1,6 +1,34 @@
 # RouteWise
 
-**A pre-trip briefing for new drivers on unfamiliar long-distance drives, powered by Actian VectorAI DB.**
+**A safer-route finder for new drivers on unfamiliar long-distance drives, powered by Actian VectorAI DB.**
+
+> **Pivot (April 2026):** RouteWise is now a route-finder. We fetch
+> several candidate routes from OpenRouteService, then re-rank them by
+> safety using crash data semantically retrieved from the VectorAI DB.
+> The chosen route is rendered on a Leaflet map with **per-segment
+> color coding** by risk band, hover tooltips that explain why each
+> segment is flagged, and pop-out hotspot briefings. The original
+> hotspot/coaching/conditions/fatigue features are preserved and now
+> hang off the chosen route.
+>
+> The VDB is still load-bearing — every alternate gets a VDB search
+> filtered by its H3 cells; per-segment risk and per-route aggregate
+> risk both come from those retrievals; turn the VDB off and every
+> route renders neutral and the chosen route collapses to "fastest".
+> Concretely:
+>
+> 1. ORS returns 3 alternates.
+> 2. Build one conditions-only ``SituationDoc``, embed once.
+> 3. For each alternate: slice into ~40 segments, attach AADT,
+>    similarity-search the VDB filtered by the alternate's H3 cells,
+>    bucket retrieved crashes back onto segments, score per-segment
+>    risk against the FL baseline, aggregate to a per-route risk score.
+> 4. Pick the chosen route by ``argmin(duration_norm + 0.4 * risk_norm)``.
+> 5. Surface chosen route + alternates + segments + hotspots in a
+>    single ``/trip/brief`` response.
+>
+> See ``backend/routers/trip.py`` for the orchestration and
+> ``backend/services/scoring.py`` for the VDB-driven scoring.
 
 > You're a teen with your first solo long drive ahead — Miami to Tampa
 > tonight, or Jacksonville to Pensacola tomorrow. You've never driven it.

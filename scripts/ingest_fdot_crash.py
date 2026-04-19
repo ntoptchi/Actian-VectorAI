@@ -1,13 +1,22 @@
-"""Ingest FDOT Open Data crash layer (FL non-fatal coverage).
+"""Ingest FDOT crash GeoJSON chunks into the VDB.
 
-Reads from ``data/raw/FDOT/crash/`` containing the GeoJSON or shapefile
-export from https://gis-fdot.opendata.arcgis.com/. We accept both file
-formats; geopandas figures out the rest.
+PRIMARY corpus for RouteWise. The user pre-fetched ~50K crash records
+from the FDOT ArcGIS REST API in 1K-record chunks named
+``data/raw/crash{1000..50000}.json``. Each feature is a full crash
+record with AADT and speed limit *already attached*, so we don't need
+the AADT shapefile snap step for these.
+
+Usage::
+
+    python scripts/ingest_fdot_crash.py
+    python scripts/ingest_fdot_crash.py --limit 5000
+    python scripts/ingest_fdot_crash.py --pattern 'crash*.json'
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import sys
 from collections.abc import Iterator
@@ -24,64 +33,73 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(mes
 logger = logging.getLogger("ingest_fdot")
 
 
-def _iter_features(crash_dir: Path) -> Iterator[dict]:
-    """Yield one row dict per FDOT crash feature, with lat/lon attached."""
-    try:
-        import geopandas as gpd  # type: ignore[import-not-found]
-    except ImportError:
-        logger.error(
-            "geopandas is required for FDOT ingest. "
-            "Install via `pip install geopandas`."
-        )
-        return
+def _iter_features(crash_dir: Path, pattern: str) -> Iterator[dict]:
+    """Yield one row dict per FDOT crash feature.
 
-    files = list(crash_dir.glob("*.geojson")) + list(crash_dir.glob("*.shp"))
+    Reads the ``crash*.json`` chunks directly (they are GeoJSON
+    FeatureCollections), pulling lat/lon out of ``feature.geometry``
+    and merging it with ``feature.properties``.
+    """
+    files = sorted(crash_dir.glob(pattern))
     if not files:
-        logger.warning("no .geojson or .shp under %s", crash_dir)
+        logger.warning("no files matching %s under %s", pattern, crash_dir)
         return
 
+    logger.info("found %d crash chunk(s) to ingest", len(files))
     for f in files:
-        logger.info("reading %s", f)
-        gdf = gpd.read_file(f).to_crs(4326)
-        for _, row in gdf.iterrows():
-            d = row.to_dict()
-            geom = row.geometry
-            if geom is not None and not geom.is_empty:
-                d["__lat"] = float(geom.y)
-                d["__lon"] = float(geom.x)
-            yield d
+        try:
+            data = json.loads(f.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            logger.warning("skipping %s (not JSON: %s)", f.name, exc)
+            continue
+        features = data.get("features") or []
+        for feat in features:
+            props = dict(feat.get("properties") or {})
+            geom = feat.get("geometry") or {}
+            coords = geom.get("coordinates")
+            if isinstance(coords, list) and len(coords) >= 2:
+                try:
+                    props["__lon"] = float(coords[0])
+                    props["__lat"] = float(coords[1])
+                except (TypeError, ValueError):
+                    pass
+            yield props
 
 
-def _docs(limit: int | None) -> Iterator[SituationDoc]:
-    crash_dir = get_settings().raw_dir / "FDOT" / "crash"
-    if not crash_dir.exists():
-        logger.warning("missing FDOT crash dir %s", crash_dir)
-        return
-
+def _docs(pattern: str, limit: int | None) -> Iterator[SituationDoc]:
+    crash_dir = get_settings().raw_dir
     n = 0
-    for row in _iter_features(crash_dir):
+    skipped = 0
+    for row in _iter_features(crash_dir, pattern):
         try:
             doc = from_fdot_crash_row(row)
-        except NotImplementedError:
-            logger.error(
-                "from_fdot_crash_row is still a stub. Implement it before "
-                "running ingest_fdot_crash."
-            )
-            return
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("normalize failed: %s", exc)
+            skipped += 1
+            continue
         if doc is None:
+            skipped += 1
             continue
         yield doc
         n += 1
+        if n % 5000 == 0:
+            logger.info("normalised %d docs (%d skipped so far)", n, skipped)
         if limit is not None and n >= limit:
             return
+    logger.info("normalisation complete: %d kept, %d skipped", n, skipped)
 
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument(
+        "--pattern",
+        default="crash*.json",
+        help="Glob pattern under data/raw/ (default: crash*.json)",
+    )
     p.add_argument("--limit", type=int, default=None)
     p.add_argument("--batch-size", type=int, default=512)
     args = p.parse_args(argv)
-    n = upsert_docs(_docs(args.limit), batch_size=args.batch_size)
+    n = upsert_docs(_docs(args.pattern, args.limit), batch_size=args.batch_size)
     logger.info("FDOT ingest complete: %d points upserted", n)
     return 0
 

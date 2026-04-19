@@ -1,6 +1,123 @@
 @import "tailwindcss";
 
+/*
+  RouteWise design tokens — editorial intelligence brief.
+  Deep navy ink on warm ivory paper, with gold + alert-red as the only
+  accents. Mixed serif display + grotesque body + mono eyebrow labels.
+*/
 @theme {
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif,
-    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-display: var(--font-fraunces), ui-serif, Georgia, serif;
+  --font-sans: var(--font-inter-tight), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* Core palette */
+  --color-paper: #f3ece0; /* warm ivory page */
+  --color-paper-2: #fbf6ec; /* lifted surface */
+  --color-paper-3: #ffffff; /* pure white card on ivory */
+  --color-rule: #d8cfbe; /* hairline divider on paper */
+
+  --color-ink: #0b1f44; /* deep navy headline / primary */
+  --color-ink-2: #1a3160; /* slightly lifted navy */
+  --color-ink-3: #4a5b7c; /* muted body */
+  --color-ink-4: #8593ae; /* tertiary / caption */
+
+  --color-gold: #b9842b; /* "3.2x" stat / advisory */
+  --color-gold-2: #e6c372; /* gold accents on dark */
+
+  --color-alert: #b32626; /* "HIGH RISK ZONE" / critical */
+  --color-alert-2: #f4d2d2;
+
+  --color-warn: #c2701a; /* warning / elevated */
+  --color-good: #1f7a4d; /* low risk / safest */
+
+  /* Risk band colors (must read on a dark map) */
+  --color-band-low: #4ade80;
+  --color-band-moderate: #fbbf24;
+  --color-band-elevated: #fb923c;
+  --color-band-high: #ef4444;
+}
+
+/* Page defaults */
+html,
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Subtle paper grain on ivory surfaces. Cheap, no image. */
+.bg-paper-grain {
+  background-color: var(--color-paper);
+  background-image:
+    radial-gradient(rgba(11, 31, 68, 0.025) 1px, transparent 1px),
+    radial-gradient(rgba(11, 31, 68, 0.02) 1px, transparent 1px);
+  background-size: 22px 22px, 13px 13px;
+  background-position: 0 0, 6px 6px;
+}
+
+/* The mono eyebrow label used everywhere ("SAFETY BRIEFING", "TIME"). */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-ink-3);
+}
+.eyebrow-rule {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.eyebrow-rule::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--color-rule);
+}
+
+/* Display headline base. Use sparingly. */
+.display {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--color-ink);
+  line-height: 1.02;
+}
+
+/* The big stat numerals on briefing cards. */
+.stat-numeral {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+/* Leaflet popups + tooltips on dark map should match brand. */
+.leaflet-tooltip,
+.leaflet-popup-content-wrapper {
+  background: #0b1f44 !important;
+  color: #fbf6ec !important;
+  border: none !important;
+  border-radius: 4px !important;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35) !important;
+  font-family: var(--font-sans);
+}
+.leaflet-tooltip::before,
+.leaflet-tooltip-top::before {
+  border-top-color: #0b1f44 !important;
+}
+.leaflet-container {
+  background: #08111f;
+  font-family: var(--font-sans);
+}
+.leaflet-control-attribution {
+  background: rgba(11, 31, 68, 0.7) !important;
+  color: #cdd5e3 !important;
+  font-size: 10px !important;
+}
+.leaflet-control-attribution a {
+  color: #e6c372 !important;
 }
