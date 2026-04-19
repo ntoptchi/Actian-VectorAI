@@ -114,25 +114,67 @@ mkdir -p data/processed
 "$VENV_PY" scripts/load_night_segments.py || warn "load_night_segments failed — non-fatal, night-skew tag will be off."
 
 # ---------------------------------------------------------------------------
+section "Fetching FDOT crash chunks (if missing)"
+# ---------------------------------------------------------------------------
+# data/raw/crash{1000..150000}.json is committed to git, but a thin clone
+# (sparse-checkout, partial clone, or anyone trimming the ~213 MB raw/
+# tree to keep their fork small) won't have them. Auto-pull whatever's
+# missing from the FDOT ArcGIS REST API. Existing files are skipped, so
+# this is cheap on a normal full clone (a couple of seconds).
+EXPECTED_CHUNKS=150
+HAVE_CHUNKS="$(ls data/raw/crash*.json 2>/dev/null | wc -l | tr -d ' ')"
+if [ "${HAVE_CHUNKS:-0}" -lt "$EXPECTED_CHUNKS" ]; then
+  info "have $HAVE_CHUNKS / $EXPECTED_CHUNKS FDOT crash chunks — fetching the rest from FDOT (~213 MB total, ~5-10 min on a fresh box)."
+  "$VENV_PY" scripts/fetch_fdot_crashes.py --start 1 --end "$EXPECTED_CHUNKS" \
+    || warn "FDOT fetch returned non-zero — some chunks may be missing. Re-run install.sh to retry."
+else
+  info "all $HAVE_CHUNKS FDOT crash chunks already present."
+fi
+
+# ---------------------------------------------------------------------------
 section "Seeding VectorAI DB"
 # ---------------------------------------------------------------------------
-# Skip the expensive ingest if the collection is already populated. This
-# keeps re-running install.sh cheap (~5s) instead of re-embedding 50K
-# rows on every iteration during dev.
-if "$VENV_PY" scripts/vdb_count.py --min 1000 >/dev/null 2>&1; then
+# We track ingestion freshness with a marker file. If it's missing — or
+# the collection has fewer points than a healthy ingest produces — we
+# re-run the ingester. The marker also forces a re-ingest after fixes
+# to backend/ingest/normalize.py (e.g. the midnight-bug fix that drops
+# rows with missing CRASH_TIME) so teammates aren't stuck on stale data.
+#
+# Bump INGEST_VERSION when normalize.py / situation_doc.py change in a
+# way that would alter what gets indexed.
+INGEST_VERSION="2"
+INGEST_MARKER="data/processed/.fdot_ingest_v${INGEST_VERSION}"
+
+# Threshold matches "all 150 chunks ingested cleanly" (140K crashes
+# survive after dropping ~6% with missing CRASH_TIME). Anything below
+# this means the corpus is incomplete and the trip planner will under-
+# count crashes on most routes.
+HEALTHY_MIN=100000
+
+if [ -f "$INGEST_MARKER" ] \
+   && "$VENV_PY" scripts/vdb_count.py --min "$HEALTHY_MIN" >/dev/null 2>&1; then
   EXISTING="$("$VENV_PY" scripts/vdb_count.py)"
-  info "VDB already populated ($EXISTING points) — skipping reseed. Delete the docker volume to force a re-ingest."
+  info "VDB already populated ($EXISTING points, ingest v${INGEST_VERSION}) — skipping reseed."
+  info "  to force a fresh ingest: rm $INGEST_MARKER  (and re-run install.sh)"
 else
-  info "Seeding ~500 synthetic anchor crashes (covers demo corridors even with no real data)..."
+  if [ -f "$INGEST_MARKER" ]; then
+    info "marker present but VDB has fewer than $HEALTHY_MIN points — re-running ingest."
+  else
+    info "no v${INGEST_VERSION} ingest marker — running fresh ingest."
+  fi
+
+  info "Seeding ~500 synthetic anchor crashes (keeps demo corridors warm even if real data is sparse)..."
   "$VENV_PY" scripts/seed_synthetic.py --n 500
 
   CRASH_FILES="$(ls data/raw/crash*.json 2>/dev/null | wc -l | tr -d ' ')"
   if [ "$CRASH_FILES" -gt 0 ]; then
-    info "Seeding $CRASH_FILES FDOT crash chunks (~50K rows; ~3-5 min on first run)..."
+    info "Ingesting $CRASH_FILES FDOT crash chunks (~140K rows; ~5-10 min on first run, mostly embedding)..."
     "$VENV_PY" scripts/ingest_fdot_crash.py
+    mkdir -p data/processed
+    : > "$INGEST_MARKER"
+    info "wrote ingest marker $INGEST_MARKER"
   else
-    warn "no data/raw/crash*.json files found — skipping FDOT ingest."
-    warn "fetch them with: bash data/raw/fetch_crashes.sh"
+    warn "no data/raw/crash*.json files found — skipping FDOT ingest. Re-run install.sh once the FDOT fetch step succeeds."
   fi
 
   FINAL="$("$VENV_PY" scripts/vdb_count.py)"
@@ -142,4 +184,17 @@ fi
 # ---------------------------------------------------------------------------
 section "Done"
 # ---------------------------------------------------------------------------
-echo "Run ./start.sh to bring everything up."
+cat <<'EOF'
+Install complete. Next:
+
+  ./start.sh              # boots VDB (docker), backend (:8080), frontend (:3000)
+
+Notes for first run:
+  * The backend warms an in-memory crash cache (~140K rows) on startup.
+    It runs on a daemon thread so the API binds immediately, but the
+    very first /trip/brief after boot will block ~30 s if you hit it
+    before the cache finishes loading. start.sh waits for the warm-up
+    before opening the frontend, so you usually won't notice.
+  * The trip planner needs an OPEN_ROUTE_SERVICE_API_KEY in .env to
+    return alternate routes. Without it you only see one route.
+EOF

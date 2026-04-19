@@ -77,7 +77,7 @@ export default async function BriefPage({
         <h1 className="text-2xl font-semibold">Trip briefing</h1>
         <p className="text-red-300">{error}</p>
         <p className="text-sm text-slate-400">
-          Is the FastAPI backend running on port 8000? Try{" "}
+          Is the FastAPI backend running on port 8080? Try{" "}
           <code>./start.sh</code> from the repo root.
         </p>
         <Link href="/" className="text-indigo-300 underline">

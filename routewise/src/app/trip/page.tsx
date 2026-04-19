@@ -68,7 +68,7 @@ export default async function TripPage({
           {error}
         </div>
         <p className="text-sm text-ink-3">
-          Is the FastAPI backend running on port 8000? Try{" "}
+          Is the FastAPI backend running on port 8080? Try{" "}
           <code className="rounded bg-paper-3 px-1.5 py-0.5 font-mono text-xs">
             ./start.sh
           </code>{" "}

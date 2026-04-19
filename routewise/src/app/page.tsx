@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { PlanCard } from "~/components/PlanCard";
 import { SiteHeader } from "~/components/SiteHeader";
 
 const DEMO_TRIPS = [
@@ -137,81 +138,6 @@ function TopoBackdrop() {
         })}
       </g>
     </svg>
-  );
-}
-
-function PlanCard() {
-  return (
-    <form
-      action="/trip"
-      className="relative self-start rounded-sm bg-paper-3 p-7 shadow-[0_30px_60px_-30px_rgba(11,31,68,0.25)] ring-1 ring-rule"
-    >
-      <span className="eyebrow">Plan Your Safe Route</span>
-      <div className="mt-1 h-px w-full bg-rule" />
-
-      <div className="mt-6 flex flex-col gap-5">
-        <Field label="Origin" name="olat-display">
-          <div className="flex items-center gap-2">
-            <input
-              name="origin_label"
-              defaultValue="Current Location"
-              className="w-full bg-transparent text-base text-ink placeholder:text-ink-4 focus:outline-none"
-            />
-            <Crosshair />
-          </div>
-          {/* Hidden numeric coords — defaults to Miami so the form works without JS. */}
-          <input type="hidden" name="olat" defaultValue={25.7617} />
-          <input type="hidden" name="olon" defaultValue={-80.1918} />
-        </Field>
-
-        <Field label="Destination" name="dlat-display">
-          <div className="flex items-center gap-2">
-            <input
-              name="destination_label"
-              placeholder="Where to?"
-              className="w-full bg-transparent text-base text-ink placeholder:text-ink-4 focus:outline-none"
-            />
-            <PinIcon />
-          </div>
-          <input type="hidden" name="dlat" defaultValue={27.9506} />
-          <input type="hidden" name="dlon" defaultValue={-82.4572} />
-        </Field>
-
-        <Field label="Time" name="depart">
-          <input
-            name="depart"
-            type="time"
-            defaultValue=""
-            className="w-full bg-transparent text-base text-ink placeholder:text-ink-4 focus:outline-none"
-          />
-        </Field>
-
-        <button
-          type="submit"
-          className="mt-2 inline-flex items-center justify-center gap-2 rounded-sm bg-ink py-3.5 text-sm font-semibold uppercase tracking-[0.12em] text-paper transition hover:bg-ink-2"
-        >
-          <DiamondIcon />
-          Find Route
-        </button>
-      </div>
-    </form>
-  );
-}
-
-function Field({
-  label,
-  name,
-  children,
-}: {
-  label: string;
-  name: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <label htmlFor={name} className="flex flex-col gap-1.5">
-      <span className="eyebrow text-[0.625rem]">{label}</span>
-      <div className="border-b border-rule pb-2">{children}</div>
-    </label>
   );
 }
 
@@ -517,48 +443,6 @@ function SiteFooter() {
 }
 
 /* ------------------------------ Icons -------------------------------- */
-
-function Crosshair() {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.4"
-      className="text-ink-3"
-    >
-      <circle cx="8" cy="8" r="3" />
-      <path d="M8 1v3M8 12v3M1 8h3M12 8h3" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function PinIcon() {
-  return (
-    <svg
-      width="14"
-      height="16"
-      viewBox="0 0 14 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.4"
-      className="text-ink-3"
-    >
-      <path d="M7 15s5-5.2 5-9A5 5 0 1 0 2 6c0 3.8 5 9 5 9Z" />
-      <circle cx="7" cy="6" r="2" fill="currentColor" />
-    </svg>
-  );
-}
-
-function DiamondIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
-      <path d="M6 0 L12 6 L6 12 L0 6 Z" />
-    </svg>
-  );
-}
 
 function SparkIcon() {
   return (

@@ -144,13 +144,18 @@ def from_fdot_crash_row(row: dict[str, Any]) -> SituationDoc | None:
         return None
 
     # Time. CRASH_DATE is epoch ms in the FDOT export; CRASH_TIME is "HHMM".
+    # ~12.5% of FDOT rows have empty/0000 CRASH_TIME, which previously got
+    # silently bucketed to hour=00 — that polluted the corpus with a fake
+    # "midnight is 5x more dangerous" signal that wrecked the
+    # time-of-day similarity search at query time. We now drop the row
+    # outright when the time is unknown, since hour-of-day is a
+    # first-class feature of the SituationDoc embedding.
     timestamp = _parse_fdot_datetime(row.get("CRASH_DATE"), row.get("CRASH_TIME"))
-    if timestamp is not None:
-        hour = timestamp.hour
-        dow = timestamp.weekday()
-        month = timestamp.month
-    else:
-        hour, dow, month = 0, 0, 1
+    if timestamp is None:
+        return None
+    hour = timestamp.hour
+    dow = timestamp.weekday()
+    month = timestamp.month
 
     weather = _FDOT_WEATHER.get(_safe_str(row.get("EVNT_WTHR_COND_CD")), "unknown")
     lighting = _FDOT_LIGHTING.get(_safe_str(row.get("LGHT_COND_CD")), "daylight")
@@ -226,25 +231,32 @@ def _fdot_road_type(row: dict[str, Any]):
 
 
 def _parse_fdot_datetime(date_ms, time_hhmm) -> datetime | None:
-    if date_ms is None:
+    """Combine FDOT's epoch-ms CRASH_DATE with HHMM CRASH_TIME.
+
+    Returns ``None`` when either piece is missing or unparseable, *or*
+    when CRASH_TIME is the FDOT "no time recorded" sentinel ("0000",
+    empty string, "00:00", etc.). Callers treat ``None`` as "unknown
+    timestamp" and drop the row so the embedding's hour signal stays
+    clean. (The previous version silently clamped unknown times to
+    midnight, which over-represented hour=00 by ~5x in the corpus.)
+    """
+    if date_ms is None or time_hhmm is None:
+        return None
+    s = _safe_str(time_hhmm).replace(":", "").zfill(4)
+    if not s or s == "0000":
+        return None
+    try:
+        h = int(s[:2])
+        m = int(s[2:4])
+    except ValueError:
+        return None
+    if not (0 <= h < 24) or not (0 <= m < 60):
         return None
     try:
         ts = float(date_ms) / 1000.0
         dt = datetime.fromtimestamp(ts, tz=timezone.utc)
     except (TypeError, ValueError, OSError):
         return None
-    h, m = 0, 0
-    if time_hhmm:
-        s = _safe_str(time_hhmm).zfill(4)
-        try:
-            h = int(s[:2])
-            m = int(s[2:4])
-            if not (0 <= h < 24):
-                h = 0
-            if not (0 <= m < 60):
-                m = 0
-        except ValueError:
-            pass
     return dt.replace(hour=h, minute=m, second=0, microsecond=0)
 
 

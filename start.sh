@@ -124,9 +124,49 @@ trap cleanup EXIT INT TERM
 BACKEND_PID=$!
 info "backend pid=$BACKEND_PID"
 
-# Give uvicorn a moment to bind so the frontend doesn't error on its
-# first server-side fetch during page render.
-sleep 2
+# Wait for /health to come back 200, then wait for crash_cache.loaded.
+# Without this the frontend opens before the in-memory crash corpus
+# is ready and the user's first /trip/brief blocks 30-45s on the
+# background warm-up. We poll cheaply via Python (no curl dependency
+# on stock Windows).
+info "waiting for backend /health to respond..."
+"$VENV_PY" - <<'PY' || warn "backend /health didn't come up cleanly — continuing anyway."
+import json, sys, time
+from urllib.request import urlopen
+from urllib.error import URLError
+
+URL = "http://127.0.0.1:8080/health"
+DEADLINE = time.time() + 20  # 20s to bind uvicorn
+while time.time() < DEADLINE:
+    try:
+        with urlopen(URL, timeout=2) as r:
+            json.loads(r.read())
+            sys.exit(0)
+    except (URLError, OSError, json.JSONDecodeError):
+        time.sleep(0.5)
+sys.exit(1)
+PY
+
+info "waiting for crash cache to finish warming (one-time, ~30-45s on first boot)..."
+"$VENV_PY" - <<'PY' || warn "crash cache didn't finish warming in 90s — first /trip/brief may block on the load."
+import json, sys, time
+from urllib.request import urlopen
+
+URL = "http://127.0.0.1:8080/health"
+DEADLINE = time.time() + 90
+while time.time() < DEADLINE:
+    try:
+        with urlopen(URL, timeout=2) as r:
+            body = json.loads(r.read())
+        cache = body.get("crash_cache") or {}
+        if cache.get("loaded"):
+            print(f"  crash cache ready: {cache.get('size'):,} crashes")
+            sys.exit(0)
+    except Exception:
+        pass
+    time.sleep(1.0)
+sys.exit(1)
+PY
 
 # ---------------------------------------------------------------------------
 section "Starting frontend (routewise/) on :3000"
