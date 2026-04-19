@@ -53,11 +53,14 @@ vectorai-db-beta/*.tar
 Actian_VectorAI_DB_Beta.tar
 
 # ---------- RouteWise data + caches ----------
-# Raw downloads (FARS / CISS / FDOT crash exports / AADT shapefile)
-data/raw/
+# data/raw/ IS committed — install.sh assumes the FDOT crash chunks, the
+# AADT shapefile bundle, and the TDA CSVs are present so a fresh clone
+# can seed the VDB without re-downloading anything. Total is ~213 MB.
+# data/interim/, data/processed/, data/cache/ are all generated artifacts
+# (parquet rollups, /trip/brief response cache) — install.sh + the running
+# backend rebuild them, so we never want them in git.
 data/interim/
 data/processed/
-# Pre-cached /trip/brief responses for the demo (kept out unless we deliberately commit a small subset)
 data/cache/
 .cache/
 *.parquet
