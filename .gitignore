@@ -51,7 +51,6 @@ db.sqlite
 # scripts/fetch_vdb_snapshot.py (pointer committed in vdb_snapshot.manifest.json).
 vectorai-db-beta/data/
 # Heavyweight tarballs of the DB image
-vectorai-db-beta/
 Actian_VectorAI_DB_Beta.tar
 # Transient download artifact from scripts/fetch_vdb_snapshot.py — we delete
 # it on success/failure, but list it here so a Ctrl+C mid-download doesn't

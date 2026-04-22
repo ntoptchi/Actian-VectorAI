@@ -1,10 +1,10 @@
 {
   "_comment": "Pointer to the pre-built VectorAI DB snapshot teammates download instead of re-embedding from scratch. Bump `version` + rerun scripts/dump_vdb_snapshot.py whenever the ingest pipeline (backend/schemas.py, backend/ingest/*, backend/embeddings.py) changes in a way that would alter what's indexed. `ingest_version` must match INGEST_VERSION in install.sh so the fetch script writes a marker that the seeding step will recognise as current.",
-  "version": "v4.1",
+  "version": "v4.2",
   "ingest_version": "4",
   "description": "routewise_crashes: full ~140K FDOT crashes + 508 news articles embedded with all-MiniLM-L6-v2 (384-dim, cosine).",
-  "url": "https://github.com/ntoptchi/Actian-VectorAI/releases/download/vdb/vdb_snapshot.tar.gz",
-  "sha256": "4d4440f6e51747a5bdc923e30e93709e9b1c4d8df49410d93356b604235f0fd1",
-  "bytes": 505212434,
+  "url": "https://github.com/ntoptchi/Actian-VectorAI/releases/download/vdbembeddings4.2/vdb_snapshot.tar.gz",
+  "sha256": "542f5213d17215a31ad2b1eccfa21b5faf637615c0f169153611612a59fdb75d",
+  "bytes": 439040283,
   "expected_points_min": 100000
 }
