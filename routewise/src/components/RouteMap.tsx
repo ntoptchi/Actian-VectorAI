@@ -202,13 +202,12 @@ export default function RouteMap({
             click: () => onNewsClick?.(n),
           }}
         >
-          <Tooltip direction="top" offset={[0, -6]}>
-            <div className="max-w-[16rem] font-semibold text-paper">
-              {n.headline}
-            </div>
-            <div className="text-[0.6875rem] uppercase tracking-[0.14em] text-paper/70">
-              {n.publisher}
-              {n.publish_date ? ` · ${n.publish_date}` : ""} · click to read
+          <Tooltip direction="top" offset={[0, -6]} maxWidth={490}>
+            <div style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 470 }}>
+              <span className="font-semibold text-paper">{n.headline}</span>
+              <span className="text-[0.6875rem] text-paper/70">
+                {" · "}{n.publisher}{n.publish_date ? ` · ${n.publish_date}` : ""} · click to read
+              </span>
             </div>
           </Tooltip>
         </CircleMarker>
