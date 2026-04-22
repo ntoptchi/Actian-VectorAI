@@ -23,12 +23,22 @@ in-car anything, no account, no friction.
 
 ## Why it's interesting
 
-- **We are not a router.** We don't compete with Google Maps. We take
-  the route the user already planned and brief them on it. This is a
-  massive scope win — no turn-by-turn, no live nav, no voice.
+- **We don't just tell you *when* to leave — we tell you *which
+  route*.** Given multiple reasonable routes to the same destination,
+  we re-rank them by how many crash-matched segments each carries
+  under tonight's conditions, pick the one with the fewest, and brief
+  you on every hotspot along it. That's a stronger product claim
+  than a briefing alone.
 - **The vector DB is load-bearing, not a bolt-on.** Every briefing
-  card is built from retrieved crashes. Turn off the VDB, every card
-  goes blank. That's our honesty test on stage.
+  card, and the route re-ranking itself, is built from retrieved
+  crashes. Turn off the VDB and every card goes blank *and* the
+  chosen route collapses to "fastest." That's our honesty test on
+  stage.
+- **We show our work.** The alternates panel shows each candidate's
+  matched-crash count beside its time. The chosen route is labeled
+  "Recommended," not "Safest." Per-segment color coding means you
+  can hover any flagged stretch and see the crashes, AADT, and
+  condition match that drove the score. No hidden reasoning.
 - **We fix survivorship bias with AADT.** We use FDOT's traffic-volume
   data to rank hotspots by crash rate per vehicle-pass, not raw count.
   "2.4× the Florida interstate average for this segment in rain at
@@ -93,8 +103,8 @@ in-car anything, no account, no friction.
 
 ## What's explicitly out of scope
 
-No alternate routes. No risk coloring on the route line. No real-time
-anything. No mobile app. No user accounts. No LLM-generated coaching
+No turn-by-turn nav. No in-car integration. No real-time traffic. No
+mobile form factor. No user accounts. No LLM-generated coaching
 (rule-based; LLM is a stretch goal if Day 5 arrives early).
 
 ## Read next

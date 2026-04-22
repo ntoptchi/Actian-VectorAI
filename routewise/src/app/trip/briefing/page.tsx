@@ -2,9 +2,10 @@ import Link from "next/link";
 
 import { SiteHeader } from "~/components/SiteHeader";
 import { BackendError, fetchTripBrief, parseDepart } from "~/lib/api";
+import { nearestCity } from "~/lib/cities";
 import type { TripBriefResponse } from "~/lib/types";
 
-import { TripView } from "./TripView";
+import { BriefingView } from "./BriefingView";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -14,7 +15,12 @@ function num(v: string | string[] | undefined): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-export default async function TripPage({
+/**
+ * Full pre-trip briefing — the "read before you pull out of the driveway"
+ * document. Same query-param contract as /trip so the two views can share
+ * a URL; just a longer-form rendering of the same TripBriefResponse.
+ */
+export default async function BriefingPage({
   searchParams,
 }: {
   searchParams: Promise<SearchParams>;
@@ -30,18 +36,20 @@ export default async function TripPage({
     return (
       <Shell title="Missing coordinates">
         <p className="text-sm text-ink-3">
-          The trip planner needs both an origin and a destination. Head back to
-          the home page and pick a preset.
+          The briefing needs both an origin and a destination. Head back to the
+          home page and plan a trip.
         </p>
         <Link
           href="/"
-          className="inline-flex w-fit items-center gap-2 rounded-sm bg-ink px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-paper transition hover:bg-ink-2"
+          className="inline-flex w-fit items-center gap-2 rounded-sm bg-ink px-4 py-2 text-xs font-semibold text-paper transition hover:bg-ink-2"
         >
           ← Back to home
         </Link>
       </Shell>
     );
   }
+
+  const mapHref = tripMapHref({ olat, olon, dlat, dlon, depart });
 
   let brief: TripBriefResponse | null = null;
   let error: string | null = null;
@@ -75,30 +83,56 @@ export default async function TripPage({
           from the repo root.
         </p>
         <Link
-          href="/"
-          className="inline-flex w-fit items-center gap-2 rounded-sm bg-ink px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-paper transition hover:bg-ink-2"
+          href={mapHref}
+          className="inline-flex w-fit items-center gap-2 rounded-sm bg-ink px-4 py-2 text-xs font-semibold text-paper transition hover:bg-ink-2"
         >
-          ← Back to home
+          ← Back to route map
         </Link>
       </Shell>
     );
   }
 
-  const briefingParams = new URLSearchParams({
+  // Reverse-derive city names from the URL coordinates so the headline
+  // reads "Jacksonville → Pensacola" instead of two lat/lon pairs. When
+  // origins come from geolocation (no curated city within ~50 km), fall
+  // back to null and BriefingView degrades to a generic headline.
+  const originName = nearestCity(olat, olon)?.name ?? null;
+  const destName = nearestCity(dlat, dlon)?.name ?? null;
+
+  return (
+    <div className="flex min-h-screen flex-col bg-paper">
+      <SiteHeader active="routes" />
+      <BriefingView
+        brief={brief}
+        originName={originName}
+        destName={destName}
+        mapHref={mapHref}
+      />
+    </div>
+  );
+}
+
+function tripMapHref({
+  olat,
+  olon,
+  dlat,
+  dlon,
+  depart,
+}: {
+  olat: number;
+  olon: number;
+  dlat: number;
+  dlon: number;
+  depart: string | undefined;
+}): string {
+  const sp = new URLSearchParams({
     olat: String(olat),
     olon: String(olon),
     dlat: String(dlat),
     dlon: String(dlon),
   });
-  if (depart) briefingParams.set("depart", depart);
-  const briefingHref = `/trip/briefing?${briefingParams.toString()}`;
-
-  return (
-    <div className="flex min-h-screen flex-col bg-paper lg:h-screen lg:overflow-hidden">
-      <SiteHeader variant="flush" active="routes" />
-      <TripView brief={brief} briefingHref={briefingHref} />
-    </div>
-  );
+  if (depart) sp.set("depart", depart);
+  return `/trip?${sp.toString()}`;
 }
 
 function Shell({
@@ -109,7 +143,7 @@ function Shell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-paper-grain">
+    <div className="min-h-screen bg-paper">
       <SiteHeader active="routes" />
       <main className="mx-auto flex max-w-2xl flex-col gap-5 px-6 pt-20">
         <span className="eyebrow">Safety Briefing</span>

@@ -13,8 +13,10 @@ import {
 
 import "leaflet/dist/leaflet.css";
 
+import { segmentLocationLabel } from "~/lib/segmentLabels";
 import type {
   AlternateSummary,
+  FatigueStop,
   HotspotSummary,
   RiskBand,
   RouteSegment,
@@ -39,6 +41,7 @@ interface Props {
   alternates: AlternateSummary[];
   chosenRouteId: string | null;
   hotspots: HotspotSummary[];
+  stops?: FatigueStop[];
   onSegmentClick?: (seg: RouteSegment) => void;
   onHotspotClick?: (h: HotspotSummary) => void;
 }
@@ -48,6 +51,7 @@ export default function RouteMap({
   alternates,
   chosenRouteId,
   hotspots,
+  stops,
   onSegmentClick,
   onHotspotClick,
 }: Props) {
@@ -160,7 +164,7 @@ export default function RouteMap({
           }}
         >
           <Tooltip sticky direction="top" offset={[0, -6]}>
-            <SegmentTooltip seg={seg} />
+            <SegmentTooltip seg={seg} hotspots={hotspots} stops={stops} />
           </Tooltip>
         </Polyline>
       ))}
@@ -193,16 +197,25 @@ export default function RouteMap({
   );
 }
 
-function SegmentTooltip({ seg }: { seg: RouteSegment }) {
+function SegmentTooltip({
+  seg,
+  hotspots,
+  stops,
+}: {
+  seg: RouteSegment;
+  hotspots: HotspotSummary[];
+  stops: FatigueStop[] | undefined;
+}) {
   const top = seg.top_factors[0];
+  // Hover and click must stay consistent — the drawer title uses this
+  // same helper, so "km 237 – 248" never leaks back into a tooltip.
+  const title = segmentLocationLabel(seg, hotspots, stops);
   return (
     <div className="min-w-[12rem] text-[0.6875rem] leading-relaxed text-paper">
-      <div className="flex items-center justify-between gap-3">
-        <span className="font-mono uppercase tracking-[0.14em] text-paper/70">
-          km {seg.from_km.toFixed(1)} – {seg.to_km.toFixed(1)}
-        </span>
+      <div className="flex items-start justify-between gap-3">
+        <span className="font-semibold text-paper">{title}</span>
         <span
-          className="rounded-sm px-1.5 py-0.5 text-[0.625rem] font-semibold uppercase tracking-[0.14em]"
+          className="shrink-0 rounded-sm px-1.5 py-0.5 text-[0.625rem] font-semibold uppercase tracking-[0.14em]"
           style={{
             backgroundColor: RISK_COLOR[seg.risk_band],
             color: "#0b1f44",

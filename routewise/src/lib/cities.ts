@@ -143,6 +143,37 @@ export function cityLabel(c: City): string {
 }
 
 /**
+ * Reverse-lookup: nearest city in the curated list to a given lat/lon.
+ *
+ * Uses a cheap equirectangular approximation — at FL latitudes this is
+ * accurate well under 1 km inside the state, more than enough to label
+ * a trip's origin or destination on the briefing page when the URL
+ * carries coordinates but not names (e.g. when the user clicked
+ * "Use current location" in the planner).
+ *
+ * Returns null when no city is within `maxKm`.
+ */
+export function nearestCity(
+  lat: number,
+  lon: number,
+  maxKm = 50,
+): City | null {
+  let best: City | null = null;
+  let bestKm = maxKm;
+  const cosLat = Math.cos((lat * Math.PI) / 180);
+  for (const c of CITIES) {
+    const dx = (c.lon - lon) * 111 * cosLat;
+    const dy = (c.lat - lat) * 111;
+    const d = Math.hypot(dx, dy);
+    if (d < bestKm) {
+      bestKm = d;
+      best = c;
+    }
+  }
+  return best;
+}
+
+/**
  * Substring + word-prefix search over the curated list.
  *
  * - Ranks word-start matches above mid-word matches so "tam" surfaces
