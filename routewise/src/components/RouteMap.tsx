@@ -42,6 +42,7 @@ interface Props {
   alternates: AlternateSummary[];
   chosenRouteId: string | null;
   hotspots: HotspotSummary[];
+  stops?: FatigueStop[];
   newsArticles: NewsArticle[];
   onSegmentClick?: (seg: RouteSegment) => void;
   onHotspotClick?: (h: HotspotSummary) => void;
@@ -53,6 +54,7 @@ export default function RouteMap({
   alternates,
   chosenRouteId,
   hotspots,
+  stops,
   newsArticles,
   onSegmentClick,
   onHotspotClick,

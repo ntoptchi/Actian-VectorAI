@@ -81,6 +81,7 @@ export function TripView({
           alternates={brief.alternates}
           chosenRouteId={chosenId}
           hotspots={hotspots}
+          stops={brief.fatigue_plan.suggested_stops}
           newsArticles={newsArticles}
           onSegmentClick={(s) => setSelection({ kind: "segment", data: s })}
           onHotspotClick={(h) => setSelection({ kind: "hotspot", data: h })}

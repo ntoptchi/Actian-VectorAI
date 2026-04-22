@@ -1,6 +1,12 @@
 "use client";
 
-import type { HotspotSummary, NewsArticle, RouteSegment } from "~/lib/types";
+import { segmentLocationLabel } from "~/lib/segmentLabels";
+import type {
+  FatigueStop,
+  HotspotSummary,
+  NewsArticle,
+  RouteSegment,
+} from "~/lib/types";
 
 type CardSubject =
   | { kind: "hotspot"; data: HotspotSummary }
