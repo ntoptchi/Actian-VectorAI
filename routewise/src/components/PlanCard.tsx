@@ -24,6 +24,7 @@ export function PlanCard() {
   const [depart, setDepart] = useState(""); // YYYY-MM-DDTHH:MM (local) from datetime-local
   const [error, setError] = useState<string | null>(null);
   const [locating, setLocating] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   // Live wall-clock tick so the footer clock stays fresh without the user
   // refreshing. 30s resolution is plenty for a minute-grained display,
@@ -83,6 +84,7 @@ export function PlanCard() {
       return;
     }
 
+    setLoading(true);
     const params = new URLSearchParams({
       olat: String(origin.lat),
       olon: String(origin.lon),
@@ -101,13 +103,35 @@ export function PlanCard() {
     setLocating(true);
     setError(null);
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        let name = "Current Location";
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&zoom=10`,
+          );
+          if (res.ok) {
+            const data = await res.json();
+            const addr = data.address || {};
+            name =
+              addr.city ||
+              addr.town ||
+              addr.village ||
+              addr.suburb ||
+              addr.county ||
+              data.display_name?.split(",")[0] ||
+              "Current Location";
+          }
+        } catch {
+          // Fall back to "Current Location" if reverse geocode fails
+        }
         const here: City = {
-          id: `here-${pos.coords.latitude.toFixed(4)}-${pos.coords.longitude.toFixed(4)}`,
-          name: "Current Location",
-          state: "—",
-          lat: pos.coords.latitude,
-          lon: pos.coords.longitude,
+          id: `here-${lat.toFixed(4)}-${lon.toFixed(4)}`,
+          name,
+          state: "FL",
+          lat,
+          lon,
         };
         setOrigin(here);
         setLocating(false);
@@ -233,15 +257,22 @@ export function PlanCard() {
 
         <button
           type="submit"
-          className="mt-1 inline-flex items-center justify-center gap-2 rounded-xl bg-ink py-3 text-sm font-semibold text-paper-3 transition hover:bg-ink-2"
+          disabled={loading}
+          className="mt-1 inline-flex min-h-[48px] cursor-pointer items-center justify-center gap-2 rounded-xl bg-ink py-3 text-sm font-semibold text-paper-3 transition hover:bg-ink-2 disabled:cursor-wait disabled:opacity-80"
         >
-          {ready && preview
-            ? `See my briefing · ~${Math.round(preview.miles)} mi · ~${formatDuration(preview.driveMin)}`
-            : "See my briefing"}
-          {ready && (
-            <kbd className="ml-1 rounded-md border border-paper-3/30 px-1.5 py-0.5 font-mono text-[0.625rem] text-paper-3/70">
-              ⏎
-            </kbd>
+          {loading ? (
+            <div className="route-loader" />
+          ) : (
+            <>
+              {ready && preview
+                ? `See my briefing · ~${Math.round(preview.miles)} mi · ~${formatDuration(preview.driveMin)}`
+                : "See my briefing"}
+              {ready && (
+                <kbd className="ml-1 rounded-md border border-paper-3/30 px-1.5 py-0.5 font-mono text-[0.625rem] text-paper-3/70">
+                  ⏎
+                </kbd>
+              )}
+            </>
           )}
         </button>
         <div className="flex items-center justify-between text-xs text-ink-4">

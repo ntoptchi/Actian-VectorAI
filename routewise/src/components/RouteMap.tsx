@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import L from "leaflet";
 import {
   MapContainer,
@@ -80,20 +80,7 @@ export default function RouteMap({
       zoomControl={false}
       className="h-full w-full"
     >
-      {/* Dark editorial tiles — matches the satellite/topographic mockup vibe */}
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
-        url="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png"
-        subdomains="abcd"
-        maxZoom={19}
-      />
-      {/* Place labels on top so the route reads cleanly */}
-      <TileLayer
-        url="https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png"
-        subdomains="abcd"
-        maxZoom={19}
-        opacity={0.7}
-      />
+      <MapLayerSwitcher />
       <FitBounds bounds={bounds} />
 
       {/* Faded alternates underneath */}
@@ -263,6 +250,167 @@ function SegmentTooltip({ seg }: { seg: RouteSegment }) {
         </div>
       )}
     </div>
+  );
+}
+
+type MapStyle = "terrain" | "satellite";
+
+const MAP_STYLES: Record<MapStyle, { url: string; attribution: string; subdomains?: string }> = {
+  terrain: {
+    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  },
+  satellite: {
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    attribution: '&copy; Esri &mdash; Esri, Maxar, Earthstar Geographics',
+  },
+};
+
+function MapLayerSwitcher() {
+  const map = useMap();
+  const [style, setStyle] = useState<MapStyle>("terrain");
+  const [open, setOpen] = useState(false);
+  const [layers, setLayers] = useState<L.TileLayer[]>([]);
+
+  useEffect(() => {
+    layers.forEach((l) => map.removeLayer(l));
+
+    const cfg = MAP_STYLES[style];
+    const base = L.tileLayer(cfg.url, {
+      attribution: cfg.attribution,
+      maxZoom: 19,
+      ...(cfg.subdomains ? { subdomains: cfg.subdomains } : {}),
+    });
+    base.addTo(map);
+    base.bringToBack();
+
+    const newLayers: L.TileLayer[] = [base];
+
+    // Add a labels overlay on satellite so streets/places are readable
+    if (style === "satellite") {
+      const labels = L.tileLayer(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}",
+        { maxZoom: 19, pane: "shadowPane" },
+      );
+      labels.addTo(map);
+      newLayers.push(labels);
+
+      const places = L.tileLayer(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+        { maxZoom: 19, pane: "shadowPane" },
+      );
+      places.addTo(map);
+      newLayers.push(places);
+    }
+
+    setLayers(newLayers);
+    return () => {
+      newLayers.forEach((l) => map.removeLayer(l));
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [style, map]);
+
+  const pick = useCallback((s: MapStyle) => {
+    setStyle(s);
+    setOpen(false);
+  }, []);
+
+  const other: MapStyle = style === "terrain" ? "satellite" : "terrain";
+
+  return (
+    <div
+      className="leaflet-bottom leaflet-right"
+      style={{ pointerEvents: "auto", zIndex: 1000 }}
+    >
+      <div
+        className="leaflet-control"
+        style={{ margin: "0 10px 10px 0", display: "flex", flexDirection: "column-reverse", alignItems: "center", gap: 0 }}
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+      >
+        {/* Current style icon */}
+        <button
+          onClick={() => setOpen((v) => !v)}
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 8,
+            border: "2px solid rgba(255,255,255,0.25)",
+            background: "rgba(15,23,42,0.85)",
+            backdropFilter: "blur(8px)",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+          }}
+          title="Switch map style"
+        >
+          {style === "terrain" ? <TerrainIcon /> : <SatelliteIcon />}
+        </button>
+
+        {/* The other option slides in directly below */}
+        <div
+          style={{
+            overflow: "hidden",
+            maxHeight: open ? 44 : 0,
+            opacity: open ? 1 : 0,
+            transition: "max-height 0.2s ease, opacity 0.15s ease",
+          }}
+        >
+          <button
+            onClick={() => pick(other)}
+            style={{
+              marginBottom: 4,
+              width: 40,
+              height: 40,
+              borderRadius: 8,
+              border: "2px solid rgba(255,255,255,0.15)",
+              background: "rgba(15,23,42,0.85)",
+              backdropFilter: "blur(8px)",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+            }}
+            title={other === "satellite" ? "Satellite" : "Terrain"}
+          >
+            {other === "satellite" ? <SatelliteIcon /> : <TerrainIcon />}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LayersIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e2e8f0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2 2 7l10 5 10-5-10-5Z" />
+      <path d="m2 17 10 5 10-5" />
+      <path d="m2 12 10 5 10-5" />
+    </svg>
+  );
+}
+
+function TerrainIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e2e8f0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m3 20 5.5-11L12 15l3-4 6 9H3Z" />
+      <path d="M6 7a2 2 0 1 0 4 0 2 2 0 0 0-4 0" />
+    </svg>
+  );
+}
+
+function SatelliteIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e2e8f0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 2a14.5 14.5 0 0 0 0 20" />
+      <path d="M12 2a14.5 14.5 0 0 1 0 20" />
+      <path d="M2 12h20" />
+    </svg>
   );
 }
 
