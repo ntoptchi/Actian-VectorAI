@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 
 import { AlternatesPanel } from "~/components/AlternatesPanel";
 import { BriefingCard } from "~/components/BriefingCard";
@@ -28,7 +29,13 @@ type Selection =
   | { kind: "news"; data: NewsArticle }
   | null;
 
-export function TripView({ brief }: { brief: TripBriefResponse }) {
+export function TripView({
+  brief,
+  briefingHref,
+}: {
+  brief: TripBriefResponse;
+  briefingHref: string;
+}) {
   const [chosenId, setChosenId] = useState<string | null>(brief.chosen_route_id);
   const [selection, setSelection] = useState<Selection>(null);
 
@@ -74,6 +81,7 @@ export function TripView({ brief }: { brief: TripBriefResponse }) {
           alternates={brief.alternates}
           chosenRouteId={chosenId}
           hotspots={hotspots}
+          stops={brief.fatigue_plan.suggested_stops}
           newsArticles={newsArticles}
           onSegmentClick={(s) => setSelection({ kind: "segment", data: s })}
           onHotspotClick={(h) => setSelection({ kind: "hotspot", data: h })}
@@ -129,17 +137,22 @@ export function TripView({ brief }: { brief: TripBriefResponse }) {
         <div className="flex flex-col gap-6 p-6">
           <header className="flex flex-col gap-2">
             <span className="eyebrow">Safety Briefing</span>
-            <h1 className="display text-3xl">Route Analysis</h1>
+            <h1 className="display text-3xl">Tonight&apos;s Route</h1>
           </header>
 
           <div>
-            <div className="mb-2 flex items-baseline justify-between">
+            <div className="mb-2 flex flex-col gap-0.5">
               <h2 className="text-base font-semibold text-ink">
-                Recommended Alternates
+                Recommended Route
               </h2>
-              <span className="font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-ink-3">
-                {brief.alternates.length} routes found
-              </span>
+              {brief.alternates.length > 1 && (
+                <p className="text-xs text-ink-3">
+                  Compared against{" "}
+                  {brief.alternates.length - 1}{" "}
+                  {brief.alternates.length - 1 === 1 ? "alternate" : "alternates"}
+                  {" "}— pick any to see its briefing.
+                </p>
+              )}
             </div>
             <AlternatesPanel
               alternates={brief.alternates}
@@ -218,18 +231,20 @@ export function TripView({ brief }: { brief: TripBriefResponse }) {
           )}
         </div>
 
-        <button
-          type="button"
-          className="sticky bottom-0 mt-auto border-t border-rule bg-ink py-4 text-sm font-semibold uppercase tracking-[0.14em] text-paper transition hover:bg-ink-2"
+        <Link
+          href={briefingHref}
+          className="sticky bottom-0 mt-auto border-t border-rule bg-ink py-4 text-center text-sm font-semibold text-paper transition hover:bg-ink-2"
         >
-          Start Guided Trip
-        </button>
+          Open full briefing
+        </Link>
       </aside>
 
       {/* Briefing card overlay (mockup 1) */}
       {selection && (
         <BriefingCard
           subject={selection}
+          hotspots={hotspots}
+          stops={brief.fatigue_plan.suggested_stops}
           onClose={() => setSelection(null)}
         />
       )}

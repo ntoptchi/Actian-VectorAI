@@ -1,6 +1,12 @@
 "use client";
 
-import type { HotspotSummary, NewsArticle, RouteSegment } from "~/lib/types";
+import { segmentLocationLabel } from "~/lib/segmentLabels";
+import type {
+  FatigueStop,
+  HotspotSummary,
+  NewsArticle,
+  RouteSegment,
+} from "~/lib/types";
 
 type CardSubject =
   | { kind: "hotspot"; data: HotspotSummary }
@@ -9,6 +15,8 @@ type CardSubject =
 
 interface Props {
   subject: CardSubject | null;
+  hotspots?: HotspotSummary[];
+  stops?: FatigueStop[];
   onClose?: () => void;
 }
 
@@ -18,7 +26,7 @@ interface Props {
  * Exit 136" mockup: navy headline, mono eyebrow, navy "PROACTIVE COACHING"
  * callout, big-numeral factor stats, investigator field notes.
  */
-export function BriefingCard({ subject, onClose }: Props) {
+export function BriefingCard({ subject, hotspots, stops, onClose }: Props) {
   if (!subject) return null;
 
   // News articles get their own card layout.
@@ -27,7 +35,9 @@ export function BriefingCard({ subject, onClose }: Props) {
   }
 
   const title =
-    subject.kind === "hotspot" ? subject.data.label : segmentTitle(subject.data);
+    subject.kind === "hotspot"
+      ? subject.data.label
+      : segmentLocationLabel(subject.data, hotspots, stops);
   const subtitle =
     subject.kind === "hotspot"
       ? `~${subject.data.km_into_trip.toFixed(1)} km into trip`
@@ -35,6 +45,7 @@ export function BriefingCard({ subject, onClose }: Props) {
   const coaching =
     subject.kind === "hotspot" ? subject.data.coaching_line : null;
   const intensity = subject.data.intensity_ratio;
+  const intensityDisplay = intensityDisplayFor(intensity);
   const factors = subject.data.top_factors;
   const aadt = subject.data.aadt;
   const nCrashes = subject.data.n_crashes;
@@ -119,40 +130,40 @@ export function BriefingCard({ subject, onClose }: Props) {
                 tone="ink"
               />
               <FactorStat
-                value={
-                  intensity != null ? `${intensity.toFixed(1)}x` : "—"
-                }
-                label={
-                  intensity != null
-                    ? "Higher than the FL average rate"
-                    : "FL baseline comparison unavailable"
-                }
-                tone="gold"
+                value={intensityDisplay.value}
+                label={intensityDisplay.label}
+                tone={intensityDisplay.tone}
               />
             </div>
           </div>
 
-          {/* Visibility / exposure gauge */}
+          {/* Traffic volume readout — number only, no bar. A filled dark
+              bar at 112k AADT reads as a warning when the data behind it
+              ("this road carries a lot of cars") is not itself a hazard.
+              Two-column layout so the card breathes at the same height
+              as surrounding content instead of leaving a tall empty
+              block below a single line of AADT. */}
           {aadt != null && (
-            <div className="rounded-sm bg-paper-3 p-4 ring-1 ring-rule">
-              <div className="flex items-center justify-between">
+            <div className="flex items-baseline justify-between gap-3 rounded-sm bg-paper-3 px-4 py-3 ring-1 ring-rule">
+              <div className="flex flex-col gap-0.5">
                 <span className="font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-ink-3">
-                  Traffic Exposure
+                  Traffic
                 </span>
-                <span className="font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-ink">
-                  {exposureLabel(aadt)}
+                <div className="flex items-baseline gap-2">
+                  <span className="stat-numeral text-2xl text-ink">
+                    {aadt.toLocaleString()}
+                  </span>
+                  <span className="text-[0.6875rem] text-ink-3">
+                    vehicles/day
+                  </span>
+                </div>
+                <span className="font-mono text-[0.625rem] uppercase tracking-[0.14em] text-ink-4">
+                  AADT · FDOT
                 </span>
               </div>
-              <div className="mt-2 h-1.5 w-full overflow-hidden rounded-sm bg-rule">
-                <div
-                  className="h-full rounded-sm bg-ink"
-                  style={{ width: `${exposureBarPct(aadt)}%` }}
-                />
-              </div>
-              <div className="mt-2 flex items-center justify-between text-[0.6875rem] text-ink-3">
-                <span>AADT {aadt.toLocaleString()} vehicles/day</span>
-                <EyeIcon />
-              </div>
+              <span className="text-[0.6875rem] text-ink-3">
+                {exposureLabel(aadt)}
+              </span>
             </div>
           )}
 
@@ -336,15 +347,55 @@ function FactorStat({
 }: {
   value: string | number;
   label: string;
-  tone: "ink" | "gold";
+  tone: "ink" | "gold" | "good" | "alert";
 }) {
-  const valueColor = tone === "gold" ? "text-gold" : "text-ink";
+  const valueColor =
+    tone === "alert"
+      ? "text-alert"
+      : tone === "gold"
+        ? "text-gold"
+        : tone === "good"
+          ? "text-good"
+          : "text-ink";
   return (
     <div className="flex flex-col gap-2 rounded-sm bg-paper-3 p-4 ring-1 ring-rule">
       <span className={`stat-numeral text-4xl ${valueColor}`}>{value}</span>
       <span className="text-[0.6875rem] leading-snug text-ink-3">{label}</span>
     </div>
   );
+}
+
+/**
+ * Color-codes the intensity stat against the FL baseline so the amber
+ * tone *means something*. A 0.0x segment with zero matched crashes is
+ * at-or-below baseline, which must read as neutral/good — coloring it
+ * amber was actively misleading in QA.
+ *
+ *   null        → neutral, "baseline comparison unavailable"
+ *   < 1.0x      → good,    "at or below the FL average"
+ *   1.0 – 2.0x  → gold,    "above the FL average"
+ *   >= 2.0x     → alert,   "well above the FL average"
+ */
+function intensityDisplayFor(ratio: number | null | undefined): {
+  value: string;
+  label: string;
+  tone: "ink" | "gold" | "good" | "alert";
+} {
+  if (ratio == null) {
+    return {
+      value: "—",
+      label: "FL baseline comparison unavailable",
+      tone: "ink",
+    };
+  }
+  const v = `${ratio.toFixed(1)}x`;
+  if (ratio < 1) {
+    return { value: v, label: "At or below the FL average rate", tone: "good" };
+  }
+  if (ratio < 2) {
+    return { value: v, label: "Above the FL average rate", tone: "gold" };
+  }
+  return { value: v, label: "Well above the FL average rate", tone: "alert" };
 }
 
 type Status = {
@@ -397,27 +448,29 @@ function bandFromIntensity(
   return "low";
 }
 
-function segmentTitle(s: RouteSegment): string {
-  return `Segment ${s.from_km.toFixed(1)} – ${s.to_km.toFixed(1)} km`;
-}
-
 function segmentSubtitle(s: RouteSegment): string {
-  const parts: string[] = [];
-  parts.push(`Risk band: ${s.risk_band}`);
+  const bandLabel =
+    s.risk_band === "high"
+      ? "High risk band"
+      : s.risk_band === "elevated"
+        ? "Elevated risk band"
+        : s.risk_band === "moderate"
+          ? "Moderate risk band"
+          : "Low risk band";
+  const parts: string[] = [bandLabel];
   if (s.speed_limit_mph != null) parts.push(`${s.speed_limit_mph} mph posted`);
-  if (s.night_skewed) parts.push("night-skewed segment");
+  if (s.night_skewed) parts.push("night-skewed");
   return parts.join(" · ");
 }
 
-function exposureBarPct(aadt: number): number {
-  // 0 → 0%, 100k → 100%, log-ish.
-  const pct = Math.min(100, Math.max(8, Math.round(Math.log10(aadt + 1) * 22)));
-  return pct;
-}
-
+/**
+ * AADT alone is a count, not a severity — a busy road isn't inherently
+ * dangerous, it just carries more cars. Labels top out at "Heavy"; we
+ * don't use "Severe" here because traffic volume is not a hazard rating.
+ */
 function exposureLabel(aadt: number): string {
-  if (aadt > 80000) return "Severe";
-  if (aadt > 30000) return "Heavy";
+  if (aadt > 80000) return "Heavy";
+  if (aadt > 30000) return "Busy";
   if (aadt > 10000) return "Moderate";
   return "Light";
 }

@@ -8,12 +8,12 @@ interface Props {
   onSelect?: (route_id: string) => void;
 }
 
-const ROUTE_NAMES = [
-  { name: "The Shield Route", via: "via Coastal Hwy 101" },
-  { name: "Direct Link", via: "via Interstate 95" },
-  { name: "Business Arterial", via: "via 5th Ave Corridor" },
-  { name: "Inland Bypass", via: "via State Route 27" },
-  { name: "Coastal Loop", via: "via US-1 N" },
+const ROUTE_VIA = [
+  "Via Coastal Hwy 101",
+  "Via Interstate 95",
+  "Via 5th Ave Corridor",
+  "Via State Route 27",
+  "Via US-1 N",
 ];
 
 function fmtMin(seconds: number): string {
@@ -40,14 +40,14 @@ export function AlternatesPanel({ alternates, chosenId, onSelect }: Props) {
     <ul className="flex flex-col gap-3">
       {alternates.map((a, i) => {
         const isChosen = a.route_id === chosenId;
-        const meta = ROUTE_NAMES[i] ?? {
-          name: `Alternate ${i + 1}`,
-          via: "via local roads",
-        };
-        const deltaPct = Math.round(a.risk_delta_vs_fastest * 100);
+        const via = ROUTE_VIA[i] ?? `Alternate ${i + 1}`;
         const isFastest = i === 0;
         const minutesDelta = a.minutes_delta_vs_fastest;
-        const isSafest = i === chosenIdx;
+        const isRecommended = i === chosenIdx;
+        const matchCaption =
+          a.n_crashes === 0
+            ? "No crash history matching tonight's conditions on this route."
+            : `${a.n_crashes} ${a.n_crashes === 1 ? "segment matches" : "segments match"} tonight's conditions along this route.`;
 
         return (
           <li key={a.route_id}>
@@ -71,15 +71,12 @@ export function AlternatesPanel({ alternates, chosenId, onSelect }: Props) {
 
               <div className="flex flex-1 flex-col gap-3 p-4">
                 <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="font-display text-lg font-medium leading-tight text-ink">
-                      {meta.name}
-                    </div>
-                    <div className="text-xs text-ink-3">{meta.via}</div>
+                  <div className="text-lg font-semibold leading-tight text-ink">
+                    {via}
                   </div>
-                  {isSafest && (
-                    <span className="shrink-0 rounded-sm bg-ink px-2 py-1 font-mono text-[0.625rem] font-semibold uppercase tracking-[0.14em] text-paper">
-                      Safest
+                  {isRecommended && (
+                    <span className="shrink-0 rounded-full bg-ink px-2.5 py-0.5 text-[0.6875rem] font-semibold text-paper">
+                      Recommended
                     </span>
                   )}
                 </div>
@@ -95,19 +92,15 @@ export function AlternatesPanel({ alternates, chosenId, onSelect }: Props) {
                     }
                   />
                   <Stat
-                    label="Risk Delta"
-                    value={`${deltaPct > 0 ? "+" : ""}${deltaPct}`}
-                    valueSuffix="%"
-                    tone={
-                      deltaPct < 0
-                        ? "good"
-                        : deltaPct > 0
-                          ? "warn"
-                          : "neutral"
-                    }
-                    sublabel={`${a.n_crashes} matched`}
+                    label="Matches"
+                    value={String(a.n_crashes)}
+                    tone={a.n_crashes === 0 ? "good" : "neutral"}
                   />
                 </div>
+
+                <p className="text-xs leading-relaxed text-ink-3">
+                  {matchCaption}
+                </p>
               </div>
             </button>
           </li>

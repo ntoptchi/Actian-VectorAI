@@ -116,11 +116,17 @@ talking through it with them.
 
 ### 1.4 What it is not
 
-RouteWise is **not a router**. We do not compete with Google Maps. We
-do not pick a "safer" route, do not recommend alternates, do not
-reorder anyone's turn-by-turn. We take the route the user is already
-planning to drive and brief them on it. *How they get there is their
-business; what they watch for along the way is ours.*
+RouteWise is **not a nav app**. We don't compete with Google Maps or
+Waze. No turn-by-turn, no voice, no in-car anything. The product is
+consumed in the ~20 minutes before the drive, on a laptop or a
+phone browser, then closed.
+
+What we *do* that nav apps don't: when there are multiple reasonable
+routes to the same destination, we tell you **which route has the
+fewest crash-matched segments for tonight's conditions**, and brief
+you on every hotspot along the way. *We don't just tell you when to
+leave — we tell you which route carries the lowest risk match for
+tonight, and show you why we picked it.*
 
 ---
 
@@ -1004,6 +1010,36 @@ teen *more* anxious without making them *more* skilled. Bad.
   excerpts that describe *what the outcome was*.
 - Tone of voice is driving-instructor, not local-news.
 
+### 11.6 We show our work — recommendation, not absolute claim
+
+Now that we re-rank routes, the old honesty claim ("we're not a
+router") doesn't apply. The new claim is tighter:
+
+> *We show you why we recommended it — every segment's crash count,
+> AADT, and condition match is visible. We don't hide the reasoning.*
+
+**What we do about it:**
+
+- The chosen route is labeled **"Recommended"**, not "Safest".
+  *Safest* is absolute language we can't honor — we can honor
+  "fewest matched crash segments under tonight's conditions," which
+  is what a recommendation means here.
+- Route headlines are the road name the network gave them (*"Via
+  Coastal Hwy 101"*), not invented brand names. We didn't name the
+  route, the road network did.
+- The alternates panel shows, for every candidate: duration, number
+  of crash-matched segments, and the "no crash history matching
+  tonight's conditions" disclosure when the match count is zero.
+  The user can see *why* we picked one route over another.
+- Per-segment color coding on the chosen route (§2 pivot block)
+  means every risk-scored segment is hoverable. Hover a flagged
+  segment and you see the matched crashes, the AADT, and the
+  condition match — not just a score.
+- Turn the VDB off and the alternates panel collapses to "fastest,"
+  every segment renders neutral, and the chosen route is picked by
+  duration alone (§2.4). The reasoning stops being visible because
+  there's nothing real to show.
+
 ---
 
 ## 12. Deliverables
@@ -1016,20 +1052,23 @@ teen *more* anxious without making them *more* skilled. Bad.
 2. **Repo** — documented, seeded, reproducible with `./install.sh` +
    `./start.sh`, same pattern as RigSense.
 3. **Pitch deck** (≤10 slides) — problem (teen, unfamiliar long
-   drive, 20 minutes before keys), "we are not a router," why vector
-   DB, exposure denominators via AADT, the briefing card as the
-   centerpiece, data architecture, product integrity slide (§11), the
-   ask.
+   drive, 20 minutes before keys), the pitch center (*"we don't just
+   tell you when to leave — we tell you which route has the fewest
+   crash-matched segments for tonight, and brief you on every
+   hotspot"*), why vector DB, exposure denominators via AADT, the
+   briefing card as the centerpiece, data architecture, product
+   integrity slide (§11), the ask.
 4. **Backup video** (90 s) — same flow, recorded locally for the
    wifi-fails-on-stage scenario.
 
 ### 12.1 The pitch's money line
 
-> *"RouteWise is not a router. It's the pre-trip briefing a teen
-> never gets before their first long drive. We take your route and
-> tonight's conditions, pull the actual crashes that happened on
-> roads like yours in weather like yours, normalize by how many cars
-> actually pass each place, and brief you — in the voice of a
-> driving instructor — on what to watch for at each hotspot. Turn
-> off the vector database and every briefing card goes blank. That's
-> our honesty test."*
+> *"RouteWise is the pre-trip briefing a teen never gets before their
+> first long drive. We don't just tell you **when** to leave — we
+> tell you **which route has the fewest crash-matched segments for
+> tonight's conditions**, and brief you on every hotspot along the
+> way. We pull the actual crashes that happened on roads like yours
+> in weather like yours, normalize by how many cars actually pass
+> each place, and show our work: every segment's crash count, AADT,
+> and condition match is visible. Turn off the vector database and
+> every briefing card goes blank — that's our honesty test."*
