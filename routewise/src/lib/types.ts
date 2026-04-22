@@ -73,6 +73,18 @@ export interface HotspotSummary {
   coaching_line: string;
 }
 
+export interface NewsArticle {
+  article_id: string;
+  headline: string;
+  excerpt: string;
+  publisher: string;
+  article_url: string;
+  publish_date: string | null;
+  location: LatLon;
+  severity: "fatal" | "serious" | "minor" | "pdo" | "unknown";
+  linked_crash_ids: string[];
+}
+
 export interface TripBriefRequest {
   origin: LatLon;
   destination: LatLon;
@@ -118,6 +130,7 @@ export interface TripBriefResponse {
   chosen_route_id: string | null;
   alternates: AlternateSummary[];
   segments: RouteSegment[];
+  news_articles: NewsArticle[];
 }
 
 export interface CrashExcerpt {

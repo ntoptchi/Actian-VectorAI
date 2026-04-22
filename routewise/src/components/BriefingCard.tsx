@@ -1,15 +1,11 @@
 "use client";
 
-import { segmentLocationLabel } from "~/lib/segmentLabels";
-import type {
-  FatigueStop,
-  HotspotSummary,
-  RouteSegment,
-} from "~/lib/types";
+import type { HotspotSummary, NewsArticle, RouteSegment } from "~/lib/types";
 
 type CardSubject =
   | { kind: "hotspot"; data: HotspotSummary }
-  | { kind: "segment"; data: RouteSegment };
+  | { kind: "segment"; data: RouteSegment }
+  | { kind: "news"; data: NewsArticle };
 
 interface Props {
   subject: CardSubject | null;
@@ -26,6 +22,11 @@ interface Props {
  */
 export function BriefingCard({ subject, hotspots, stops, onClose }: Props) {
   if (!subject) return null;
+
+  // News articles get their own card layout.
+  if (subject.kind === "news") {
+    return <NewsBriefingCard article={subject.data} onClose={onClose} />;
+  }
 
   const title =
     subject.kind === "hotspot"
@@ -197,6 +198,142 @@ export function BriefingCard({ subject, hotspots, stops, onClose }: Props) {
   );
 }
 
+
+/**
+ * Dedicated card layout for news articles. Blue accent instead of red,
+ * shows headline, full excerpt, publisher/date, severity badge,
+ * and a link to the original article.
+ */
+function NewsBriefingCard({
+  article,
+  onClose,
+}: {
+  article: NewsArticle;
+  onClose?: () => void;
+}) {
+  const severityColor =
+    article.severity === "fatal"
+      ? { dot: "bg-alert", text: "text-alert", label: "Fatal Incident" }
+      : article.severity === "serious"
+        ? { dot: "bg-warn", text: "text-warn", label: "Serious Incident" }
+        : { dot: "bg-[#2563eb]", text: "text-[#2563eb]", label: "Media Report" };
+
+  return (
+    <>
+      <div
+        aria-hidden
+        onClick={onClose}
+        className="fixed inset-0 z-[1100] bg-ink/40 lg:hidden"
+      />
+
+      <aside
+        role="dialog"
+        aria-modal="true"
+        aria-label="News article"
+        className="fixed inset-y-0 right-0 z-[1200] flex w-full max-w-[28rem] flex-col overflow-y-auto bg-paper-2 shadow-[-20px_0_40px_-20px_rgba(11,31,68,0.4)] lg:right-[28rem] lg:max-w-[26rem]"
+      >
+        {/* Close + status bar */}
+        <div className="flex items-center justify-between border-b border-rule px-6 py-3">
+          <div className="flex items-center gap-2">
+            <span
+              className={`grid h-5 w-5 place-items-center rounded-full text-[0.625rem] font-bold text-paper ${severityColor.dot}`}
+            >
+              !
+            </span>
+            <span
+              className={`font-mono text-[0.6875rem] uppercase tracking-[0.16em] ${severityColor.text}`}
+            >
+              {severityColor.label}
+            </span>
+            <span className="font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-ink-4">
+              · Media coverage
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close article"
+            className="grid h-8 w-8 place-items-center rounded-full text-ink-3 transition hover:bg-paper-3 hover:text-ink"
+          >
+            <CloseIcon />
+          </button>
+        </div>
+
+        <div className="flex flex-col gap-6 px-6 py-6">
+          {/* Headline */}
+          <div className="flex flex-col gap-2">
+            <h2 className="display text-2xl leading-tight">{article.headline}</h2>
+            <div className="flex items-center gap-2 text-xs text-ink-3">
+              <NewsCardIcon />
+              <span>
+                {article.publisher}
+                {article.publish_date ? ` · ${article.publish_date}` : ""}
+              </span>
+            </div>
+          </div>
+
+          {/* Article excerpt */}
+          <div className="flex gap-3 rounded-sm border-l-[3px] border-[#2563eb] bg-[#e7ecf4] p-4">
+            <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[#2563eb] text-paper">
+              <NewsCardIcon />
+            </span>
+            <div className="flex flex-col gap-1.5">
+              <span className="font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.16em] text-ink-2">
+                From the article
+              </span>
+              <p className="text-sm italic leading-relaxed text-ink">
+                &ldquo;{article.excerpt}&rdquo;
+              </p>
+            </div>
+          </div>
+
+          {/* Location */}
+          <div className="rounded-sm bg-paper-3 p-4 ring-1 ring-rule">
+            <div className="flex items-center gap-2">
+              <PinIcon />
+              <span className="font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-ink-3">
+                Reported Location
+              </span>
+            </div>
+            <div className="mt-2 text-sm text-ink">
+              {article.location.lat.toFixed(4)}°N, {Math.abs(article.location.lon).toFixed(4)}°W
+            </div>
+          </div>
+
+          {/* Linked crashes */}
+          {article.linked_crash_ids.length > 0 && (
+            <div className="rounded-sm bg-paper-3 p-4 ring-1 ring-rule">
+              <span className="font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-ink-3">
+                Linked Crash Records
+              </span>
+              <ul className="mt-2 flex flex-col gap-1">
+                {article.linked_crash_ids.map((id) => (
+                  <li key={id} className="text-sm font-mono text-ink-2">
+                    {id}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Read original */}
+          {article.article_url && (
+            <a
+              href={article.article_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 rounded-sm bg-[#2563eb] px-4 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-paper transition hover:bg-[#1d4ed8]"
+            >
+              Read Original Article
+              <ExternalLinkIcon />
+            </a>
+          )}
+        </div>
+      </aside>
+    </>
+  );
+}
+
 function FactorStat({
   value,
   label,
@@ -262,7 +399,7 @@ type Status = {
   text: string;
 };
 
-function statusFor(subject: CardSubject): Status {
+function statusFor(subject: { kind: "hotspot"; data: HotspotSummary } | { kind: "segment"; data: RouteSegment }): Status {
   // Derive status from the actual data so the eyebrow doesn't lie about the
   // segment's tier (caught in QA: a "low" risk segment was being labeled
   // "MODERATE RISK" because the eyebrow was hardcoded).
@@ -392,3 +529,55 @@ function BulbIcon() {
   );
 }
 
+function EyeIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+    >
+      <path d="M2.5 8s2-4 5.5-4 5.5 4 5.5 4-2 4-5.5 4S2.5 8 2.5 8Z" />
+      <circle cx="8" cy="8" r="2" />
+    </svg>
+  );
+}
+
+function NewsCardIcon() {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="2" y="2" width="12" height="12" rx="1.5" />
+      <path d="M5 5h6M5 8h6M5 11h3" />
+    </svg>
+  );
+}
+
+function ExternalLinkIcon() {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M6 3H3v10h10v-3" />
+      <path d="M9 2h5v5" />
+      <path d="M14 2L7 9" />
+    </svg>
+  );
+}

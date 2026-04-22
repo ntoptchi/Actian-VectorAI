@@ -8,6 +8,7 @@ import { AlternatesPanel } from "~/components/AlternatesPanel";
 import { BriefingCard } from "~/components/BriefingCard";
 import type {
   HotspotSummary,
+  NewsArticle,
   RouteSegment,
   TripBriefResponse,
 } from "~/lib/types";
@@ -25,6 +26,7 @@ const RouteMap = dynamic(() => import("~/components/RouteMap"), {
 type Selection =
   | { kind: "hotspot"; data: HotspotSummary }
   | { kind: "segment"; data: RouteSegment }
+  | { kind: "news"; data: NewsArticle }
   | null;
 
 export function TripView({
@@ -46,6 +48,10 @@ export function TripView({
   const hotspots = useMemo<HotspotSummary[]>(
     () => (isChosenShowing ? brief.hotspots : []),
     [isChosenShowing, brief.hotspots],
+  );
+  const newsArticles = useMemo<NewsArticle[]>(
+    () => (isChosenShowing ? (brief.news_articles ?? []) : []),
+    [isChosenShowing, brief],
   );
 
   const banner = brief.conditions_banner;
@@ -75,9 +81,10 @@ export function TripView({
           alternates={brief.alternates}
           chosenRouteId={chosenId}
           hotspots={hotspots}
-          stops={brief.fatigue_plan.suggested_stops}
+          newsArticles={newsArticles}
           onSegmentClick={(s) => setSelection({ kind: "segment", data: s })}
           onHotspotClick={(h) => setSelection({ kind: "hotspot", data: h })}
+          onNewsClick={(n) => setSelection({ kind: "news", data: n })}
         />
 
         {/* Top-left "Current View" chip */}
@@ -179,6 +186,30 @@ export function TripView({
               </ul>
             )}
           </div>
+
+          {newsArticles.length > 0 && (
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <h2 className="text-base font-semibold text-ink">
+                  Media Coverage
+                </h2>
+                <span className="font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-ink-3">
+                  {newsArticles.length} article{newsArticles.length !== 1 ? "s" : ""}
+                </span>
+              </div>
+              <ul className="flex flex-col gap-2">
+                {newsArticles.map((n) => (
+                  <NewsRow
+                    key={n.article_id}
+                    article={n}
+                    onClick={() =>
+                      setSelection({ kind: "news", data: n })
+                    }
+                  />
+                ))}
+              </ul>
+            </div>
+          )}
 
           {brief.fatigue_plan.suggested_stops.length > 0 && (
             <div>
@@ -282,6 +313,76 @@ function HotspotRow({
         </div>
       </button>
     </li>
+  );
+}
+
+function NewsRow({
+  article,
+  onClick,
+}: {
+  article: NewsArticle;
+  onClick: () => void;
+}) {
+  const severityTone =
+    article.severity === "fatal"
+      ? "alert"
+      : article.severity === "serious"
+        ? "warn"
+        : "muted";
+  const badgeStyles =
+    severityTone === "alert"
+      ? "bg-alert text-paper"
+      : severityTone === "warn"
+        ? "bg-gold text-paper"
+        : "bg-[#2563eb]/15 text-[#2563eb]";
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onClick}
+        className="flex w-full items-start gap-3 rounded-sm bg-paper-3 p-3 text-left ring-1 ring-rule transition hover:ring-ink"
+      >
+        <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-sm bg-[#2563eb]/15 text-[#2563eb]">
+          <NewsIcon />
+        </span>
+        <div className="flex flex-col gap-0.5">
+          <span className="text-sm font-medium text-ink">
+            {article.headline}
+          </span>
+          <span className="text-xs text-ink-3">
+            {article.publisher}
+            {article.publish_date ? ` · ${article.publish_date}` : ""}
+          </span>
+          <span
+            className={`mt-1 inline-flex w-fit items-center rounded-sm px-1.5 py-0.5 font-mono text-[0.625rem] font-semibold uppercase tracking-[0.14em] ${badgeStyles}`}
+          >
+            {article.severity === "fatal"
+              ? "Fatal"
+              : article.severity === "serious"
+                ? "Serious"
+                : "Report"}
+          </span>
+        </div>
+      </button>
+    </li>
+  );
+}
+
+function NewsIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="2" y="2" width="12" height="12" rx="1.5" />
+      <path d="M5 5h6M5 8h6M5 11h3" />
+    </svg>
   );
 }
 

@@ -94,6 +94,19 @@ def render_narrative(doc: SituationDoc, *, for_query: bool = False) -> str:
     if out_bits:
         parts.append(f"Crash: {', '.join(out_bits)}.")
 
+    # News report (source == "NEWS"): inject headline + article body so the
+    # embedding reflects both the crash conditions *and* the reporting
+    # language. Still preserved as the primary "narrative" for the doc so
+    # downstream callers can render it without a special case.
+    if doc.source == "NEWS":
+        if doc.headline:
+            parts.append(f"News report: {doc.headline}.")
+        if doc.publisher:
+            parts.append(f"Reported by {doc.publisher}.")
+        if doc.narrative:
+            parts.append(doc.narrative.strip())
+        return " ".join(parts).strip()
+
     # Investigator narrative (CISS only, when present)
     if doc.has_narrative and doc.narrative:
         parts.append(f"Investigator narrative: {doc.narrative.strip()}")

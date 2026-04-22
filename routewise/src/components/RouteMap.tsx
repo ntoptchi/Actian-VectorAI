@@ -18,6 +18,7 @@ import type {
   AlternateSummary,
   FatigueStop,
   HotspotSummary,
+  NewsArticle,
   RiskBand,
   RouteSegment,
 } from "~/lib/types";
@@ -41,9 +42,10 @@ interface Props {
   alternates: AlternateSummary[];
   chosenRouteId: string | null;
   hotspots: HotspotSummary[];
-  stops?: FatigueStop[];
+  newsArticles: NewsArticle[];
   onSegmentClick?: (seg: RouteSegment) => void;
   onHotspotClick?: (h: HotspotSummary) => void;
+  onNewsClick?: (n: NewsArticle) => void;
 }
 
 export default function RouteMap({
@@ -51,9 +53,10 @@ export default function RouteMap({
   alternates,
   chosenRouteId,
   hotspots,
-  stops,
+  newsArticles,
   onSegmentClick,
   onHotspotClick,
+  onNewsClick,
 }: Props) {
   const center = useMemo<[number, number]>(() => {
     const all = segments.flatMap((s) => s.polyline);
@@ -189,6 +192,34 @@ export default function RouteMap({
             <div className="font-semibold text-paper">{h.label}</div>
             <div className="text-[0.6875rem] uppercase tracking-[0.14em] text-paper/70">
               {h.n_crashes} matched · click for briefing
+            </div>
+          </Tooltip>
+        </CircleMarker>
+      ))}
+
+      {/* News article pins — distinct diamond shape via rotated square */}
+      {newsArticles.map((n) => (
+        <CircleMarker
+          key={n.article_id}
+          center={[n.location.lat, n.location.lon]}
+          radius={7}
+          pathOptions={{
+            color: "#f3ece0",
+            weight: 2,
+            fillColor: "#2563eb",
+            fillOpacity: 0.95,
+          }}
+          eventHandlers={{
+            click: () => onNewsClick?.(n),
+          }}
+        >
+          <Tooltip direction="top" offset={[0, -6]}>
+            <div className="max-w-[16rem] font-semibold text-paper">
+              {n.headline}
+            </div>
+            <div className="text-[0.6875rem] uppercase tracking-[0.14em] text-paper/70">
+              {n.publisher}
+              {n.publish_date ? ` · ${n.publish_date}` : ""} · click to read
             </div>
           </Tooltip>
         </CircleMarker>
