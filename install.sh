@@ -177,6 +177,15 @@ else
     warn "no data/raw/crash*.json files found — skipping FDOT ingest. Re-run install.sh once the FDOT fetch step succeeds."
   fi
 
+  # Ingest news articles (semantic_crashes.json + any other news JSON).
+  NEWS_FILES="$(ls data/raw/semantic_crashes*.json data/raw/*news*.json 2>/dev/null | wc -l | tr -d ' ')"
+  if [ "$NEWS_FILES" -gt 0 ]; then
+    info "Ingesting $NEWS_FILES news article file(s) into VectorAI DB..."
+    "$VENV_PY" scripts/ingest_news.py || warn "news ingest returned non-zero — some articles may be missing."
+  else
+    info "no news article JSON files found in data/raw/ — skipping news ingest."
+  fi
+
   FINAL="$("$VENV_PY" scripts/vdb_count.py)"
   info "VDB now contains $FINAL points."
 fi
