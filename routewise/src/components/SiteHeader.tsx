@@ -16,23 +16,28 @@ const NAV: Array<{ id: NonNullable<Props["active"]>; label: string; href: string
 export function SiteHeader({ variant = "paper", active }: Props) {
   const wrapper =
     variant === "paper"
-      ? "border-b border-rule bg-paper/90 backdrop-blur"
+      ? "border-b border-rule bg-paper/85 backdrop-blur"
       : "border-b border-rule/60 bg-paper-2/95 backdrop-blur";
   return (
     <header className={`sticky top-0 z-40 ${wrapper}`}>
       <div className="mx-auto flex h-14 max-w-[1400px] items-center gap-8 px-6">
         <Link
           href="/"
-          className="group flex items-baseline gap-2"
+          className="flex items-center gap-2"
           aria-label="RouteWise home"
         >
-          <span className="font-display text-[1.35rem] font-medium tracking-tight text-ink">
+          <span
+            aria-hidden
+            className="grid h-6 w-6 place-items-center rounded-md bg-ink text-paper-3"
+          >
+            <LogoMark />
+          </span>
+          <span className="text-base font-semibold tracking-tight text-ink">
             RouteWise
           </span>
-          <span className="hidden h-1 w-1 rounded-full bg-gold transition group-hover:bg-alert sm:block" />
         </Link>
 
-        <nav aria-label="Primary" className="hidden items-center gap-7 md:flex">
+        <nav aria-label="Primary" className="hidden items-center gap-6 md:flex">
           {NAV.map((item) => {
             const isActive = active === item.id;
             return (
@@ -46,67 +51,34 @@ export function SiteHeader({ variant = "paper", active }: Props) {
                 }`}
               >
                 {item.label}
-                {isActive && (
-                  <span className="mt-0.5 block h-[2px] w-full bg-ink" />
-                )}
               </Link>
             );
           })}
         </nav>
 
-        <div className="ml-auto flex items-center gap-4 text-ink-3">
-          <button
-            type="button"
-            aria-label="Notifications"
-            className="grid h-8 w-8 place-items-center rounded-full ring-1 ring-rule/70 transition hover:bg-paper-3 hover:text-ink"
-          >
-            <BellIcon />
-          </button>
-          <button
-            type="button"
-            aria-label="Account"
-            className="grid h-8 w-8 place-items-center rounded-full ring-1 ring-rule/70 transition hover:bg-paper-3 hover:text-ink"
-          >
-            <UserIcon />
-          </button>
-        </div>
+        <span className="ml-auto hidden text-xs text-ink-4 sm:inline">
+          Free · no signup
+        </span>
       </div>
     </header>
   );
 }
 
-function BellIcon() {
+function LogoMark() {
   return (
     <svg
-      width="14"
-      height="14"
-      viewBox="0 0 16 16"
+      width="12"
+      height="12"
+      viewBox="0 0 12 12"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.4"
+      strokeWidth="1.6"
       strokeLinecap="round"
       strokeLinejoin="round"
+      aria-hidden
     >
-      <path d="M3 12V8a5 5 0 1 1 10 0v4l1 1H2l1-1Z" />
-      <path d="M6.5 14a1.5 1.5 0 0 0 3 0" />
-    </svg>
-  );
-}
-
-function UserIcon() {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.4"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="8" cy="6" r="2.5" />
-      <path d="M3 14c0-2.5 2.2-4.2 5-4.2s5 1.7 5 4.2" />
+      <path d="M2 9.5 L5 6 L7 8 L10 3" />
+      <circle cx="10" cy="3" r="1" fill="currentColor" stroke="none" />
     </svg>
   );
 }

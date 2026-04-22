@@ -6,13 +6,13 @@ import { SiteHeader } from "~/components/SiteHeader";
 const DEMO_TRIPS = [
   {
     slug: "miami-tampa",
-    eyebrow: "High Risk · Stormy",
+    eyebrow: "Higher risk · Storms",
     eyebrowTone: "alert" as const,
     title: "Miami to Tampa",
     duration: "4h 12m",
     distance: "280 miles",
     advisory:
-      "Safety re-rank: rerouting via Highway 27 to avoid I-75 flood alerts.",
+      "Heads-up: heavy rain and low visibility on I-75 through Alligator Alley tonight.",
     olat: 25.7617,
     olon: -80.1918,
     dlat: 27.9506,
@@ -20,13 +20,13 @@ const DEMO_TRIPS = [
   },
   {
     slug: "jax-pensacola",
-    eyebrow: "Medium Risk · Night",
+    eyebrow: "Watch out · Dark stretches",
     eyebrowTone: "warn" as const,
     title: "Jacksonville to Pensacola",
     duration: "5h 45m",
     distance: "355 miles",
     advisory:
-      "Advisory: extended dark zones. Optimal fuel stops calculated for wildlife passes.",
+      "Long dark stretches on I-10 with limited services. Plan a rest stop around Tallahassee.",
     olat: 30.3322,
     olon: -81.6557,
     dlat: 30.4213,
@@ -34,13 +34,13 @@ const DEMO_TRIPS = [
   },
   {
     slug: "orlando-tampa",
-    eyebrow: "Low Risk · Standard",
+    eyebrow: "Lower risk · Clear",
     eyebrowTone: "good" as const,
     title: "Orlando to Tampa",
     duration: "1h 25m",
     distance: "85 miles",
     advisory:
-      "Optimal conditions. Direct routing via I-4 recommended with no delays.",
+      "Straightforward daylight drive on I-4. A couple of known bottlenecks near Lakeland.",
     olat: 28.5383,
     olon: -81.3792,
     dlat: 27.9506,
@@ -66,8 +66,6 @@ export default function Home() {
       <main>
         <Hero />
         <FeaturePair />
-        <AlgorithmConcept />
-        <AdvisoryRoutes />
         <SiteFooter />
       </main>
     </div>
@@ -78,66 +76,74 @@ export default function Home() {
 
 function Hero() {
   return (
-    <section className="relative overflow-hidden bg-paper-grain">
-      {/* Topographic line decoration in the background — pure SVG, no asset. */}
-      <TopoBackdrop />
-
-      <div className="relative mx-auto grid max-w-[1400px] gap-12 px-6 pb-24 pt-20 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16 lg:pt-28">
-        <div className="flex flex-col gap-8">
-          <span className="eyebrow eyebrow-rule max-w-[18rem]">
-            <span>Intelligent Navigation</span>
+    <section className="relative overflow-hidden">
+      <div className="relative mx-auto grid max-w-[1400px] gap-12 px-6 pb-20 pt-16 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16 lg:pt-20">
+        <div className="flex flex-col">
+          <span className="anim-in anim-in-1 inline-flex w-fit items-center gap-2 rounded-full bg-paper-2 px-3 py-1 text-xs font-medium text-ink-3">
+            <span className="h-1.5 w-1.5 rounded-full bg-good" />
+            Pre-trip safety check · no signup
           </span>
 
-          <h1 className="display text-[clamp(3rem,7vw,6.25rem)]">
-            Safety is the
+          <h1 className="display anim-in anim-in-2 mt-6 text-[clamp(2.5rem,5.5vw,4.5rem)]">
+            Know the road before
             <br />
-            New Shortest
-            <br />
-            Path.
+            you drive it.
           </h1>
 
-          <p className="max-w-md text-base leading-relaxed text-ink-3">
-            Don&apos;t just get there faster. Get there safer. RouteWise analyzes
-            real-time weather, accident hotspots, and road conditions to
-            re-rank your commute.
+          <p className="anim-in anim-in-3 mt-3 max-w-md text-base leading-relaxed text-ink-3">
+            A quick heads-up on weather, dark stretches, and crash hotspots
+            for your drive — so you&apos;re not figuring them out at
+            70&nbsp;mph. Built for long drives you haven&apos;t done before.
           </p>
+
+          <div className="anim-in anim-in-4 mt-4 flex flex-col gap-2">
+            <span className="text-xs font-medium text-ink-3">
+              Two real Florida drives
+            </span>
+            <div className="grid max-w-xl gap-3 sm:grid-cols-2">
+              <CompactTripCard trip={DEMO_TRIPS[0]!} />
+              <CompactTripCard trip={DEMO_TRIPS[1]!} />
+            </div>
+          </div>
         </div>
 
-        <PlanCard />
+        <div className="anim-in anim-in-5">
+          <PlanCard />
+        </div>
       </div>
     </section>
   );
 }
 
-function TopoBackdrop() {
+const COMPACT_HEADLINE: Record<"alert" | "warn" | "good", string> = {
+  alert: "Higher risk · storms tonight",
+  warn: "Watch out · dark stretches ahead",
+  good: "Lower risk · clear day",
+};
+
+function CompactTripCard({ trip }: { trip: (typeof DEMO_TRIPS)[number] }) {
+  const shortTitle = trip.title.replace(/\s+to\s+/i, " → ");
   return (
-    <svg
-      aria-hidden
-      className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.18]"
-      preserveAspectRatio="none"
-      viewBox="0 0 1400 700"
+    <Link
+      href={tripHref(trip)}
+      className="group flex flex-col overflow-hidden rounded-xl bg-paper-3 ring-1 ring-rule transition hover:-translate-y-0.5 hover:ring-ink"
     >
-      <defs>
-        <linearGradient id="topo-fade" x1="0" x2="1">
-          <stop offset="0" stopColor="#0b1f44" stopOpacity="0.0" />
-          <stop offset="0.6" stopColor="#0b1f44" stopOpacity="0.6" />
-          <stop offset="1" stopColor="#0b1f44" stopOpacity="0.0" />
-        </linearGradient>
-      </defs>
-      <g fill="none" stroke="url(#topo-fade)" strokeWidth="1">
-        {Array.from({ length: 14 }).map((_, i) => {
-          const dy = i * 36;
-          return (
-            <path
-              key={i}
-              d={`M-50 ${120 + dy} C 250 ${60 + dy}, 520 ${220 + dy}, 780 ${
-                140 + dy
-              } S 1320 ${60 + dy}, 1500 ${180 + dy}`}
-            />
-          );
-        })}
-      </g>
-    </svg>
+      <div className="h-[120px] w-full overflow-hidden" aria-hidden>
+        <PresetArt slug={trip.slug} />
+      </div>
+      <div className="flex flex-col gap-1.5 p-4">
+        <span className="text-sm font-semibold text-ink">{shortTitle}</span>
+        <span className="text-xs text-ink-3">
+          {COMPACT_HEADLINE[trip.eyebrowTone]}
+        </span>
+        <span className="mt-2 text-xs font-medium text-ink">
+          See sample briefing{" "}
+          <span className="inline-block transition-transform group-hover:translate-x-0.5">
+            →
+          </span>
+        </span>
+      </div>
+    </Link>
   );
 }
 
@@ -146,45 +152,40 @@ function TopoBackdrop() {
 function FeaturePair() {
   return (
     <section className="border-y border-rule bg-paper-2">
-      <div className="mx-auto grid max-w-[1400px] gap-12 px-6 py-20 lg:grid-cols-2">
-        <div className="grid gap-6 sm:grid-cols-2">
+      <div className="mx-auto grid max-w-[1400px] gap-12 px-6 py-16 lg:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2">
           <FeatureCard
-            tag="ai"
-            title="Predictive Risk"
-            body="ML-driven analysis of historical accident spikes during specific weather windows."
+            title="Where crashes actually happen"
+            body="We pull real crash reports for your route in conditions like tonight — not a guess, not a heatmap."
             icon={<SparkIcon />}
           />
           <FeatureCard
-            tag="geo"
-            title="Hyper-Local"
-            body="Road-level weather data that traditional GPS apps ignore for route calculation."
+            title="Weather along your drive"
+            body="Rain, fog, and sunset checked at points along your route — not just at the start and end."
             icon={<DropletIcon />}
           />
         </div>
 
-        <div className="flex flex-col gap-6">
-          <span className="eyebrow">The Algorithm</span>
-          <h2 className="display text-4xl sm:text-5xl">
-            The Safety Re-ranker Concept.
+        <div className="flex flex-col gap-5">
+          <span className="eyebrow">How it works</span>
+          <h2 className="display text-3xl sm:text-4xl">
+            A 30-second read before you drive.
           </h2>
           <p className="text-base leading-relaxed text-ink-3">
-            Most navigation apps optimize for the fastest route by default.
-            Our proprietary{" "}
-            <span className="font-semibold text-ink">Safety Re-ranker</span>{" "}
-            puts risk at the top of the hierarchy. If a route is 2 minutes
-            faster but includes a flooded underpass or a high-accident
-            interchange, we re-rank the safer alternative to #1.
+            You paste your trip in. We find the stretches where crashes
+            tend to happen in weather like yours, and give you a short
+            heads-up for each one. You close the tab and drive.
           </p>
 
-          <ol className="mt-2 flex flex-col gap-3 text-sm text-ink">
+          <ol className="mt-1 flex flex-col gap-3 text-sm text-ink">
             <NumberedStep n={1}>
-              Avoidance of high-accident hotspots
+              Tell us where you&apos;re driving and when you&apos;re leaving.
             </NumberedStep>
             <NumberedStep n={2}>
-              Real-time visibility and drainage scoring
+              We show weather, dark stretches, and risky spots on your route.
             </NumberedStep>
             <NumberedStep n={3}>
-              Per-segment re-ranking against a cost function
+              Each spot gets a one-line &ldquo;what to watch for.&rdquo;
             </NumberedStep>
           </ol>
         </div>
@@ -194,24 +195,19 @@ function FeaturePair() {
 }
 
 function FeatureCard({
-  tag,
   title,
   body,
   icon,
 }: {
-  tag: string;
   title: string;
   body: string;
   icon: React.ReactNode;
 }) {
   return (
-    <article className="flex flex-col justify-between gap-6 rounded-sm bg-paper-3 p-6 ring-1 ring-rule">
-      <div className="flex items-start justify-between">
-        <span className="grid h-9 w-9 place-items-center rounded-sm bg-paper text-ink">
-          {icon}
-        </span>
-        <span className="eyebrow text-[0.625rem]">{tag}</span>
-      </div>
+    <article className="flex flex-col gap-4 rounded-xl bg-paper-3 p-5 ring-1 ring-rule">
+      <span className="grid h-9 w-9 place-items-center rounded-lg bg-paper-2 text-ink">
+        {icon}
+      </span>
       <div className="flex flex-col gap-1.5">
         <h3 className="text-base font-semibold text-ink">{title}</h3>
         <p className="text-sm leading-relaxed text-ink-3">{body}</p>
@@ -228,8 +224,8 @@ function NumberedStep({
   children: React.ReactNode;
 }) {
   return (
-    <li className="flex items-center gap-3">
-      <span className="grid h-7 w-7 place-items-center rounded-sm bg-ink text-xs font-semibold text-paper">
+    <li className="flex items-start gap-3">
+      <span className="mt-0.5 grid h-6 w-6 flex-none place-items-center rounded-full bg-ink text-xs font-semibold text-paper">
         {n}
       </span>
       <span className="text-ink">{children}</span>
@@ -237,190 +233,157 @@ function NumberedStep({
   );
 }
 
-/* ------------------------- Algorithm concept ------------------------- */
-/* (folded into FeaturePair above to match the mockup composition) */
-function AlgorithmConcept() {
-  return null;
-}
-
-/* -------------------------- Advisory routes -------------------------- */
-
-function AdvisoryRoutes() {
-  return (
-    <section id="hotspots" className="bg-paper">
-      <div className="mx-auto max-w-[1400px] px-6 py-20">
-        <div className="mb-10 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div className="flex flex-col gap-2">
-            <h2 className="display text-3xl sm:text-4xl">Active Advisory Routes</h2>
-            <p className="text-sm text-ink-3">
-              Explore how RouteWise adjusts for environmental variables.
-            </p>
-          </div>
-          <span className="eyebrow flex items-center gap-2">
-            See all presets
-            <ArrowRight />
-          </span>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-3">
-          {DEMO_TRIPS.map((t) => (
-            <TripPresetCard key={t.slug} trip={t} />
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-const TONE_BG: Record<"alert" | "warn" | "good", string> = {
-  alert: "bg-alert text-paper",
-  warn: "bg-gold text-paper",
-  good: "bg-good text-paper",
-};
-
-function TripPresetCard({ trip }: { trip: (typeof DEMO_TRIPS)[number] }) {
-  return (
-    <Link
-      href={tripHref(trip)}
-      className="group flex flex-col overflow-hidden rounded-sm bg-paper-3 ring-1 ring-rule transition hover:ring-ink"
-    >
-      <div
-        className="relative aspect-[5/3] w-full overflow-hidden"
-        aria-hidden
-      >
-        <PresetArt slug={trip.slug} />
-        <div className="absolute left-3 top-3 flex items-center gap-1.5">
-          <span
-            className={`flex items-center gap-1 rounded-sm px-2 py-1 text-[0.6875rem] font-semibold uppercase tracking-[0.1em] ${TONE_BG[trip.eyebrowTone]}`}
-          >
-            <Triangle />
-            {trip.eyebrow.split("·")[0]?.trim()}
-          </span>
-          <span className="rounded-sm bg-ink/80 px-2 py-1 text-[0.6875rem] font-medium uppercase tracking-[0.1em] text-paper">
-            {trip.eyebrow.split("·")[1]?.trim()}
-          </span>
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-4 p-5">
-        <h3 className="font-display text-xl font-medium text-ink">
-          {trip.title}
-        </h3>
-        <div className="flex items-center gap-3 text-xs text-ink-3">
-          <Clock />
-          <span>{trip.duration}</span>
-          <span className="h-1 w-1 rounded-full bg-ink-4" />
-          <span>{trip.distance}</span>
-        </div>
-
-        <p
-          className={`rounded-sm px-3 py-2 text-xs leading-relaxed ${
-            trip.eyebrowTone === "alert"
-              ? "bg-alert-2 text-alert"
-              : trip.eyebrowTone === "warn"
-                ? "bg-gold/15 text-gold"
-                : "bg-good/10 text-good"
-          }`}
-        >
-          {trip.advisory}
-        </p>
-
-        <span className="mt-1 inline-flex w-full items-center justify-center rounded-sm border border-rule py-2.5 text-xs font-semibold uppercase tracking-[0.12em] text-ink transition group-hover:border-ink group-hover:bg-ink group-hover:text-paper">
-          Preview Route
-        </span>
-      </div>
-    </Link>
-  );
-}
-
-/** SVG-only "photographic" placeholder so the cards work without assets. */
+/* ---------------------------- Preset art ----------------------------- */
+/**
+ * Shared SVG scene for the compact preview cards.
+ *
+ * All variants share the same frame so they read as a set:
+ *   - viewBox 400x240
+ *   - horizon at y=170
+ *   - identical one-point-perspective road below the horizon
+ *   - identical "sky object" region at the upper right (cx=315, cy=60)
+ *
+ * Only the sky gradient + atmospheric flourish swap per slug (rain
+ * streaks, stars+moon, sun+clouds).
+ */
 function PresetArt({ slug }: { slug: string }) {
+  return (
+    <svg
+      viewBox="0 0 400 240"
+      className="h-full w-full"
+      preserveAspectRatio="xMidYMid slice"
+    >
+      <defs>
+        <linearGradient id="sky-storm" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#1a3160" />
+          <stop offset="1" stopColor="#070d1d" />
+        </linearGradient>
+        <linearGradient id="sky-night" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#18325d" />
+          <stop offset="1" stopColor="#0a1735" />
+        </linearGradient>
+        <linearGradient id="sky-clear" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#bfd9ed" />
+          <stop offset="1" stopColor="#7ca8cc" />
+        </linearGradient>
+      </defs>
+
+      <rect
+        width="400"
+        height="170"
+        fill={
+          slug === "miami-tampa"
+            ? "url(#sky-storm)"
+            : slug === "jax-pensacola"
+              ? "url(#sky-night)"
+              : "url(#sky-clear)"
+        }
+      />
+
+      <SkyAtmosphere slug={slug} />
+
+      <line
+        x1="0"
+        y1="170"
+        x2="400"
+        y2="170"
+        stroke="#000"
+        strokeOpacity="0.28"
+      />
+
+      <polygon points="-20,240 420,240 220,170 180,170" fill="#0a1220" />
+
+      <g stroke="#f8fafc" strokeOpacity="0.45" strokeLinecap="round">
+        <line x1="-20" y1="240" x2="180" y2="170" strokeWidth="1.25" />
+        <line x1="420" y1="240" x2="220" y2="170" strokeWidth="1.25" />
+      </g>
+
+      <g fill="#f8fafc" opacity="0.88">
+        <rect x="198" y="172" width="4" height="2.5" />
+        <rect x="195" y="183" width="10" height="3.5" />
+        <rect x="190" y="198" width="20" height="5" />
+        <rect x="182" y="218" width="36" height="7" />
+      </g>
+    </svg>
+  );
+}
+
+function SkyAtmosphere({ slug }: { slug: string }) {
   if (slug === "miami-tampa") {
     return (
-      <svg viewBox="0 0 400 240" className="h-full w-full">
-        <defs>
-          <linearGradient id="storm" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#0b1f44" />
-            <stop offset="0.5" stopColor="#1a3160" />
-            <stop offset="1" stopColor="#070d1d" />
-          </linearGradient>
-        </defs>
-        <rect width="400" height="240" fill="url(#storm)" />
-        {Array.from({ length: 18 }).map((_, i) => (
-          <line
-            key={i}
-            x1={i * 24 - 30}
-            y1="0"
-            x2={i * 24 - 80}
-            y2="240"
-            stroke="#e6c372"
-            strokeOpacity="0.18"
-            strokeWidth="1.2"
-          />
-        ))}
-        <circle cx="320" cy="60" r="40" fill="#1a3160" opacity="0.6" />
-      </svg>
+      <>
+        <g stroke="#c6d4ec" strokeOpacity="0.22" strokeWidth="1.2">
+          {Array.from({ length: 22 }).map((_, i) => (
+            <line
+              key={i}
+              x1={i * 22 - 40}
+              y1="0"
+              x2={i * 22 - 90}
+              y2="170"
+            />
+          ))}
+        </g>
+        <ellipse
+          cx="315"
+          cy="60"
+          rx="70"
+          ry="22"
+          fill="#0a1735"
+          opacity="0.55"
+        />
+        <ellipse
+          cx="270"
+          cy="72"
+          rx="55"
+          ry="16"
+          fill="#0a1735"
+          opacity="0.4"
+        />
+      </>
     );
   }
   if (slug === "jax-pensacola") {
     return (
-      <svg viewBox="0 0 400 240" className="h-full w-full">
-        <defs>
-          <linearGradient id="night" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#13284f" />
-            <stop offset="1" stopColor="#0b1f44" />
-          </linearGradient>
-        </defs>
-        <rect width="400" height="240" fill="url(#night)" />
-        <path
-          d="M0 200 C 100 160, 180 220, 260 170 S 400 140, 420 180 L 420 240 L 0 240 Z"
-          fill="#0a1735"
-        />
-        {Array.from({ length: 30 }).map((_, i) => (
-          <circle
-            key={i}
-            cx={(i * 53) % 400}
-            cy={(i * 37) % 140 + 20}
-            r="0.9"
-            fill="#e6c372"
-            opacity={0.6}
-          />
-        ))}
-        <line
-          x1="40"
-          y1="190"
-          x2="360"
-          y2="160"
-          stroke="#e6c372"
-          strokeWidth="3"
-          strokeLinecap="round"
-        />
-      </svg>
+      <>
+        {Array.from({ length: 24 }).map((_, i) => {
+          const cx = (i * 53) % 400;
+          const cy = 15 + ((i * 37) % 130);
+          return (
+            <circle
+              key={i}
+              cx={cx}
+              cy={cy}
+              r="0.9"
+              fill="#f8fafc"
+              opacity={0.55}
+            />
+          );
+        })}
+        <circle cx="315" cy="60" r="20" fill="#f8fafc" />
+        <circle cx="307" cy="55" r="20" fill="#0a1735" />
+      </>
     );
   }
   return (
-    <svg viewBox="0 0 400 240" className="h-full w-full">
-      <defs>
-        <linearGradient id="day" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#cfe5f5" />
-          <stop offset="1" stopColor="#9bc4e2" />
-        </linearGradient>
-      </defs>
-      <rect width="400" height="240" fill="url(#day)" />
-      <path d="M0 180 L 400 180 L 400 240 L 0 240 Z" fill="#3a4a6b" />
-      <path d="M0 180 L 400 180" stroke="#0b1f44" strokeWidth="1" />
-      {Array.from({ length: 8 }).map((_, i) => (
-        <rect
-          key={i}
-          x={40 + i * 45}
-          y={184}
-          width="20"
-          height="3"
-          fill="#fbf6ec"
-        />
-      ))}
-      <circle cx="80" cy="60" r="22" fill="#fbf6ec" />
-    </svg>
+    <>
+      <circle cx="315" cy="60" r="22" fill="#fbfbfb" opacity="0.95" />
+      <path
+        d="M40 70 C 80 65, 120 78, 170 70"
+        fill="none"
+        stroke="#ffffff"
+        strokeOpacity="0.6"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <path
+        d="M200 100 C 240 95, 270 106, 310 98"
+        fill="none"
+        stroke="#ffffff"
+        strokeOpacity="0.45"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </>
   );
 }
 
@@ -431,11 +394,11 @@ function SiteFooter() {
     <footer className="border-t border-rule bg-paper-2">
       <div className="mx-auto flex max-w-[1400px] flex-col gap-2 px-6 py-8 text-xs text-ink-3 sm:flex-row sm:items-center sm:justify-between">
         <span>
-          RouteWise · re-ranking driving routes by crash risk · powered by
-          Actian VectorAI DB
+          RouteWise · a pre-trip safety check for new drivers. Florida
+          only.
         </span>
-        <span className="font-mono text-[0.6875rem] uppercase tracking-[0.18em]">
-          v0.2 · safety re-ranker
+        <span className="text-ink-4">
+          Not a nav app. Don&apos;t read while driving.
         </span>
       </div>
     </footer>
@@ -468,43 +431,3 @@ function DropletIcon() {
   );
 }
 
-function Triangle() {
-  return (
-    <svg width="9" height="9" viewBox="0 0 9 9" fill="currentColor">
-      <path d="M4.5 0 L9 8 L0 8 Z" />
-    </svg>
-  );
-}
-
-function Clock() {
-  return (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 12 12"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.3"
-    >
-      <circle cx="6" cy="6" r="5" />
-      <path d="M6 3v3l2 1" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function ArrowRight() {
-  return (
-    <svg
-      width="14"
-      height="10"
-      viewBox="0 0 14 10"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.4"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M1 5h12M9 1l4 4-4 4" />
-    </svg>
-  );
-}

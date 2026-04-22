@@ -1,36 +1,40 @@
 @import "tailwindcss";
 
 /*
-  RouteWise design tokens — editorial intelligence brief.
-  Deep navy ink on warm ivory paper, with gold + alert-red as the only
-  accents. Mixed serif display + grotesque body + mono eyebrow labels.
+  RouteWise design tokens.
+  A plain-product look aimed at 17-year-olds about to drive an
+  unfamiliar route: cool near-white background, calm slate ink, and
+  standard traffic-light accents for risk. No serif display face, no
+  uppercase mono labels — those read as luxury editorial rather than
+  everyday safety.
 */
 @theme {
-  --font-display: var(--font-fraunces), ui-serif, Georgia, serif;
+  --font-display: var(--font-inter-tight), ui-sans-serif, system-ui, sans-serif;
   --font-sans: var(--font-inter-tight), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-plex-mono), ui-monospace, "SF Mono", Menlo, monospace;
 
-  /* Core palette */
-  --color-paper: #f3ece0; /* warm ivory page */
-  --color-paper-2: #fbf6ec; /* lifted surface */
-  --color-paper-3: #ffffff; /* pure white card on ivory */
-  --color-rule: #d8cfbe; /* hairline divider on paper */
+  /* Core palette — cool neutral, not cream. */
+  --color-paper: #f7f8fa; /* page background */
+  --color-paper-2: #eef1f5; /* lifted surface */
+  --color-paper-3: #ffffff; /* cards on paper */
+  --color-rule: #e2e6ec; /* hairline divider */
 
-  --color-ink: #0b1f44; /* deep navy headline / primary */
-  --color-ink-2: #1a3160; /* slightly lifted navy */
-  --color-ink-3: #4a5b7c; /* muted body */
-  --color-ink-4: #8593ae; /* tertiary / caption */
+  --color-ink: #0f172a; /* slate-900 headline / primary */
+  --color-ink-2: #1e293b; /* slate-800 */
+  --color-ink-3: #475569; /* slate-600 body */
+  --color-ink-4: #94a3b8; /* slate-400 caption */
 
-  --color-gold: #b9842b; /* "3.2x" stat / advisory */
-  --color-gold-2: #e6c372; /* gold accents on dark */
+  /* Accents — readable amber/red/green rather than antique gold. */
+  --color-gold: #d97706; /* amber-600, "heads-up" */
+  --color-gold-2: #f59e0b; /* amber-500 for surfaces */
 
-  --color-alert: #b32626; /* "HIGH RISK ZONE" / critical */
-  --color-alert-2: #f4d2d2;
+  --color-alert: #dc2626; /* red-600, critical */
+  --color-alert-2: #fee2e2; /* red-100 surface */
 
-  --color-warn: #c2701a; /* warning / elevated */
-  --color-good: #1f7a4d; /* low risk / safest */
+  --color-warn: #d97706; /* same as gold for now */
+  --color-good: #16a34a; /* green-600, low risk */
 
-  /* Risk band colors (must read on a dark map) */
+  /* Risk band colors (must read on a dark map) — kept vivid. */
   --color-band-low: #4ade80;
   --color-band-moderate: #fbbf24;
   --color-band-elevated: #fb923c;
@@ -43,27 +47,31 @@ body {
   background: var(--color-paper);
   color: var(--color-ink);
   font-family: var(--font-sans);
-  font-feature-settings: "ss01", "cv11";
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
-/* Subtle paper grain on ivory surfaces. Cheap, no image. */
+/*
+  .bg-paper-grain is still referenced in a few places; keep the class
+  as a no-op so the hero renders as a clean surface instead of a
+  printed-page pattern. Deleting the class requires touching every
+  call-site, which would be churn for no visual change.
+*/
 .bg-paper-grain {
   background-color: var(--color-paper);
-  background-image:
-    radial-gradient(rgba(11, 31, 68, 0.025) 1px, transparent 1px),
-    radial-gradient(rgba(11, 31, 68, 0.02) 1px, transparent 1px);
-  background-size: 22px 22px, 13px 13px;
-  background-position: 0 0, 6px 6px;
 }
 
-/* The mono eyebrow label used everywhere ("SAFETY BRIEFING", "TIME"). */
+/*
+  Small section label. Plain sentence-case sans — the kind of caption a
+  product UI uses, not the mono all-caps tracking that reads as
+  magazine masthead. Still muted so it stays a label, not a heading.
+*/
 .eyebrow {
-  font-family: var(--font-mono);
-  font-size: 0.6875rem;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--color-ink-3);
 }
 .eyebrow-rule {
@@ -78,21 +86,66 @@ body {
   background: var(--color-rule);
 }
 
-/* Display headline base. Use sparingly. */
+/*
+  Display headline base. Sans, tight but not dramatic — a product
+  headline, not a hero poster.
+*/
 .display {
   font-family: var(--font-display);
-  font-weight: 500;
-  letter-spacing: -0.02em;
+  font-weight: 600;
+  letter-spacing: -0.015em;
   color: var(--color-ink);
-  line-height: 1.02;
+  line-height: 1.08;
 }
 
 /* The big stat numerals on briefing cards. */
 .stat-numeral {
   font-family: var(--font-display);
-  font-weight: 500;
-  letter-spacing: -0.02em;
+  font-weight: 600;
+  letter-spacing: -0.015em;
   line-height: 1;
+}
+
+/*
+  Slide-in entrance animation (Linear's hero recipe).
+  - Each block starts 10px above its final spot and fades/slides down.
+  - Duration: 1s, timing-function: ease.
+  - Stagger: blocks 1 and 2 start at 300ms; block 3 at 500ms; block 4
+    at 700ms (200ms between each after the first pair).
+  - `forwards` locks the final state so elements stay visible.
+  - Respects prefers-reduced-motion: elements become visible instantly.
+*/
+@keyframes slidein {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.anim-in {
+  opacity: 0;
+  animation: slidein 1s ease forwards;
+  animation-delay: 300ms;
+  will-change: opacity, transform;
+}
+
+.anim-in-1 { animation-delay: 300ms; }
+.anim-in-2 { animation-delay: 300ms; }
+.anim-in-3 { animation-delay: 500ms; }
+.anim-in-4 { animation-delay: 700ms; }
+.anim-in-5 { animation-delay: 900ms; }
+.anim-in-6 { animation-delay: 1100ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-in {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* Leaflet popups + tooltips on dark map should match brand. */
