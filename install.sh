@@ -75,6 +75,17 @@ section "Embedding model (all-MiniLM-L6-v2)"
 # ---------------------------------------------------------------------------
 "$VENV_PY" scripts/download_model.py
 
+# Prewarm the embedder so the 5-10s transitive-import cost of
+# sentence_transformers + transformers + huggingface_hub + requests +
+# charset_normalizer happens here (visibly, in its own install step)
+# rather than silently during the first batch of the ingest. On CPU
+# that scary "it's frozen" moment is what tempts people to Ctrl+C
+# mid-embed; doing it up-front also warms the .pyc cache for the
+# subsequent ingest subprocesses.
+info "Warming MiniLM (first import is ~5-10s; subsequent Python processes reuse the .pyc cache)..."
+"$VENV_PY" -c "from backend.embeddings import embed; _ = embed(['warmup'])" \
+  || warn "MiniLM warmup failed — ingest will still try to load it lazily."
+
 # ---------------------------------------------------------------------------
 section "Frontend (routewise/)"
 # ---------------------------------------------------------------------------
@@ -93,6 +104,36 @@ section "Pulling Actian VectorAI DB Docker image"
 # ---------------------------------------------------------------------------
 docker pull williamimoh/actian-vectorai-db:latest >/dev/null
 info "image ready"
+
+# ---------------------------------------------------------------------------
+section "Fetching pre-built VDB snapshot (optional fast-path)"
+# ---------------------------------------------------------------------------
+# Maintainers publish a gzipped dump of the fully-embedded collection as a
+# GitHub Release asset (see scripts/dump_vdb_snapshot.py). If the URL in
+# vdb_snapshot.manifest.json is set, teammates download + extract it here
+# and skip the ~20-minute local FDOT+news ingest entirely (the fetch script
+# writes the ingest marker so the seeding section below no-ops).
+#
+# Must run BEFORE the VDB container boots: vectorai-db-beta indexes are
+# memory-mapped *.btr files, and extracting over a live collection silently
+# corrupts whatever segment is currently paged in. We defensively stop any
+# already-running container so re-running install.sh mid-update is safe.
+# The normal `compose up -d` below restarts it.
+if docker compose -f vectorai-db-beta/docker-compose.yml ps -q 2>/dev/null | grep -q .; then
+  info "stopping running VDB container before extracting snapshot..."
+  docker compose -f vectorai-db-beta/docker-compose.yml stop >/dev/null 2>&1 || true
+fi
+
+set +e
+"$VENV_PY" scripts/fetch_vdb_snapshot.py
+SNAPSHOT_RC=$?
+set -e
+case "$SNAPSHOT_RC" in
+  0) info "snapshot applied — seeding section will skip the local ingest." ;;
+  1) info "no snapshot applied — continuing with the normal ingest flow." ;;
+  2) die  "VDB snapshot download was corrupt. Delete vdb_snapshot.tar.gz and re-run install.sh, or set ROUTEWISE_SKIP_VDB_SNAPSHOT=1 to fall back to a local ingest." ;;
+  *) warn "fetch_vdb_snapshot.py returned unexpected code $SNAPSHOT_RC — continuing with ingest." ;;
+esac
 
 # ---------------------------------------------------------------------------
 section "Booting Actian VectorAI DB (one-time, for seeding)"
@@ -132,24 +173,135 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-section "Seeding VectorAI DB"
+section "Seeding VectorAI DB (real FDOT crashes + news articles)"
 # ---------------------------------------------------------------------------
-# We track ingestion freshness with a marker file. If it's missing — or
-# the collection has fewer points than a healthy ingest produces — we
-# re-run the ingester. The marker also forces a re-ingest after fixes
-# to backend/ingest/normalize.py (e.g. the midnight-bug fix that drops
-# rows with missing CRASH_TIME) so teammates aren't stuck on stale data.
+# Two real-data sources land in the same routewise_crashes collection:
+#   1. data/raw/crash*.json          — ~150 FDOT ArcGIS chunks (~140K crashes
+#                                      after we drop rows with missing
+#                                      CRASH_TIME).
+#   2. data/raw/semantic_crashes.json — scraped news articles semantically
+#                                      matched to FDOT crashes; each article
+#                                      becomes a source="NEWS" SituationDoc
+#                                      whose h3_cell / hour_bucket / weather
+#                                      are inherited from the linked crash,
+#                                      so news surfaces through the same
+#                                      H3 + conditions retrieval path.
 #
-# Bump INGEST_VERSION when normalize.py / situation_doc.py change in a
-# way that would alter what gets indexed.
-INGEST_VERSION="2"
+# --- Embedding is CPU-bound, so the corpus is downsampled ---
+# MiniLM on CPU is the bottleneck (all full 150K rows takes 8-17 min on
+# a laptop). The hotspot / intensity_ratio pipeline is density-based,
+# so a uniform Bernoulli sample of ~FDOT_SAMPLE rows produces the same
+# hotspots in the same places, just with fewer example crashes each.
+# I-75 / I-4 / I-10 are still saturated. Bump FDOT_SAMPLE if you
+# demo on a rural corridor and want more statistical power per cell,
+# or set it to "" to ingest the whole corpus. Override with the
+# ROUTEWISE_FDOT_SAMPLE env var for a one-off run.
+#
+# About GPUs: sentence-transformers will auto-use CUDA (NVIDIA) or
+# Apple MPS if available. CUDA is NVIDIA-only — AMD Radeon on Windows
+# does NOT get a "pip install torch" GPU path. If you want DirectML
+# on AMD/Intel Windows, `pip install torch-directml` and set
+# ROUTEWISE_EMBED_DEVICE=dml. Otherwise CPU with a batch_size=128
+# (the default in backend/embeddings.py) is the realistic speed
+# ceiling for this project.
+# Ingestion freshness is tracked with a marker file. If it's missing — or
+# the collection has fewer points than a healthy ingest produces — we
+# re-run both ingesters. Bump INGEST_VERSION when normalize.py /
+# situation_doc.py / schemas.py change in a way that would alter what
+# gets indexed, or when stale junk needs evicting:
+#   v2 → v3: dropped the ~500 synthetic SYN-###### anchor crashes.
+#   v3 → v4: switched from full-corpus to Bernoulli sample (FDOT_SAMPLE).
+INGEST_VERSION="4"
 INGEST_MARKER="data/processed/.fdot_ingest_v${INGEST_VERSION}"
 
-# Threshold matches "all 150 chunks ingested cleanly" (140K crashes
-# survive after dropping ~6% with missing CRASH_TIME). Anything below
-# this means the corpus is incomplete and the trip planner will under-
-# count crashes on most routes.
-HEALTHY_MIN=100000
+# --- FDOT sample size, interactive prompt ---
+# Respect a pre-set env var (CI, power users, non-interactive re-runs)
+# and fall back to an interactive menu otherwise. Skipped entirely if
+# stdin isn't a TTY (piped install / automated provisioner) or if the
+# ingest marker already looks healthy — no point asking about a size
+# we aren't about to use.
+_prompt_fdot_sample() {
+  # IMPORTANT: this function is called via $(...) command substitution,
+  # so anything on stdout becomes the function's return value. The menu
+  # and the read prompt must therefore be written to /dev/tty, and only
+  # the final numeric answer is echoed to stdout. Writing the menu to
+  # stdout (as I did on the first pass) capture-poisons FDOT_SAMPLE
+  # with the menu text, and the later arithmetic $(( FDOT_SAMPLE ... ))
+  # explodes under `set -u` because bash tries to resolve each word in
+  # the multi-line string as a variable name.
+  cat >/dev/tty <<'EOF'
+
+  FDOT corpus size
+  ----------------
+  MiniLM on CPU embeds ~30 texts/s on a laptop; pick how much of the
+  ~140K FDOT crash corpus to ingest. All ~500 scraped news articles
+  are always fully embedded on top of this (they're small and every
+  one carries unique narrative context that crash rows don't).
+  Hotspots look the same from ~20K onward because retrieval is
+  density-based, so 20K is usually enough.
+
+    1)   5,000   ~ 30 sec      fastest, good enough for UI smoke test
+    2)  20,000   ~ 2 min       default, full interstate hotspot coverage
+    3)  50,000   ~ 5 min       more signal for rural / secondary roads
+    4) 140,000   ~15 min       full corpus (skip the sampler entirely)
+
+EOF
+  local choice=""
+  # Prompt AND response both on /dev/tty so users still get a usable
+  # prompt when stdin/stdout are redirected by a wrapper script.
+  printf '  Choice [1-4, default 2]: ' >/dev/tty
+  read -r choice </dev/tty || choice=""
+  case "${choice:-2}" in
+    1|5k|5K|5000) echo 5000 ;;
+    2|20k|20K|20000|"") echo 20000 ;;
+    3|50k|50K|50000) echo 50000 ;;
+    4|140k|140K|140000|full|all) echo "" ;;  # "" = ingest full corpus
+    *)
+      warn "unrecognised choice '$choice' — falling back to 20,000." >&2
+      echo 20000
+      ;;
+  esac
+}
+
+if [ -n "${ROUTEWISE_FDOT_SAMPLE+x}" ]; then
+  # env var set (possibly empty-string → full corpus); honour it as-is
+  FDOT_SAMPLE="$ROUTEWISE_FDOT_SAMPLE"
+  info "using ROUTEWISE_FDOT_SAMPLE=${FDOT_SAMPLE:-<full corpus>}"
+elif [ ! -t 0 ] && [ ! -e /dev/tty ]; then
+  # non-interactive shell, can't prompt — take the safe default
+  FDOT_SAMPLE="20000"
+  info "non-interactive shell detected — defaulting FDOT_SAMPLE=20000"
+elif [ -f "$INGEST_MARKER" ]; then
+  # marker present → we might skip seeding entirely. Don't prompt yet;
+  # pick the default so the marker-check below can decide.
+  FDOT_SAMPLE="20000"
+else
+  FDOT_SAMPLE="$(_prompt_fdot_sample)"
+  info "FDOT_SAMPLE=${FDOT_SAMPLE:-<full corpus>}"
+fi
+
+# Defense-in-depth: FDOT_SAMPLE must be empty OR all-digits. Anything
+# else indicates a capture-poisoning bug (menu text leaked into the
+# $() result). Fail fast with a clear message instead of exploding
+# cryptically inside the arithmetic expansion below.
+case "$FDOT_SAMPLE" in
+  ""|*[!0-9]*)
+    if [ -n "$FDOT_SAMPLE" ]; then
+      die "FDOT_SAMPLE is non-numeric (got: $(printf '%q' "$FDOT_SAMPLE")) — prompt logic bug."
+    fi
+    ;;
+esac
+
+# Floor for "seeding worked". Scales with FDOT_SAMPLE (we expect
+# ~94% of sampled rows to survive normalisation after the
+# missing-CRASH_TIME drop), plus a handful of news docs. Empty
+# FDOT_SAMPLE means "ingest the whole corpus", so fall back to the
+# old 100K floor.
+if [ -n "$FDOT_SAMPLE" ]; then
+  HEALTHY_MIN="$(( FDOT_SAMPLE * 80 / 100 ))"
+else
+  HEALTHY_MIN=100000
+fi
 
 if [ -f "$INGEST_MARKER" ] \
    && "$VENV_PY" scripts/vdb_count.py --min "$HEALTHY_MIN" >/dev/null 2>&1; then
@@ -163,27 +315,49 @@ else
     info "no v${INGEST_VERSION} ingest marker — running fresh ingest."
   fi
 
-  info "Seeding ~500 synthetic anchor crashes (keeps demo corridors warm even if real data is sparse)..."
-  "$VENV_PY" scripts/seed_synthetic.py --n 500
+  # Any previous-version marker (e.g. the old v2 that seeded synthetic
+  # SYN-###### anchor crashes) means the collection carries stale docs
+  # that a plain re-ingest won't overwrite — point IDs are uuid5(source,
+  # case_id), so synthetic case_ids persist forever unless dropped. Wipe
+  # the collection on version bumps so re-ingest lands on a clean slate.
+  STALE_MARKER="$(ls data/processed/.fdot_ingest_v* 2>/dev/null | grep -v "v${INGEST_VERSION}\$" | head -n1 || true)"
+  if [ -n "$STALE_MARKER" ]; then
+    info "detected older ingest marker ($STALE_MARKER) — wiping VDB collection to drop stale (incl. synthetic) records."
+    "$VENV_PY" scripts/_wipe_collection.py
+    rm -f "$STALE_MARKER"
+  fi
 
   CRASH_FILES="$(ls data/raw/crash*.json 2>/dev/null | wc -l | tr -d ' ')"
   if [ "$CRASH_FILES" -gt 0 ]; then
-    info "Ingesting $CRASH_FILES FDOT crash chunks (~140K rows; ~5-10 min on first run, mostly embedding)..."
-    "$VENV_PY" scripts/ingest_fdot_crash.py
-    mkdir -p data/processed
-    : > "$INGEST_MARKER"
-    info "wrote ingest marker $INGEST_MARKER"
+    if [ -n "$FDOT_SAMPLE" ]; then
+      info "Ingesting $CRASH_FILES FDOT crash chunks, uniform-sampling ~${FDOT_SAMPLE} rows (CPU-bound embedding; set ROUTEWISE_FDOT_SAMPLE='' to ingest the full ~140K corpus)..."
+      "$VENV_PY" scripts/ingest_fdot_crash.py --sample "$FDOT_SAMPLE"
+    else
+      info "Ingesting $CRASH_FILES FDOT crash chunks (~140K rows; ~5-10 min on first run, mostly embedding)..."
+      "$VENV_PY" scripts/ingest_fdot_crash.py
+    fi
   else
     warn "no data/raw/crash*.json files found — skipping FDOT ingest. Re-run install.sh once the FDOT fetch step succeeds."
   fi
 
-  # Ingest news articles (semantic_crashes.json + any other news JSON).
+  # Scraped news articles linked to FDOT crashes (spec.md). The script
+  # globs data/raw/semantic_crashes*.json + *news*.json by default.
   NEWS_FILES="$(ls data/raw/semantic_crashes*.json data/raw/*news*.json 2>/dev/null | wc -l | tr -d ' ')"
   if [ "$NEWS_FILES" -gt 0 ]; then
-    info "Ingesting $NEWS_FILES news article file(s) into VectorAI DB..."
-    "$VENV_PY" scripts/ingest_news.py || warn "news ingest returned non-zero — some articles may be missing."
+    info "Ingesting $NEWS_FILES news article file(s) (semantic-embedding each article alongside its linked crash)..."
+    "$VENV_PY" scripts/ingest_news.py \
+      || warn "news ingest returned non-zero — some articles may be missing."
   else
     info "no news article JSON files found in data/raw/ — skipping news ingest."
+  fi
+
+  # Only write the marker if at least one real-data ingest ran. That
+  # way a box with no crash chunks *and* no news files doesn't silently
+  # convince future install.sh runs that seeding is done.
+  if [ "${CRASH_FILES:-0}" -gt 0 ] || [ "${NEWS_FILES:-0}" -gt 0 ]; then
+    mkdir -p data/processed
+    : > "$INGEST_MARKER"
+    info "wrote ingest marker $INGEST_MARKER"
   fi
 
   FINAL="$("$VENV_PY" scripts/vdb_count.py)"
@@ -199,11 +373,16 @@ Install complete. Next:
   ./start.sh              # boots VDB (docker), backend (:8080), frontend (:3000)
 
 Notes for first run:
-  * The backend warms an in-memory crash cache (~140K rows) on startup.
-    It runs on a daemon thread so the API binds immediately, but the
-    very first /trip/brief after boot will block ~30 s if you hit it
-    before the cache finishes loading. start.sh waits for the warm-up
-    before opening the frontend, so you usually won't notice.
+  * The backend warms an in-memory crash cache on startup (size =
+    whatever FDOT_SAMPLE you ingested, plus news docs). It runs on a
+    daemon thread so the API binds immediately; start.sh waits for
+    the warm-up before opening the frontend.
+  * To ingest the full ~140K-row FDOT corpus instead of the default
+    20K sample, set ROUTEWISE_FDOT_SAMPLE='' (empty) before install.sh.
+    Only worth it if you have an NVIDIA GPU or patience — MiniLM is
+    the bottleneck, not the VDB upsert.
+  * AMD Radeon on Windows = CPU-only by default. See the "GPU" note
+    in the seeding section of install.sh for the DirectML escape hatch.
   * The trip planner needs an OPEN_ROUTE_SERVICE_API_KEY in .env to
     return alternate routes. Without it you only see one route.
 EOF

@@ -46,11 +46,17 @@ yarn-error.log*
 db.sqlite
 
 # ---------- Actian VectorAI DB ----------
-# Docker volume mount with collection data
+# Docker volume mount with collection data. Too big for git (~1 GB for
+# routewise_crashes alone); teammates fetch a pre-built snapshot via
+# scripts/fetch_vdb_snapshot.py (pointer committed in vdb_snapshot.manifest.json).
 vectorai-db-beta/data/
 # Heavyweight tarballs of the DB image
 vectorai-db-beta/
 Actian_VectorAI_DB_Beta.tar
+# Transient download artifact from scripts/fetch_vdb_snapshot.py — we delete
+# it on success/failure, but list it here so a Ctrl+C mid-download doesn't
+# accidentally land a 400 MB blob in `git add .`.
+/vdb_snapshot.tar.gz
 
 # ---------- RouteWise data + caches ----------
 # data/raw/ IS committed — install.sh assumes the FDOT crash chunks, the

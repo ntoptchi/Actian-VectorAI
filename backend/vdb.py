@@ -35,11 +35,19 @@ def get_client():  # type: ignore[no-untyped-def]
 
     The sync client requires an explicit ``connect()`` (or ``with`` block)
     before any RPC; we call it here so callers don't have to think about it.
+
+    ``timeout`` is bumped from the library's 30 s default to 120 s because
+    bulk ingestion upserts 256-point batches and the local VDB
+    occasionally pauses 30-60 s for internal index flushing once the
+    collection passes ~10K points. A 30 s deadline caused mid-ingest
+    DEADLINE_EXCEEDED on laptops running MiniLM on CPU alongside the
+    Docker VDB. Query-side calls stay well under this ceiling, so the
+    bump is a "max" not a normal latency.
     """
     from actian_vectorai import VectorAIClient
 
     settings = get_settings()
-    client = VectorAIClient(settings.vdb_address)
+    client = VectorAIClient(settings.vdb_address, timeout=120.0)
     try:
         client.connect()
     except Exception as exc:  # noqa: BLE001
