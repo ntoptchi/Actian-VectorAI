@@ -270,23 +270,42 @@ function MapLayerSwitcher() {
   const map = useMap();
   const [style, setStyle] = useState<MapStyle>("terrain");
   const [open, setOpen] = useState(false);
-  const [tileLayer, setTileLayer] = useState<L.TileLayer | null>(null);
+  const [layers, setLayers] = useState<L.TileLayer[]>([]);
 
   useEffect(() => {
+    layers.forEach((l) => map.removeLayer(l));
+
     const cfg = MAP_STYLES[style];
-    if (tileLayer) {
-      map.removeLayer(tileLayer);
-    }
-    const layer = L.tileLayer(cfg.url, {
+    const base = L.tileLayer(cfg.url, {
       attribution: cfg.attribution,
       maxZoom: 19,
       ...(cfg.subdomains ? { subdomains: cfg.subdomains } : {}),
     });
-    layer.addTo(map);
-    layer.bringToBack();
-    setTileLayer(layer);
+    base.addTo(map);
+    base.bringToBack();
+
+    const newLayers: L.TileLayer[] = [base];
+
+    // Add a labels overlay on satellite so streets/places are readable
+    if (style === "satellite") {
+      const labels = L.tileLayer(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}",
+        { maxZoom: 19, pane: "shadowPane" },
+      );
+      labels.addTo(map);
+      newLayers.push(labels);
+
+      const places = L.tileLayer(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+        { maxZoom: 19, pane: "shadowPane" },
+      );
+      places.addTo(map);
+      newLayers.push(places);
+    }
+
+    setLayers(newLayers);
     return () => {
-      map.removeLayer(layer);
+      newLayers.forEach((l) => map.removeLayer(l));
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [style, map]);
