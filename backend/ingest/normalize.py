@@ -7,8 +7,10 @@ downstream (embedding, AADT snap, VDB upsert) operates on
 
 from __future__ import annotations
 
+import hashlib
 import logging
-from datetime import datetime, timezone
+import re
+from datetime import date, datetime, timezone
 from typing import Any
 
 from backend.schemas import (
@@ -536,3 +538,168 @@ def from_news_article(entry: dict[str, Any]) -> SituationDoc | None:
 def from_ciss_case(case: dict[str, Any]) -> SituationDoc | None:
     """CISS ingestion is descoped for the hackathon — see ROUTEWISE.md s8.4."""
     return None
+
+
+# --- News articles (semantic_crashes.json; spec.md) -----------------------
+
+
+# Keywords in an article body that strongly imply fatality. Used only when
+# the linked crash record doesn't already give us a Severity.
+_FATAL_KEYWORDS = re.compile(
+    r"\b(killed|dies|died|fatal|fatally|pronounced dead|dead at the scene)\b",
+    re.IGNORECASE,
+)
+_SERIOUS_KEYWORDS = re.compile(
+    r"\b(critical(ly)? injured|life-?threatening|serious(ly)? injured|hospitalized)\b",
+    re.IGNORECASE,
+)
+
+
+def _excerpt(text: str, max_sentences: int = 2, max_chars: int = 320) -> str:
+    """Pull the first 1–2 informative sentences from an article body.
+
+    Articles from semantic_crashes.json often begin with the headline
+    repeated on its own line, so we skip leading lines that are short
+    all-caps-ish fragments before collecting real prose.
+    """
+    if not text:
+        return ""
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    body: list[str] = []
+    started = False
+    for ln in lines:
+        if not started and len(ln) < 60 and not ln.endswith("."):
+            # Looks like a title/subheader line, skip.
+            continue
+        started = True
+        body.append(ln)
+    joined = " ".join(body) if body else " ".join(lines)
+    sentences = re.split(r"(?<=[.!?])\s+", joined)
+    out = " ".join(sentences[:max_sentences]).strip()
+    if len(out) > max_chars:
+        out = out[: max_chars - 1].rstrip() + "…"
+    return out
+
+
+def _news_severity_from_article(text: str) -> Severity:
+    if _FATAL_KEYWORDS.search(text or ""):
+        return "fatal"
+    if _SERIOUS_KEYWORDS.search(text or ""):
+        return "serious"
+    return "unknown"
+
+
+def _parse_publish_date(raw: Any) -> date | None:
+    s = _safe_str(raw)
+    if not s:
+        return None
+    try:
+        return datetime.strptime(s[:10], "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
+def _news_case_id(entry: dict[str, Any]) -> str:
+    """Deterministic, human-readable-ish ID for the news doc.
+
+    Combines the linked FDOT case number (if any) with a short hash of the
+    article URL, so re-running ingest on the same file upserts (rather
+    than duplicates) and two articles about the same crash stay distinct.
+    """
+    article = entry.get("article") or {}
+    url = _safe_str(article.get("link"))
+    url_hash = hashlib.sha1(url.encode("utf-8")).hexdigest()[:10] if url else "nourl"
+    crash_id = _safe_str(entry.get("crash_id")) or "unlinked"
+    return f"NEWS-{crash_id}-{url_hash}"
+
+
+def from_news_article(entry: dict[str, Any]) -> SituationDoc | None:
+    """Map one entry from ``data/raw/semantic_crashes.json`` to a
+    ``SituationDoc`` with ``source="NEWS"``.
+
+    Strategy: when the entry carries a linked FDOT ``crash`` block, run it
+    through :func:`from_fdot_crash_row` to inherit a fully-populated
+    location / time / weather / lighting / surface record, then overlay
+    the news-specific fields. This keeps NEWS docs retrievable by the
+    same H3+hour filter the rest of the corpus uses (see spec.md §
+    "Linking: H3 cell + date ±3 days").
+    """
+    article = entry.get("article") or {}
+    if not isinstance(article, dict):
+        return None
+
+    headline = _safe_str(article.get("title"))
+    body = _safe_str(article.get("text"))
+    url = _safe_str(article.get("link"))
+    publisher = _safe_str(article.get("source"))
+    publish_date = _parse_publish_date(article.get("publishedDate"))
+
+    if not (headline or body):
+        # Nothing to embed.
+        return None
+
+    # Build the crash-context skeleton from the linked FDOT record when
+    # available. Fall back to a bare-bones SituationDoc if the entry is
+    # unlinked (so display still works, even if retrieval won't match
+    # the crash-conditions filter as tightly).
+    crash = entry.get("crash") or {}
+    base: SituationDoc | None = None
+    if isinstance(crash, dict) and crash:
+        row = dict(crash)
+        # Mirror the geometry-injection that scripts/ingest_fdot_crash.py
+        # does, preferring crashGeometry if present (richer precision).
+        geom = entry.get("crashGeometry") or {}
+        coords = geom.get("coordinates") if isinstance(geom, dict) else None
+        if isinstance(coords, list) and len(coords) >= 2:
+            try:
+                row["__lon"] = float(coords[0])
+                row["__lat"] = float(coords[1])
+            except (TypeError, ValueError):
+                pass
+        base = from_fdot_crash_row(row)
+
+    if base is None:
+        # Unlinked or unusable crash: build a minimal doc. Retrieval will
+        # fall back to textual similarity only for these.
+        timestamp = datetime.combine(
+            publish_date, datetime.min.time(), tzinfo=timezone.utc
+        ) if publish_date else None
+        base = SituationDoc(
+            state="FL",
+            timestamp=timestamp,
+            hour_bucket=timestamp.hour if timestamp else 0,
+            day_of_week=timestamp.weekday() if timestamp else 0,
+            month=timestamp.month if timestamp else 1,
+        )
+
+    # Overlay news identity + derive severity when the FDOT record didn't
+    # give us one.
+    severity = base.severity
+    if severity in (None, "unknown"):
+        severity = _news_severity_from_article(body)
+    tier = _safe_str(entry.get("crashTier")).lower()
+    if tier == "fatal":
+        severity = "fatal"
+    elif tier == "serious" and severity == "unknown":
+        severity = "serious"
+
+    linked_ids: list[str] = []
+    linked = _safe_str(entry.get("crash_id"))
+    if linked:
+        linked_ids.append(linked)
+
+    return base.model_copy(
+        update={
+            "source": "NEWS",
+            "case_id": _news_case_id(entry),
+            "severity": severity,
+            "has_narrative": bool(body),
+            "narrative": body,
+            "headline": headline,
+            "article_excerpt": _excerpt(body),
+            "publisher": publisher,
+            "article_url": url,
+            "publish_date": publish_date,
+            "linked_crash_ids": linked_ids,
+        }
+    )

@@ -112,7 +112,7 @@ class SituationDoc(BaseModel):
     has_narrative: bool = False
     narrative: str = ""
 
-    # News-specific (source == "NEWS" only)
+    # --- News-specific (source == "NEWS" only; spec.md) -------------------
     headline: str = ""
     article_excerpt: str = ""
     publisher: str = ""
