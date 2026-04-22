@@ -638,6 +638,19 @@ def from_news_article(entry: dict[str, Any]) -> SituationDoc | None:
         # Nothing to embed.
         return None
 
+    # Scraped article bodies can be huge (p99 ~83 KB, max ~260 KB) because
+    # they include nav / boilerplate / ads from the source page. Storing
+    # the raw body as the payload `narrative` blows past the VDB's payload
+    # storage limit (PayloadStoreError 2002 "BatchPut failed") when a
+    # batch contains even one oversized article. Truncate at a sentence-
+    # ish boundary *well* inside MiniLM's 512-token context window — the
+    # embedder truncates whatever's left anyway, so extra bytes only cost
+    # payload quota. Matches the MAX_NARRATIVE=2000 convention used by
+    # the earlier ``from_news_article`` variant in this file.
+    MAX_NARRATIVE = 2000
+    if len(body) > MAX_NARRATIVE:
+        body = body[:MAX_NARRATIVE].rsplit(" ", 1)[0] + "…"
+
     # Build the crash-context skeleton from the linked FDOT record when
     # available. Fall back to a bare-bones SituationDoc if the entry is
     # unlinked (so display still works, even if retrieval won't match
