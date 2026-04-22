@@ -4,13 +4,12 @@ interface Props {
   /** Navy ink-on-paper for the home page; transparent ivory rule for app pages. */
   variant?: "paper" | "flush";
   /** When set, that link gets the active treatment. */
-  active?: "explore" | "routes" | "hotspots";
+  active?: "explore" | "routes";
 }
 
 const NAV: Array<{ id: NonNullable<Props["active"]>; label: string; href: string }> = [
   { id: "explore", label: "Explore", href: "/" },
   { id: "routes", label: "Routes", href: "/trip" },
-  { id: "hotspots", label: "Hotspots", href: "/#hotspots" },
 ];
 
 export function SiteHeader({ variant = "paper", active }: Props) {
