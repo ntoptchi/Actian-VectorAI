@@ -383,6 +383,153 @@ def from_fars_row(accident_row: dict[str, Any]) -> SituationDoc | None:
     )
 
 
+# --- News articles --------------------------------------------------------
+
+
+def from_news_article(entry: dict[str, Any]) -> SituationDoc | None:
+    """Map one scraper ``semanticCrashes`` entry to a :class:`SituationDoc`.
+
+    Handles two scraper output formats:
+
+    **Format A (GeoJSON Feature)** — crash is ``{"type":"Feature", "geometry":..., "properties":...}``
+    **Format B (flat + crashGeometry)** — crash is a flat FDOT properties dict,
+    geometry lives in a sibling ``crashGeometry`` key.
+
+    Conditions (weather, lighting, surface) are inherited from the paired
+    FDOT crash record — not parsed from article text.  Returns ``None``
+    when the crash has no usable coordinates.
+    """
+    from datetime import date
+
+    article = entry.get("article") or {}
+    crash = entry.get("crash") or {}
+    match_score = entry.get("matchScore", 0)
+
+    # --- Resolve crash properties + geometry (two formats) --------------------
+    if "properties" in crash:
+        # Format A: GeoJSON Feature
+        props = crash.get("properties") or {}
+        geom = crash.get("geometry") or {}
+    else:
+        # Format B: flat properties dict + sibling crashGeometry
+        props = crash
+        geom = entry.get("crashGeometry") or {}
+
+    coords = geom.get("coordinates") or []
+
+    # --- Location: from geometry, fallback to SAFETYLAT/SAFETYLON -------------
+    lon = coords[0] if len(coords) >= 2 else None
+    lat = coords[1] if len(coords) >= 2 else None
+    if lat is None or lon is None or lat == 0 or lon == 0:
+        # Fallback to FDOT safety coordinates
+        try:
+            lat = float(props.get("SAFETYLAT") or 0)
+            lon = float(props.get("SAFETYLON") or 0)
+        except (TypeError, ValueError):
+            return None
+    if lat is None or lon is None or lat == 0 or lon == 0:
+        return None
+
+    # --- Conditions: inherit from linked FDOT crash ---------------------------
+    weather = _FDOT_WEATHER.get(_safe_str(props.get("EVNT_WTHR_COND_CD")), "unknown")
+    lighting = _FDOT_LIGHTING.get(_safe_str(props.get("LGHT_COND_CD")), "daylight")
+    surface = _FDOT_SURFACE.get(_safe_str(props.get("RD_SRFC_COND_CD")), "unknown")
+    severity = _FDOT_INJSEVER.get(_safe_str(props.get("INJSEVER")), "unknown")
+    # Also accept top-level crashTier as severity override
+    tier = _safe_str(entry.get("crashTier"))
+    if tier in ("fatal", "serious", "minor", "pdo"):
+        severity = tier  # type: ignore[assignment]
+    crash_type = _FDOT_FIRST_HARM_TO_CRASHTYPE.get(
+        _safe_str(props.get("FRST_HARM_LOC_CD")), "other"
+    )
+
+    # --- Time: from crash record (more reliable than article publish date) ----
+    timestamp = _parse_fdot_datetime(props.get("CRASH_DATE"), props.get("CRASH_TIME"))
+    if timestamp is not None:
+        hour = timestamp.hour
+        dow = timestamp.weekday()
+        month = timestamp.month
+    else:
+        hour, dow, month = 0, 0, 1
+
+    # --- AADT / speed --------------------------------------------------------
+    aadt = props.get("AVERAGE_DAILY_TRAFFIC")
+    try:
+        aadt_int = int(aadt) if aadt is not None else None
+    except (TypeError, ValueError):
+        aadt_int = None
+    speed = props.get("SPEED_LIMIT")
+    try:
+        speed_int = int(speed) if speed is not None else None
+    except (TypeError, ValueError):
+        speed_int = None
+
+    # --- Article fields -------------------------------------------------------
+    title = _safe_str(article.get("title"))
+    body = _safe_str(article.get("text"))
+    link = _safe_str(article.get("link"))
+    publisher = _safe_str(article.get("source"))
+    pub_date_str = _safe_str(article.get("publishedDate"))
+    publish_date: date | None = None
+    if pub_date_str:
+        try:
+            publish_date = date.fromisoformat(pub_date_str[:10])
+        except ValueError:
+            pass
+
+    # Truncate body for embedding + VDB payload (some articles are 200K+)
+    MAX_NARRATIVE = 2000
+    narrative_text = body[:MAX_NARRATIVE].rsplit(" ", 1)[0] if len(body) > MAX_NARRATIVE else body
+
+    # Excerpt: first ~300 chars of article body
+    excerpt = body[:300].rsplit(" ", 1)[0] + "..." if len(body) > 300 else body
+
+    # --- Case ID: stable, unique per article ----------------------------------
+    case_id = f"news-{publisher or 'unknown'}-{pub_date_str or 'nodate'}-{entry.get('crash_id', 'x')}"
+
+    # --- Linked crash IDs -----------------------------------------------------
+    linked: list[str] = []
+    crash_id = _safe_str(entry.get("crash_id"))
+    if crash_id and match_score >= 70:
+        linked.append(crash_id)
+
+    county = _safe_str(props.get("COUNTY_TXT")).title() or None
+
+    return SituationDoc(
+        source="NEWS",
+        case_id=case_id,
+        state="FL",
+        county=county,
+        lat=lat,
+        lon=lon,
+        h3_cell=_h3_cell(lat, lon),
+        road_type=_fdot_road_type(props),
+        speed_limit_mph=speed_int,
+        aadt=aadt_int,
+        aadt_segment_id=_safe_str(props.get("ROADWAYID")) or None,
+        timestamp=timestamp,
+        hour_bucket=hour,
+        day_of_week=dow,
+        month=month,
+        weather=weather,
+        lighting=lighting,
+        surface=surface,
+        crash_type=crash_type,
+        num_vehicles=safe_int(props.get("NUMBER_OF_VEHICLES")) or None,
+        num_injuries=safe_int(props.get("NUMBER_OF_INJURED")) or None,
+        num_fatalities=safe_int(props.get("NUMBER_OF_KILLED")) or None,
+        severity=severity,
+        has_narrative=True,
+        narrative=narrative_text,
+        headline=title,
+        article_excerpt=excerpt,
+        publisher=publisher,
+        article_url=link,
+        publish_date=publish_date,
+        linked_crash_ids=linked,
+    )
+
+
 # --- CISS placeholder -----------------------------------------------------
 
 

@@ -1,121 +1,115 @@
 # News Integration Spec
 
-## Decision: Same collection
+## Current status: WORKING END-TO-END
 
-News articles go into `routewise_crashes` with `source: "NEWS"` alongside FARS, CISS, and FDOT records.
-
-Rationale:
-- Retrieval path (`retrieve_crashes_for_cells`) already filters by H3 cell + hour_bucket ±2h across the entire corpus. News articles with the same h3_cell and timestamp surface automatically — zero plumbing changes.
-- `render_narrative()` already templates narrative text into embeddings. A news headline + excerpt is just a richer narrative.
-- `Source` literal is currently `"FARS" | "CISS" | "FDOT"`. Add `"NEWS"`. One line.
-- Post-filter by source when building the UI response (show crash records vs. news separately) without needing separate queries.
-- A separate collection means double the cache warming, a second query path, and merging results.
+308 real news articles from `semantic_crashes.json` are ingested into VDB and surfacing on the frontend as blue map pins + sidebar cards + slide-out briefing panels. Verified on Orlando→Tampa corridor (7 articles returned).
 
 ---
 
-## Linking: H3 cell + date ±3 days
+## Architecture summary
 
-No explicit foreign-key linking needed. The retrieval pipeline already groups by co-location. For display purposes ("this article covers this crash"):
-
-- **H3 cell match** (resolution 9) — same cell = same ~175m hex
-- **Date ±3 days** — news coverage typically lags the crash by 1-2 days
-- **Optional tiebreak**: if multiple crashes share the cell+window, pick the one with matching severity (fatal article → fatal crash)
-
-Add `linked_crash_ids: list[str]` to the news article's payload. Populate at ingest time by querying the in-memory corpus. If no match, leave empty — the article still surfaces via H3 cell proximity at query time.
-
-Don't use semantic similarity for linking. The embeddings are tuned for conditions matching (weather, lighting, time-of-day), not for matching "a news article about a crash" to "the crash record." H3+date is more reliable and cheaper.
-
----
-
-## News severity: simple count, display-only
-
-`news_mention_count` on the hotspot, not a scoring multiplier.
-
-Why not extract severity from article text: NLP side-quest (keyword lists, tone scoring, false positives). Not worth the time.
-
-Why not use it as a scoring multiplier: scoring pipeline (`score_segments`) is already debuggable — density / route mean → intensity_ratio → risk_band. Injecting a media-derived weight makes it opaque.
-
-Instead: when building hotspots from segments, count how many `source=="NEWS"` payloads landed in that segment. Surface as **"Covered by N news reports"** in the briefing card. Makes the hotspot feel real and current without distorting the crash-rate math.
-
----
-
-## Dashboard: news excerpts inside BriefingCard
-
-Add a **"Media Coverage"** section to `BriefingCard.tsx`, below the existing "Investigator Field Notes" block. Each entry shows:
-
-- **Headline** (bold, linked to source URL)
-- **1-2 sentence excerpt** from the article body
-- **Source + date** (e.g., "Miami Herald · March 14, 2011")
-
-Co-location with crash data in the same card makes each hotspot more visceral. The LARP framing: "Here's what the news reported about crashes at this location."
-
----
-
-## News JSON schema
-
-Extend `SituationDoc` with 6 optional fields (defaults to None/empty so existing crash records are unaffected):
-
-```python
-# --- News-specific (source == "NEWS" only) ---
-headline: str = ""
-article_excerpt: str = ""        # 2-3 sentence pull quote
-publisher: str = ""              # "Miami Herald", "WFTV", etc.
-article_url: str = ""
-publish_date: date | None = None
-linked_crash_ids: list[str] = Field(default_factory=list)
 ```
+Scraper JSON (semantic_crashes.json)
+  → normalize.py::from_news_article()   # inherits conditions from paired FDOT crash
+  → embed via render_narrative()         # "News report: {headline} {body[:2000]}"
+  → upsert into routewise_crashes        # source="NEWS", same collection as FDOT/FARS
+  → crash_cache loads at backend startup
 
-### Embedding strategy
-
-Update `render_narrative()` to handle `source == "NEWS"`:
-
-```python
-if doc.source == "NEWS":
-    parts.append(f"News report: {doc.headline}")
-    parts.append(doc.narrative)  # full article body or long excerpt
-else:
-    # existing crash narrative template
-```
-
-Conditions fields (weather, lighting, h3_cell, hour_bucket) should still be populated from the article's content or from the linked crash record — this is what makes the article retrievable by the same H3+time filter.
-
-### Example ingest mapping
-
-```python
-SituationDoc(
-    source="NEWS",
-    case_id="news-miami-herald-2011-03-14-001",  # stable ID for uuid5
-    lat=26.12, lon=-80.34,
-    h3_cell=h3.latlng_to_cell(26.12, -80.34, 9),
-    timestamp=datetime(2011, 3, 14, 18, 0),
-    hour_bucket=18,
-    day_of_week=0,
-    month=3,
-    weather="rain",
-    lighting="dark_lighted",
-    severity="fatal",
-    headline="Two killed in I-75 pileup near Fort Myers",
-    narrative="Full article text here...",
-    article_excerpt="A chain-reaction crash during heavy rain...",
-    publisher="Miami Herald",
-    article_url="https://...",
-    publish_date=date(2011, 3, 14),
-    linked_crash_ids=["FDOT-2011-123456"],
-)
+Query time:
+  → retrieve_crashes_for_cells()         # standard H3 + hour filter (catches nearby news)
+  → _wider_news_search()                 # ring-3 (~500m) buffer, no hour filter (catches corridor news)
+  → trip.py separates source=="NEWS"     # news excluded from risk scoring
+  → news_articles[] in TripBriefResponse # sent to frontend as separate array
 ```
 
 ---
 
-## Implementation order (1-2 days)
+## What was built (files changed)
 
-| Step | Time | What |
-|------|------|------|
-| 1 | 30 min | Add `"NEWS"` to `Source` literal, add 6 optional fields to `SituationDoc` |
-| 2 | 30 min | Update `render_narrative()` with NEWS branch |
-| 3 | 1-2 hr | Write `normalize_news()` adapter (scraper JSON → SituationDoc), H3+date crash linking |
-| 4 | 30 min | Run upsert on 2-3 test articles, verify they appear in the corpus |
-| 5 | 1 hr | Update `hotspots_from_segments` to count `source=="NEWS"` and attach excerpts |
-| 6 | 1-2 hr | Add "Media Coverage" section to `BriefingCard.tsx` |
-| 7 | 30 min | Test end-to-end with a demo corridor |
+### Backend
 
-~5-7 hours of actual work. Remainder is buffer for scraper issues and polish.
+| File | What changed |
+|------|-------------|
+| `backend/schemas.py` | Added `"NEWS"` to `Source` literal. Added 6 news fields to `SituationDoc` (headline, article_excerpt, publisher, article_url, publish_date, linked_crash_ids). Added `NewsArticleResponse` model. Added `news_articles` field to `TripBriefResponse`. |
+| `backend/ingest/normalize.py` | Added `from_news_article()` adapter. Handles two scraper formats: GeoJSON Feature (mock) and flat properties + `crashGeometry` (real data from `semantic_crashes.json`). Inherits weather/lighting/surface/severity from paired FDOT crash. Truncates narrative to 2000 chars (VDB payload limit). Accepts `crashTier` as severity override. |
+| `backend/ingest/situation_doc.py` | `render_narrative()` now has a NEWS branch: prepends `"News report: {headline}"` + article body, then returns early (skips crash-outcome template). |
+| `backend/routers/trip.py` | `_score_alternate()` separates `source=="NEWS"` payloads from crash docs so news doesn't inflate risk scores. Added `_wider_news_search()` — expands route H3 cells by ring-3 (~500m buffer) with no hour filter to catch corridor news. Added `_news_articles_for()` to build `NewsArticleResponse` list. `_ScoredAlt` now carries `news_payloads`. Response includes `news_articles=news_articles`. |
+
+### Frontend
+
+| File | What changed |
+|------|-------------|
+| `routewise/src/lib/types.ts` | Added `NewsArticle` interface. Added `news_articles` to `TripBriefResponse`. |
+| `routewise/src/lib/api.ts` | Added `news_articles: []` defensive default in `fetchTripBrief`. |
+| `routewise/src/components/RouteMap.tsx` | Added `newsArticles` + `onNewsClick` props. Renders news as **blue CircleMarkers** (distinct from red hotspot pins) with headline + publisher tooltip. |
+| `routewise/src/app/trip/TripView.tsx` | Extended `Selection` union with `kind: "news"`. Added `newsArticles` memo. Passes `newsArticles` + `onNewsClick` to RouteMap. Added **"Media Coverage"** section in right sidebar with `NewsRow` component (shows headline, publisher, date, severity badge). Added `NewsIcon` SVG. |
+| `routewise/src/components/BriefingCard.tsx` | Added `kind: "news"` to `CardSubject`. Early-returns to `NewsBriefingCard` for news selection. `NewsBriefingCard` renders: blue-accented status bar, headline, publisher/date, article excerpt in quote card, reported location coordinates, linked crash IDs, "Read Original Article" link button. Added `NewsCardIcon` and `ExternalLinkIcon` SVGs. |
+
+### Ingestion scripts & data
+
+| File | What it does |
+|------|-------------|
+| `scripts/ingest_news.py` | CLI to ingest news JSON. Reads `*news*.json` and `semantic_crashes*.json` patterns. Supports `--file`, `--limit`, `--batch-size`. Same upsert pipeline as FDOT/FARS. |
+| `data/raw/news_mock.json` | 2 mock articles (Miami-Dade + Fort Myers) with coordinates placed directly on the Miami→Tampa I-75 route for guaranteed visibility. |
+| `data/raw/semantic_crashes.json` | 308 real scraped articles. Pulled by teammate. Flat FDOT properties + `crashGeometry` format. |
+
+---
+
+## How to ingest news
+
+```bash
+# All news files (mock + real):
+.venv/bin/python scripts/ingest_news.py
+
+# Specific file:
+.venv/bin/python scripts/ingest_news.py --file data/raw/semantic_crashes.json --batch-size 16
+
+# After ingesting, RESTART THE BACKEND so the crash cache reloads:
+# Kill uvicorn, then re-run start.sh or:
+.venv/bin/python -m uvicorn backend.main:app --reload --port 8080
+```
+
+---
+
+## How to test
+
+**Best demo route:** Orlando → Tampa (evening departure)
+- Origin: `lat=28.54, lon=-81.38`
+- Destination: `lat=27.95, lon=-82.45`
+- Returns ~7 news articles along the I-4 corridor
+
+**What to look for:**
+- Blue pins on the map (news) vs red pins (crash hotspots)
+- "Media Coverage" section in right sidebar with article rows
+- Click a blue pin or news row → slide-out card with headline, excerpt, publisher, link
+
+**Other corridors with coverage:** Miami→Tampa, any route through Hillsborough/Orange/Broward/Palm Beach counties.
+
+---
+
+## Design decisions
+
+### Same collection, not separate
+News articles live in `routewise_crashes` with `source: "NEWS"`. They flow through the same embed → upsert → cache → retrieve pipeline. At scoring time, they're filtered out so they don't inflate crash counts or risk bands. Display-only layer.
+
+### Conditions inherited from paired crash
+Weather, lighting, surface, severity, AADT, speed limit, timestamp — all pulled from the linked FDOT crash record's properties, not parsed from article text. This keeps the embedding accurate and avoids NLP extraction.
+
+### Wider retrieval for news
+Crash retrieval uses H3 ring-1 (~175m) + ±2h hour filter. News articles are on nearby roads (US 301, SR 50, etc.) not pinpoint on the route polyline, so they need a wider net: ring-3 (~500m) with no hour filter. This is done in `_wider_news_search()` in `trip.py`.
+
+### Narrative truncation
+Article bodies can be 200K+ chars. VDB payload limit causes 500 errors on large batches. Narrative is truncated to 2000 chars at ingest time. The `article_excerpt` (300 chars) is what the frontend displays.
+
+### matchScore threshold
+Scraper provides `matchScore` (55–100). Articles with `matchScore >= 70` get `linked_crash_ids` populated. Below 70, the article still ingests but without a crash link. All 308 articles ingest regardless of score.
+
+---
+
+## What's NOT done yet (possible next steps)
+
+1. **News count on hotspot cards** — spec says show "Covered by N news reports" on hotspot briefing cards. Not wired yet — would need to cross-reference news article locations with hotspot segments.
+2. **Deduplication** — some articles appear with slightly different coordinates (same article, different crash link). Could deduplicate by headline similarity.
+3. **Custom map icon** — currently news pins are blue circles. Could use a newspaper/article SVG marker for visual distinction.
+4. **News in hotspot detail** — when viewing a crash hotspot, show related news articles from the same area inline below the factors.
+5. **Severity-based pin color** — fatal news = red-blue, serious = orange-blue, etc.

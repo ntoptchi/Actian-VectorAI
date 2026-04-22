@@ -94,6 +94,13 @@ def render_narrative(doc: SituationDoc, *, for_query: bool = False) -> str:
     if out_bits:
         parts.append(f"Crash: {', '.join(out_bits)}.")
 
+    # News article (NEWS source: headline + body for embedding)
+    if doc.source == "NEWS" and doc.headline:
+        parts.append(f"News report: {doc.headline.strip()}")
+        if doc.narrative:
+            parts.append(doc.narrative.strip())
+        return " ".join(parts).strip()
+
     # Investigator narrative (CISS only, when present)
     if doc.has_narrative and doc.narrative:
         parts.append(f"Investigator narrative: {doc.narrative.strip()}")

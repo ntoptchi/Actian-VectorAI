@@ -1,0 +1,116 @@
+{
+  "generatedAt": "2026-04-21T00:00:00Z",
+  "dateRange": { "start": "2011-06-01", "end": "2011-11-30" },
+  "filter": "serious_only",
+  "counts": { "linked": 2, "unmatched": 0 },
+  "semanticCrashes": [
+    {
+      "crash_id": "PD110610233590",
+      "matchScore": 78,
+      "matchReasons": ["date_exact", "county_match", "road_fuzzy_92"],
+      "article": {
+        "title": "Two-car collision on SW 117th Avenue leaves three injured",
+        "text": "A two-vehicle crash at the intersection of SW 117th Avenue and SW 40th Street in Miami-Dade County sent three people to the hospital Friday morning. According to the Florida Highway Patrol, the collision occurred around 11:35 a.m. when a northbound sedan failed to yield at the traffic signal. The impact pushed both vehicles into the median. Traffic was diverted for approximately two hours while crews cleared the scene. Investigators noted dry road conditions and clear visibility at the time of the crash.",
+        "link": "https://example.com/miami-herald/2011/06/10/sw-117th-crash",
+        "publishedDate": "2011-06-10",
+        "source": "miamiherald.com"
+      },
+      "crash": {
+        "type": "Feature",
+        "id": 1,
+        "geometry": {
+          "type": "Point",
+          "coordinates": [-80.368240, 26.127796]
+        },
+        "properties": {
+          "OBJECTID": 1,
+          "XID": "2011826728260",
+          "CALENDAR_YEAR": 2011,
+          "CRASH_NUMBER": "826728260",
+          "CASE_NUMBER": "PD110610233590",
+          "INVSTGT_AGCY_CD": "2",
+          "AGENCY_TYPE_TXT": "COUNTY SHERIFF'S OFFICE",
+          "DOT_GEOG_DIST_CD": "06",
+          "DOT_CNTY_CD": "87",
+          "COUNTY_TXT": "MIAMI-DADE",
+          "CRASH_DATE": 1307682000000,
+          "CRASH_TIME": "1900",
+          "DAYOWEEK": "05",
+          "WEEKDAY_TXT": "FRIDAY",
+          "ON_ROADWAY_NAME": "117TH AVE SW",
+          "INT_ROADWAY_NAME": "40TH ST SW",
+          "SAFETYLAT": 25.7319951,
+          "SAFETYLON": -80.3830756,
+          "ROADWAYID": "87044000",
+          "STATE_ROAD_NUMBER": "SR 976",
+          "US_ROAD_NUMBER": null,
+          "FUNCLASS": "14",
+          "AVERAGE_DAILY_TRAFFIC": 54000,
+          "SPEED_LIMIT": 40,
+          "INJSEVER": "4",
+          "LGHT_COND_CD": "01",
+          "EVNT_WTHR_COND_CD": "01",
+          "RD_SRFC_COND_CD": "01",
+          "FRST_HARM_LOC_CD": "03",
+          "NUMBER_OF_VEHICLES": 2,
+          "NUMBER_OF_INJURED": 3,
+          "NUMBER_OF_KILLED": 0
+        }
+      }
+    },
+    {
+      "crash_id": "FHP110823001742",
+      "matchScore": 85,
+      "matchReasons": ["date_exact", "county_match", "road_exact"],
+      "article": {
+        "title": "Fatal wrong-way crash on I-75 near Fort Myers kills two",
+        "text": "Two people were killed late Tuesday night when a wrong-way driver collided head-on with a pickup truck on Interstate 75 near Fort Myers in Lee County. The crash occurred around 11:20 p.m. in heavy rain, according to the Florida Highway Patrol. Troopers said the wrong-way vehicle entered I-75 southbound via an exit ramp near mile marker 136. Both drivers were pronounced dead at the scene. The northbound lanes were closed for nearly six hours during the investigation. FHP noted wet road conditions and poor visibility due to heavy rainfall at the time of the collision.",
+        "link": "https://example.com/news-press/2011/08/24/i75-wrong-way-crash",
+        "publishedDate": "2011-08-24",
+        "source": "news-press.com"
+      },
+      "crash": {
+        "type": "Feature",
+        "id": 95000,
+        "geometry": {
+          "type": "Point",
+          "coordinates": [-81.798678, 26.676575]
+        },
+        "properties": {
+          "OBJECTID": 95000,
+          "XID": "2011830155800",
+          "CALENDAR_YEAR": 2011,
+          "CRASH_NUMBER": "830155800",
+          "CASE_NUMBER": "FHP110823001742",
+          "INVSTGT_AGCY_CD": "1",
+          "AGENCY_TYPE_TXT": "FLORIDA HIGHWAY PATROL",
+          "DOT_GEOG_DIST_CD": "01",
+          "DOT_CNTY_CD": "36",
+          "COUNTY_TXT": "LEE",
+          "CRASH_DATE": 1314064800000,
+          "CRASH_TIME": "1830",
+          "DAYOWEEK": "02",
+          "WEEKDAY_TXT": "TUESDAY",
+          "ON_ROADWAY_NAME": "I-75",
+          "INT_ROADWAY_NAME": null,
+          "SAFETYLAT": 26.612847,
+          "SAFETYLON": -81.685201,
+          "ROADWAYID": "36000075",
+          "STATE_ROAD_NUMBER": "I-75",
+          "US_ROAD_NUMBER": null,
+          "FUNCLASS": "11",
+          "AVERAGE_DAILY_TRAFFIC": 83000,
+          "SPEED_LIMIT": 70,
+          "INJSEVER": "5",
+          "LGHT_COND_CD": "05",
+          "EVNT_WTHR_COND_CD": "03",
+          "RD_SRFC_COND_CD": "02",
+          "FRST_HARM_LOC_CD": "02",
+          "NUMBER_OF_VEHICLES": 2,
+          "NUMBER_OF_INJURED": 0,
+          "NUMBER_OF_KILLED": 2
+        }
+      }
+    }
+  ]
+}

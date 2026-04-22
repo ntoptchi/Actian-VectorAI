@@ -23,7 +23,7 @@ need() {
 # ---------------------------------------------------------------------------
 section "Checking prerequisites"
 # ---------------------------------------------------------------------------
-need python  "Install Python 3.11+ (https://www.python.org/downloads/)"
+need python3  "Install Python 3.11+ (https://www.python.org/downloads/)"
 need docker  "Install Docker Desktop (https://www.docker.com/products/docker-desktop/)"
 need node    "Install Node.js 20+ (https://nodejs.org/)"
 need npm     "Comes with Node.js"
@@ -44,7 +44,7 @@ fi
 section "Python venv (.venv)"
 # ---------------------------------------------------------------------------
 if [ ! -d ".venv" ]; then
-  python -m venv .venv
+  python3 -m venv .venv
   info "created .venv"
 else
   info ".venv already exists"
