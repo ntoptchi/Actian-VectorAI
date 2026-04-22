@@ -7,7 +7,7 @@ for ``POST /trip/brief`` and ``GET /hotspots/{id}`` (ROUTEWISE.md s6.3).
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -54,7 +54,7 @@ CrashType = Literal[
 
 Severity = Literal["fatal", "serious", "minor", "pdo", "unknown"]
 
-Source = Literal["FARS", "CISS", "FDOT"]
+Source = Literal["FARS", "CISS", "FDOT", "NEWS"]
 
 
 # --- SituationDoc -----------------------------------------------------------
@@ -111,6 +111,14 @@ class SituationDoc(BaseModel):
     # Narrative (indexed only)
     has_narrative: bool = False
     narrative: str = ""
+
+    # --- News-specific (source == "NEWS" only; spec.md) -------------------
+    headline: str = ""
+    article_excerpt: str = ""
+    publisher: str = ""
+    article_url: str = ""
+    publish_date: date | None = None
+    linked_crash_ids: list[str] = Field(default_factory=list)
 
 
 # --- Request / response models for /trip/brief (s6.3) ----------------------
