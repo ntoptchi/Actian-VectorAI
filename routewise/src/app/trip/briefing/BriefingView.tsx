@@ -24,16 +24,34 @@ interface Props {
  * ordered by km into the trip. Keeps hotspots, rest stops, and the
  * sunset crossover in a single scroll-read so the teen doesn't have to
  * cross-reference three lists mid-briefing.
+ *
+ * Hotspot items can be *grouped*: consecutive hotspots with the same
+ * `label` whose km markers fall within HOTSPOT_GROUP_KM of each other
+ * are merged into a single timeline node. See the merge pass inside
+ * `timeline` useMemo for the rationale — two rows reading "Near
+ * Hialeah" back-to-back add no information and make the timeline
+ * feel longer without being denser.
  */
 type TimelineItem =
   | {
       kind: "hotspot";
       km: number;
+      kmTo?: number;
       etaIso: string | null;
+      etaToIso?: string | null;
       data: HotspotSummary;
+      mergedCount?: number;
+      mergedCrashes?: number;
     }
   | { kind: "stop"; km: number; etaIso: string; data: FatigueStop }
   | { kind: "sunset"; km: number; etaIso: string };
+
+// If two adjacent same-label hotspots are closer than this many km
+// apart, they belong to the same cluster for reading purposes. 8 km
+// ≈ ~5 minutes at interstate speed, which is the point at which a
+// driver would stop thinking of them as "another thing" and start
+// thinking of them as "still this thing."
+const HOTSPOT_GROUP_KM = 8;
 
 export function BriefingView({ brief, originName, destName, mapHref }: Props) {
   const depart = useMemo(
@@ -90,7 +108,63 @@ export function BriefingView({ brief, originName, destName, mapHref }: Props) {
       }
     }
     items.sort((a, b) => a.km - b.km);
-    return items;
+
+    // Second pass: merge same-label hotspots that sit within
+    // HOTSPOT_GROUP_KM of each other. The representative for the
+    // merged block is whichever member has the worst intensity_ratio,
+    // because that's the one whose coaching line and top factor
+    // actually need to be read. Crash counts sum; km span becomes a
+    // range; ETA becomes a "from → to" window.
+    //
+    // We look *past* intervening non-hotspot items (rest stops,
+    // sunset) when searching for a merge target — two "Near
+    // Riverview" hotspots separated by a rest stop at the midpoint
+    // still read as one cluster, and duplicating the card just
+    // because a rest stop landed in between would undo the whole
+    // point of the grouping. The merged card stays at the position
+    // of the *earlier* occurrence so timeline order remains
+    // km-ascending; the intermediate rest stop is still visible
+    // between/around it.
+    const merged: TimelineItem[] = [];
+    for (const item of items) {
+      if (item.kind === "hotspot") {
+        let mergeIdx = -1;
+        for (let i = merged.length - 1; i >= 0; i--) {
+          const candidate = merged[i];
+          if (candidate && candidate.kind === "hotspot") {
+            mergeIdx = i;
+            break;
+          }
+        }
+        const prev =
+          mergeIdx >= 0
+            ? (merged[mergeIdx] as Extract<TimelineItem, { kind: "hotspot" }>)
+            : null;
+        if (
+          prev &&
+          prev.data.label === item.data.label &&
+          item.km - (prev.kmTo ?? prev.km) < HOTSPOT_GROUP_KM
+        ) {
+          const prevBest = prev.data.intensity_ratio ?? 0;
+          const curBest = item.data.intensity_ratio ?? 0;
+          const worst = curBest > prevBest ? item.data : prev.data;
+          merged[mergeIdx] = {
+            kind: "hotspot",
+            km: prev.km,
+            kmTo: item.km,
+            etaIso: prev.etaIso,
+            etaToIso: item.etaIso,
+            data: worst,
+            mergedCount: (prev.mergedCount ?? 1) + 1,
+            mergedCrashes:
+              (prev.mergedCrashes ?? prev.data.n_crashes) + item.data.n_crashes,
+          };
+          continue;
+        }
+      }
+      merged.push(item);
+    }
+    return merged;
   }, [brief, distanceKm, depart, arrive]);
 
   // Lightweight client-only checklist state — a teen's motivating
@@ -103,7 +177,7 @@ export function BriefingView({ brief, originName, destName, mapHref }: Props) {
   const [acknowledged, setAcknowledged] = useState(false);
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 pb-10 pt-5 sm:gap-12 sm:px-6 sm:pb-14 sm:pt-6">
+    <main className="mx-auto flex w-full max-w-[52rem] flex-col gap-8 px-4 pb-10 pt-5 sm:gap-12 sm:px-6 sm:pb-14 sm:pt-6">
       <div>
         <Link
           href={mapHref}
@@ -181,7 +255,11 @@ export function BriefingView({ brief, originName, destName, mapHref }: Props) {
           )}
           <ConditionStat
             label="After-dark driving"
-            value={fmtDuration(brief.conditions_banner.dark_drive_minutes)}
+            value={
+              brief.conditions_banner.dark_drive_minutes > 0
+                ? fmtDuration(brief.conditions_banner.dark_drive_minutes)
+                : "None"
+            }
             caption={
               brief.conditions_banner.dark_drive_minutes > 0
                 ? "headlights-on stretch"
@@ -201,12 +279,18 @@ export function BriefingView({ brief, originName, destName, mapHref }: Props) {
       {/* Section 3 — Pre-trip checklist */}
       {checklistTotal > 0 && (
         <section className="flex flex-col gap-4">
-          <div className="flex items-baseline justify-between gap-3">
-            <span className="eyebrow eyebrow-rule">
-              <span>Before you leave</span>
-            </span>
-            <span className="shrink-0 font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-ink-3">
-              {doneCount} / {checklistTotal}
+          {/* Single-line header — title + counter read as one
+              structural roof for the module. Counter is pulled in
+              tight against the title rather than pushed to the
+              opposite edge of the row, so it behaves like a
+              parenthetical ("Before you leave — 0 of 5") instead of
+              a separate corner widget. */}
+          <div className="flex items-baseline gap-3">
+            <h2 className="text-[0.8125rem] font-semibold tracking-tight text-ink">
+              Before you leave
+            </h2>
+            <span className="text-[0.75rem] font-medium tabular-nums text-ink-3">
+              {doneCount} of {checklistTotal}
             </span>
           </div>
           {/* Progress rail — a briefing earns a progress bar, not a
@@ -264,7 +348,7 @@ export function BriefingView({ brief, originName, destName, mapHref }: Props) {
           // not a competing element. Critical hotspot dots retain a
           // heavier size + color so active warnings still punch
           // through the quieter structure around them.
-          <ol className="relative flex flex-col gap-5 pl-7 before:absolute before:bottom-1 before:left-[3px] before:top-1 before:w-[2px] before:rounded-full before:bg-ink-4/30">
+          <ol className="relative flex flex-col gap-4 pl-2 before:absolute before:bottom-1 before:left-[3px] before:top-1 before:w-[2px] before:rounded-full before:bg-ink-4/45">
             {timeline.map((item, i) => (
               <TimelineNode key={`${item.kind}-${i}`} item={item} />
             ))}
@@ -295,8 +379,17 @@ export function BriefingView({ brief, originName, destName, mapHref }: Props) {
             }
           />
           <KeyNumber
-            value={fmtDuration(brief.conditions_banner.dark_drive_minutes)}
+            value={
+              brief.conditions_banner.dark_drive_minutes > 0
+                ? fmtDuration(brief.conditions_banner.dark_drive_minutes)
+                : "None"
+            }
             label="After-dark driving"
+            caption={
+              brief.conditions_banner.dark_drive_minutes > 0
+                ? "headlights-on stretch"
+                : "daylight the whole way"
+            }
           />
           <KeyNumber
             value={String(brief.fatigue_plan.suggested_stops.length)}
@@ -323,33 +416,61 @@ export function BriefingView({ brief, originName, destName, mapHref }: Props) {
           your eyes up, phone down, and leave extra space on the stretches
           flagged above.
         </p>
-        <label className="flex cursor-pointer items-start gap-3 text-sm text-ink">
+        {/* Custom checkbox. Native input is kept in the tree (sr-only)
+            so keyboard focus, screen readers, and form semantics all
+            still work — the visible box is just a styled <span>
+            that follows the input's `:checked` state through its
+            parent <label>. Matches the checklist-item check mark
+            glyph above for a single visual language across the
+            briefing. */}
+        <label className="group flex cursor-pointer items-start gap-3 text-sm text-ink">
           <input
             type="checkbox"
             checked={acknowledged}
             onChange={(e) => setAcknowledged(e.target.checked)}
-            className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-rule accent-ink"
+            className="peer sr-only"
           />
+          <span
+            aria-hidden
+            className={`mt-0.5 grid h-[22px] w-[22px] shrink-0 place-items-center rounded-[5px] border-[1.5px] transition peer-focus-visible:ring-2 peer-focus-visible:ring-ink/40 peer-focus-visible:ring-offset-1 peer-focus-visible:ring-offset-paper-3 group-active:scale-[0.94] ${
+              acknowledged
+                ? "border-ink bg-ink text-paper shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]"
+                : "border-rule bg-paper text-transparent group-hover:border-ink-3"
+            }`}
+          >
+            <svg width="13" height="13" viewBox="0 0 12 12" fill="none">
+              <path
+                d="M2 6.5 4.7 9 10 3"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
           <span>I&apos;ve read the briefing and I&apos;m good to drive.</span>
         </label>
         {/* CTA stack: one primary action, one quieter secondary link.
             Primary is the logo's charcoal ink at full saturation when
             enabled — same chip-of-paint as the masthead mark, so it
-            reads as *the* action, not a styled link. When locked it
-            drops to a muted paper-2 fill with a helper line calling
-            out exactly what's blocking it. Secondary is pure text. */}
+            reads as *the* action, not a styled link. When locked we
+            keep the *same* solid-charcoal button and just dim it
+            (bg-ink at 40% alpha), so the reader sees "the primary
+            button, not yet enabled" instead of a different chipped
+            ghost. Helper line below still tells them why. Secondary
+            is pure text. */}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-5">
           <Link
             href={mapHref}
             aria-disabled={!acknowledged}
             tabIndex={acknowledged ? undefined : -1}
-            className={`inline-flex items-center justify-center gap-2 rounded-sm px-6 py-3 text-sm font-semibold tracking-tight transition-colors duration-200 ${
+            className={`inline-flex items-center justify-center gap-2 rounded-sm px-6 py-3 text-sm font-semibold tracking-tight text-paper transition duration-200 ${
               acknowledged
-                ? "bg-ink text-paper hover:bg-ink-2"
-                : "pointer-events-none bg-paper-2 text-ink-4 ring-1 ring-rule"
+                ? "bg-ink shadow-[0_10px_24px_-8px_rgba(15,23,42,0.6),inset_0_1px_0_rgba(255,255,255,0.08)] hover:bg-ink-2 hover:shadow-[0_14px_28px_-10px_rgba(15,23,42,0.7),inset_0_1px_0_rgba(255,255,255,0.08)]"
+                : "pointer-events-none bg-ink/45 cursor-not-allowed"
             }`}
           >
-            Back to the route
+            Back to route map
             <span aria-hidden>→</span>
           </Link>
           <Link
@@ -411,7 +532,7 @@ function SummaryStats({
           .join(" ");
         return (
           <div key={s.label} className={cls}>
-            <dt className="flex items-center gap-1.5 font-mono text-[0.625rem] uppercase tracking-[0.08em] text-ink-3">
+            <dt className="flex items-center gap-1.5 text-[0.75rem] font-medium text-ink-2">
               <StatIcon name={s.icon} />
               {s.label}
             </dt>
@@ -419,7 +540,7 @@ function SummaryStats({
               {s.value}
             </dd>
             {s.sub && (
-              <dd className="text-[0.6875rem] text-ink-3">{s.sub}</dd>
+              <dd className="text-[0.75rem] text-ink-3">{s.sub}</dd>
             )}
           </div>
         );
@@ -520,11 +641,11 @@ function RecommendedRouteCard({
         </svg>
       </span>
       <div className="flex flex-1 flex-col gap-2">
-        <span className="font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-ink">
+        <span className="text-xs font-semibold uppercase tracking-[0.04em] text-ink">
           Recommended route
         </span>
         <p className="text-sm leading-relaxed text-ink">{intro}</p>
-        <div className="mt-1 flex flex-wrap gap-x-5 gap-y-1 font-mono text-[0.625rem] uppercase tracking-[0.06em] text-ink-3">
+        <div className="mt-1 flex flex-wrap gap-x-5 gap-y-1 text-[0.75rem] font-medium text-ink-2">
           <span>
             {chosenMatches} matched crash{chosenMatches === 1 ? "" : "es"}
           </span>
@@ -548,10 +669,8 @@ function ConditionStat({
   caption: string;
 }) {
   return (
-    <div className="flex flex-col gap-1 rounded-sm bg-paper-3 p-4 ring-1 ring-rule">
-      <span className="font-mono text-[0.625rem] uppercase tracking-[0.14em] text-ink-3">
-        {label}
-      </span>
+    <div className="flex flex-col gap-1 rounded-sm bg-paper-2 p-4 ring-1 ring-rule">
+      <span className="text-[0.75rem] font-medium text-ink-2">{label}</span>
       <span className="font-display text-xl font-semibold text-ink">
         {value}
       </span>
@@ -560,11 +679,24 @@ function ConditionStat({
   );
 }
 
-function KeyNumber({ value, label }: { value: string; label: string }) {
+function KeyNumber({
+  value,
+  label,
+  caption,
+}: {
+  value: string;
+  label: string;
+  caption?: string;
+}) {
   return (
     <div className="flex flex-col gap-2 rounded-sm bg-paper-3 p-4 ring-1 ring-rule">
       <span className="stat-numeral text-3xl text-ink sm:text-4xl">{value}</span>
       <span className="text-xs leading-snug text-ink-3">{label}</span>
+      {caption && (
+        <span className="text-[0.6875rem] leading-snug text-ink-4">
+          {caption}
+        </span>
+      )}
     </div>
   );
 }
@@ -620,17 +752,17 @@ function ChecklistItem({
         </span>
         <span
           aria-hidden
-          className={`grid h-5 w-5 shrink-0 place-items-center rounded-sm border transition ${
+          className={`grid h-[22px] w-[22px] shrink-0 place-items-center rounded-[5px] border-[1.5px] transition group-active:scale-[0.92] ${
             checked
-              ? "border-ink bg-ink text-paper"
-              : "border-rule bg-paper text-transparent group-hover:border-ink-4"
+              ? "border-ink bg-ink text-paper shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]"
+              : "border-rule bg-paper text-transparent group-hover:border-ink-3"
           }`}
         >
-          <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+          <svg width="13" height="13" viewBox="0 0 12 12" fill="none">
             <path
               d="M2 6.5 4.7 9 10 3"
               stroke="currentColor"
-              strokeWidth="1.8"
+              strokeWidth="2.2"
               strokeLinecap="round"
               strokeLinejoin="round"
             />
@@ -677,7 +809,7 @@ function WeatherBreakdown({
   }
 
   return (
-    <ol className="flex flex-col divide-y divide-rule overflow-hidden rounded-sm bg-paper-3 ring-1 ring-rule">
+    <ol className="flex flex-col divide-y divide-rule/80 overflow-hidden rounded-sm bg-paper-2 ring-1 ring-rule">
       {rows.map((r, i) => {
         const fromEtaIso = etaAtKm(r.from_km, totalKm, depart, arrive);
         const fromEta = fromEtaIso ? formatClock(new Date(fromEtaIso)) : null;
@@ -686,11 +818,18 @@ function WeatherBreakdown({
             key={i}
             className="grid grid-cols-[auto_auto_1fr_auto] items-center gap-x-4 gap-y-0.5 px-4 py-3"
           >
+            {/* Icon-in-a-ring container so the strip reads as a real
+                "Conditions" dashboard row, not a list of colored
+                bullet points. The icon is picked from weather first
+                (sun/cloud/rain), falling back to surface if the
+                backend string is unexpected. */}
             <span
               aria-hidden
-              className={`h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-rule ${surfaceStyle(r.surface)}`}
-            />
-            <span className="font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-ink-3">
+              className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-paper-3 text-ink-3 ring-1 ring-rule"
+            >
+              <WeatherSurfaceIcon weather={r.weather} surface={r.surface} />
+            </span>
+            <span className="text-[0.8125rem] font-medium tabular-nums text-ink-2">
               {formatKmRange(r.from_km, r.to_km)}
             </span>
             <span className="text-sm leading-snug text-ink">
@@ -700,7 +839,7 @@ function WeatherBreakdown({
               )}
             </span>
             {fromEta && (
-              <span className="font-mono text-[0.625rem] uppercase tracking-[0.14em] text-ink-4">
+              <span className="text-[0.75rem] tabular-nums text-ink-3">
                 ~{fromEta}
               </span>
             )}
@@ -708,6 +847,77 @@ function WeatherBreakdown({
         );
       })}
     </ol>
+  );
+}
+
+/**
+ * Tiny stroke-icon per weather row — sun for clear, cloud for overcast,
+ * drop for rain, flake for snow/ice. We try to match on the raw
+ * weather string first (it's the one the driver is reading in the row
+ * label) and only fall back to the surface enum for edge cases like
+ * "unknown" weather with a snowy surface.
+ */
+function WeatherSurfaceIcon({
+  weather,
+  surface,
+}: {
+  weather: string;
+  surface: WeatherSegment["surface"];
+}) {
+  const common = {
+    width: 12,
+    height: 12,
+    viewBox: "0 0 16 16",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.6,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    "aria-hidden": true,
+  };
+  const w = weather.toLowerCase();
+  const isRain = /rain|shower|drizzle/.test(w);
+  const isSnow = /snow|sleet|ice|icy/.test(w) || surface === "snowy" || surface === "icy";
+  const isCloud = /cloud|overcast|fog|mist/.test(w);
+  if (isSnow) {
+    return (
+      <svg {...common}>
+        <path d="M8 2v12" />
+        <path d="M2 8h12" />
+        <path d="M3.5 3.5 12.5 12.5" />
+        <path d="M12.5 3.5 3.5 12.5" />
+      </svg>
+    );
+  }
+  if (isRain) {
+    return (
+      <svg {...common}>
+        <path d="M4.5 10.5a3 3 0 1 1 0.5-5.9A3.5 3.5 0 0 1 11.5 6.5a2.5 2.5 0 0 1-.5 4.9H4.5z" />
+        <path d="M6 13v1.5" />
+        <path d="M9 13v1.5" />
+      </svg>
+    );
+  }
+  if (isCloud) {
+    return (
+      <svg {...common}>
+        <path d="M4.5 11.5a3 3 0 1 1 0.5-5.9A3.5 3.5 0 0 1 11.5 7.5a2.5 2.5 0 0 1-.5 4.9H4.5z" />
+      </svg>
+    );
+  }
+  // Default: sun — "Clear" is the most common weather string.
+  return (
+    <svg {...common}>
+      <circle cx="8" cy="8" r="3" />
+      <path d="M8 2v1.5" />
+      <path d="M8 12.5V14" />
+      <path d="M2 8h1.5" />
+      <path d="M12.5 8H14" />
+      <path d="m3.8 3.8 1 1" />
+      <path d="m11.2 11.2 1 1" />
+      <path d="m12.2 3.8-1 1" />
+      <path d="m4.8 11.2-1 1" />
+    </svg>
   );
 }
 
@@ -758,52 +968,101 @@ function TimelineNode({ item }: { item: TimelineItem }) {
     // dot treatment; the quieter Notice tier uses the smaller
     // recessed dot so it doesn't shout from the rail.
     const activeWarning = tone.label !== "Notice";
+    const isGrouped = item.mergedCount != null && item.mergedCount > 1;
+    const etaTo = item.etaToIso ? formatClock(new Date(item.etaToIso)) : null;
+    const crashesTotal = item.mergedCrashes ?? h.n_crashes;
+
+    // Dateline is a single string so interpunct spacing stays uniform
+    // ("km N · ~time") — a flex row with gap'd pieces produced a
+    // subtly different gap on either side of the dot and read as
+    // typographic noise on a page full of similar rows.
+    //
+    // For grouped hotspots we also collapse the time range: if the
+    // start and end fall in the same meridiem ("~2:47 PM → ~2:52
+    // PM") we drop the first AM/PM and print "~2:47–2:52 PM", which
+    // reads like a range rather than two separate timestamps.
+    const datelineKm = isGrouped
+      ? `km ${item.km.toFixed(0)}–${(item.kmTo ?? item.km).toFixed(0)}`
+      : `km ${item.km.toFixed(0)}`;
+    const datelineEta =
+      isGrouped && eta && etaTo
+        ? ` · ~${formatTimeRange(eta, etaTo)}`
+        : eta
+          ? ` · ~${eta}`
+          : "";
+
     return (
       <li className="relative">
+        {/* Dot sits optically next to the h3 title (card "main
+            text"), not at the geometric top edge. The offset is
+            derived from: 16px (card p-4) + ~20px (dateline line box)
+            + 8px (gap-2) + ~4px into the title's cap-height ≈ 48px
+            center, so 14px dot top = 41 and 12px dot top = 42.
+            Horizontally we pull the dot right so its centerline
+            sits ON the card's left edge (half-on, half-off): the
+            dot is anchored to the card it's marking and only just
+            straddles the rail, making the pair read as "this dot
+            belongs to *this* card" instead of floating loose in a
+            gutter. */}
         <span
           aria-hidden
           className={
             activeWarning
-              ? `absolute -left-[31px] top-1.5 h-3.5 w-3.5 rounded-full ring-[3px] ring-paper ${tone.dotBg}`
-              : `absolute -left-[30px] top-2 h-3 w-3 rounded-full ring-2 ring-paper ${tone.dotBg}`
+              ? `absolute -left-[7px] top-[41px] h-3.5 w-3.5 rounded-full ring-[3px] ring-paper ${tone.dotBg}`
+              : `absolute -left-[6px] top-[42px] h-3 w-3 rounded-full ring-2 ring-paper ${tone.dotBg}`
           }
         />
         <div
-          className={`flex flex-col gap-2 rounded-sm p-4 ring-1 ${tone.cardBg} ${tone.cardRing} ${tone.accentBorder}`}
+          className={`flex flex-col gap-2 rounded-sm p-4 ${tone.cardBg} ${tone.cardRing} ${tone.accentBorder}`}
         >
           <div className="flex items-start justify-between gap-3">
-            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-              <span className="font-mono text-[0.625rem] uppercase tracking-[0.06em] text-ink-3">
-                km {h.km_into_trip.toFixed(0)}
-              </span>
-              {eta && (
-                <span className="font-mono text-[0.625rem] uppercase tracking-[0.06em] text-ink-3">
-                  · ~{eta}
-                </span>
-              )}
-            </div>
+            <span className="text-[0.8125rem] font-medium tabular-nums text-ink-2">
+              {datelineKm}
+              <span className="text-ink-3">{datelineEta}</span>
+            </span>
             <span
-              className={`shrink-0 rounded-sm px-1.5 py-0.5 text-[0.625rem] font-semibold uppercase tracking-[0.08em] ${tone.pillBg}`}
+              className={`shrink-0 rounded-sm px-1.5 py-0.5 text-[0.625rem] font-semibold uppercase tracking-[0.06em] ${tone.pillBg}`}
             >
               {tone.label}
             </span>
           </div>
-          <h3 className="text-base font-semibold text-ink">{h.label}</h3>
-          <p className="text-sm leading-relaxed text-ink-3">
+          <h3 className="text-base font-semibold text-ink">
+            {h.label}
+            {isGrouped && (
+              <span className="ml-2 text-[0.75rem] font-medium text-ink-3">
+                ({item.mergedCount} clusters)
+              </span>
+            )}
+          </h3>
+          <p className="text-sm leading-relaxed text-ink-2">
             {h.coaching_line}
           </p>
-          {(h.n_crashes > 0 || h.top_factors.length > 0) && (
-            <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1 font-mono text-[0.625rem] uppercase tracking-[0.06em] text-ink-3">
-              {h.n_crashes > 0 && (
+          {(crashesTotal > 0 || h.top_factors.length > 0) && (
+            <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1 text-[0.75rem] font-medium text-ink-2">
+              {crashesTotal > 0 && (
                 <span>
-                  {h.n_crashes} matched crash{h.n_crashes === 1 ? "" : "es"}
+                  {crashesTotal} matched crash{crashesTotal === 1 ? "" : "es"}
+                  {isGrouped && (
+                    <span className="text-ink-3">
+                      {" "}
+                      across {item.mergedCount} clusters
+                    </span>
+                  )}
                 </span>
               )}
               {h.intensity_ratio != null && (
-                <span>{h.intensity_ratio.toFixed(1)}x FL avg</span>
+                <span>
+                  {h.intensity_ratio.toFixed(1)}× Florida average
+                  {isGrouped && <span className="text-ink-3"> (peak)</span>}
+                </span>
               )}
               {h.top_factors[0] && (
-                <span>Top factor · {humanizeFactor(h.top_factors[0].factor)}</span>
+                <span>
+                  Top factor:{" "}
+                  <span className="text-ink">
+                    {humanizeFactor(h.top_factors[0].factor)}
+                  </span>
+                </span>
               )}
             </div>
           )}
@@ -815,25 +1074,29 @@ function TimelineNode({ item }: { item: TimelineItem }) {
   if (item.kind === "stop") {
     return (
       <li className="relative">
+        {/* Optically aligned with the rest-stop *label* line (the
+            bottom text, not the dateline eyebrow). p-3 = 12px top +
+            ~18px eyebrow + ~8px into label cap-height ≈ 38 center →
+            dot top 32. */}
         <span
           aria-hidden
-          className="absolute -left-[30px] top-2 h-3 w-3 rounded-full bg-ink-4 ring-2 ring-paper"
+          className="absolute -left-[6px] top-[32px] h-3 w-3 rounded-full bg-ink-4 ring-2 ring-paper"
         />
         {/* Rest stops are *calm* — cool neutral tint, smaller dot.
             The left-border in ink-4 ties the card back to its dot
             without turning up the visual volume. */}
-        <div className="flex items-start justify-between gap-3 rounded-sm border-l-2 border-ink-4/50 bg-paper-2 p-3 ring-1 ring-rule">
+        <div className="flex items-start justify-between gap-3 rounded-sm border-l-2 border-ink-4/60 bg-[#f4f4f5] p-3 ring-1 ring-rule">
           <div className="flex items-center gap-2.5">
             <RestIcon />
             <div className="flex flex-col gap-0.5">
-              <span className="font-mono text-[0.625rem] uppercase tracking-[0.06em] text-ink-3">
+              <span className="text-[0.8125rem] font-medium tabular-nums text-ink-2">
                 Rest stop · km {item.km.toFixed(0)}
                 {eta && ` · ~${eta}`}
               </span>
               <span className="text-sm text-ink">{item.data.label}</span>
             </div>
           </div>
-          <span className="shrink-0 font-mono text-[0.625rem] uppercase tracking-[0.06em] text-ink-3">
+          <span className="shrink-0 text-[0.75rem] font-medium text-ink-3">
             Stretch &amp; refuel
           </span>
         </div>
@@ -843,9 +1106,11 @@ function TimelineNode({ item }: { item: TimelineItem }) {
 
   return (
     <li className="relative">
+      {/* Sunset dot centered with the body paragraph (the "main
+          text" of the card), one line below the eyebrow dateline. */}
       <span
         aria-hidden
-        className="absolute -left-[30px] top-2 h-3 w-3 rounded-full bg-gold ring-2 ring-paper"
+        className="absolute -left-[6px] top-[34px] h-3 w-3 rounded-full bg-gold ring-2 ring-paper"
       />
       {/* Sunset is an *environmental change*, not an alert. A small
           sun-dipping glyph does the cognitive lifting — the reader
@@ -855,8 +1120,8 @@ function TimelineNode({ item }: { item: TimelineItem }) {
       <div className="flex items-start gap-2.5 rounded-sm border-l-2 border-gold bg-gold/[0.06] p-3 ring-1 ring-rule">
         <SunsetIcon />
         <div className="flex flex-col gap-0.5">
-          <span className="font-mono text-[0.625rem] uppercase tracking-[0.06em] text-ink-3">
-            Sunset · ~km {item.km.toFixed(0)} · {eta}
+          <span className="text-[0.8125rem] font-medium tabular-nums text-ink-2">
+            Sunset · km {item.km.toFixed(0)} · ~{eta}
           </span>
           <span className="text-sm text-ink">
             Headlights on from here. Drop your speed 5 mph and double your
@@ -930,18 +1195,57 @@ function hotspotTone(h: HotspotSummary): {
   // a crash cluster needs attention, not the hard-stop pill that red
   // reads as in road signage.
   //
-  // Card-level tinting: Critical and Watch get a faint warning wash
-  // (at ~4% alpha of their tier color) plus a 4px accent border on
-  // the left. Notice stays neutral so it doesn't cry wolf.
+  // Border logic (progressive, not uniform):
+  //   • Critical — thick 4px gold-strong bar. This is the only tier
+  //     that gets a heavy vertical anchor; the eye should land here
+  //     first when scanning the timeline.
+  //   • Watch — thin 3px gold bar + soft gold wash. Carries warning
+  //     without the visual fatigue of another heavy bar repeating
+  //     down the page.
+  //   • Notice — sky-blue 3px bar. Own color so it reads as
+  //     "advisory data" rather than a muted/disabled version of the
+  //     warning cards. #0284c7 is sky-600, chosen to sit clearly
+  //     outside the amber warning family.
+  //
+  // We drop the outer hairline ring on every tier — the left accent
+  // bar is doing the severity work and an extra ring on top reads as
+  // double-labelling the same information.
+  // Severity ladder — the card fills use distinct *families* (warm
+  // orange / cream / pale blue / neutral gray) rather than the same
+  // color at different alphas. That way a reader scrolling the
+  // timeline at a glance can rank cards by temperature instead of
+  // having to notice which of two near-identical washes is slightly
+  // deeper. Accents (border + pill + dot) stay in the sharper tier
+  // color so the visual hierarchy still reads "amber vs gold vs
+  // blue" when you look closely.
+  //
+  // Hex values, not `bg-gold-strong`, for the full-opacity fills
+  // because the plain full-opacity utility was silently getting
+  // dropped in some builds — first spotted on the map "High Risk
+  // Zone" callout (see TripView.tsx). Opacity variants and
+  // border-gold-strong / text-gold-strong are safe.
   const r = h.intensity_ratio ?? 0;
   if (r >= 2.5) {
     return {
       label: "Critical",
-      dotBg: "bg-gold-strong",
-      pillBg: "bg-gold-strong text-paper",
-      cardBg: "bg-gold-strong/[0.05]",
-      cardRing: "ring-gold-strong/25",
-      accentBorder: "border-l-4 border-gold-strong",
+      dotBg: "bg-[#b45309]",
+      pillBg: "bg-[#b45309] text-paper",
+      // Deeper warm peach — one full saturation-notch hotter than
+      // the Watch sand wash. The previous #fff1e3 read as a sibling
+      // of the cream, which is exactly the problem: Critical should
+      // *feel* like a step up, not a closer variant. We also add a
+      // faint warm ring tinted from the same amber-700 accent so
+      // the card carries a quiet halo in addition to its thick
+      // border — two structural cues, not one.
+      cardBg: "bg-[#ffd7b5]",
+      cardRing: "ring-1 ring-[#b45309]/20",
+      // Hex literal, not `border-gold-strong` — the named utility
+      // was silently being dropped in some builds (same bug that
+      // hit `bg-gold-strong` on the map callout), so the bar
+      // fell back to the default near-black border color. Using
+      // the amber-700 hex directly matches the Critical dot and
+      // pill, which already use the same literal.
+      accentBorder: "border-l-4 border-[#b45309]",
     };
   }
   if (r >= 1.5) {
@@ -949,18 +1253,26 @@ function hotspotTone(h: HotspotSummary): {
       label: "Watch",
       dotBg: "bg-gold",
       pillBg: "bg-gold text-paper",
-      cardBg: "bg-gold/[0.06]",
-      cardRing: "ring-gold/30",
-      accentBorder: "border-l-4 border-gold",
+      // Airier cream — lightened a touch from the previous sand so
+      // it sits clearly below Critical's peach on the heat scale.
+      // Paired with the thin gold border so the card still reads
+      // as "keep an eye out", just without the residential smell
+      // of emergency.
+      cardBg: "bg-[#fdf4de]",
+      cardRing: "",
+      accentBorder: "border-l-[3px] border-gold",
     };
   }
+  // Notice — pale informational blue. Cool family tells the reader
+  // this is a distinct, lower-urgency class of information, not a
+  // muted/disabled variant of the warning cards above it.
   return {
     label: "Notice",
-    dotBg: "bg-ink-3",
-    pillBg: "bg-ink-3/15 text-ink-3",
-    cardBg: "bg-paper-3",
-    cardRing: "ring-rule",
-    accentBorder: "",
+    dotBg: "bg-[#0284c7]",
+    pillBg: "bg-[#0284c7] text-paper",
+    cardBg: "bg-[#e9f2fb]",
+    cardRing: "",
+    accentBorder: "border-l-[3px] border-[#0284c7]",
   };
 }
 
@@ -1023,6 +1335,27 @@ function formatClock(d: Date): string {
   return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
+/**
+ * Collapse "2:47 PM" + "2:52 PM" to "2:47–2:52 PM" when both clocks
+ * fall in the same meridiem. Falls back to "from–to" with both
+ * meridiems if they differ (e.g. crossing 12 PM). The caller adds the
+ * leading tilde so "~" is not duplicated here.
+ */
+function formatTimeRange(from: string, to: string): string {
+  const [fromBody, fromMeridiem] = splitMeridiem(from);
+  const [toBody, toMeridiem] = splitMeridiem(to);
+  if (fromMeridiem && toMeridiem && fromMeridiem === toMeridiem) {
+    return `${fromBody}–${toBody} ${toMeridiem}`;
+  }
+  return `${from}–${to}`;
+}
+
+function splitMeridiem(t: string): [string, string | null] {
+  const m = t.match(/^(.*?)\s*(AM|PM)$/i);
+  if (!m) return [t, null];
+  return [m[1]!, m[2]!.toUpperCase()];
+}
+
 function formatDay(d: Date): string {
   const now = new Date();
   const sameDay =
@@ -1041,7 +1374,11 @@ function formatDay(d: Date): string {
 }
 
 function fmtDuration(min: number): string {
-  if (min <= 0) return "None";
+  // "0 min" rather than "0m" so a driver glancing at the stat block
+  // doesn't read the value as "zero meters" (we *also* have a
+  // distance stat right next to it). "min" is unambiguous; the
+  // couple of extra characters are worth the clarity.
+  if (min <= 0) return "0 min";
   const h = Math.floor(min / 60);
   const m = min % 60;
   if (h === 0) return `${m}m`;
