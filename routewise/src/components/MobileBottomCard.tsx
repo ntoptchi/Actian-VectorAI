@@ -278,6 +278,12 @@ function HotspotCard({ hotspot }: { hotspot: HotspotSummary }) {
 /* ─────────────── News Card ─────────────── */
 
 function NewsCard({ article }: { article: NewsArticle }) {
+  // The severity pill used to live in the top-right of the headline row,
+  // which put it directly under the absolutely-positioned close (X) button
+  // in the sheet header — on narrow screens they overlapped. Moving the
+  // chip *under* the headline (as a metadata row) side-steps the collision
+  // entirely and matches the stripped-down citation layout used by the
+  // desktop NewsBriefingCard (headline + source + date + external link).
   const severity =
     article.severity === "fatal"
       ? { label: "Fatal", color: "bg-alert text-paper" }
@@ -287,39 +293,37 @@ function NewsCard({ article }: { article: NewsArticle }) {
 
   return (
     <div className="flex flex-col gap-4 pb-4">
-      <div>
-        <div className="flex items-start justify-between gap-2">
-          <h3 className="text-lg font-semibold leading-tight text-ink">
-            {article.headline}
-          </h3>
+      <div className="flex flex-col gap-2">
+        {/* Add right-padding on the headline row so it can't tuck under the
+            close button on very narrow devices even as font sizes scale. */}
+        <h3 className="pr-10 text-lg font-semibold leading-tight text-ink">
+          {article.headline}
+        </h3>
+        <div className="flex flex-wrap items-center gap-2">
           <span
             className={`shrink-0 rounded-sm px-2 py-0.5 text-[0.625rem] font-bold uppercase tracking-wider ${severity.color}`}
           >
             {severity.label}
           </span>
+          <span className="text-xs text-ink-3">
+            {article.publisher}
+            {article.publish_date ? ` · ${article.publish_date}` : ""}
+          </span>
         </div>
-        <span className="mt-1 text-xs text-ink-3">
-          {article.publisher}
-          {article.publish_date ? ` · ${article.publish_date}` : ""}
-        </span>
       </div>
 
-      {/* Excerpt */}
-      <div className="rounded-sm border-l-[3px] border-[#2563eb] bg-[#e7ecf4] p-3">
-        <p className="line-clamp-4 text-sm italic leading-relaxed text-ink">
-          &ldquo;{article.excerpt}&rdquo;
-        </p>
-      </div>
-
-      {/* Link to original */}
-      {article.article_url && (
+      {/* Read original — the only action. No excerpt, no location coords,
+          no linked crash IDs: the article is a citation for a data point
+          already in our corpus, so the card stays a headline + source +
+          date + outbound link (matches NewsBriefingCard on desktop). */}
+      {article.article_url ? (
         <a
           href={article.article_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center justify-center gap-2 rounded-sm bg-[#2563eb] px-4 py-2.5 text-sm font-semibold text-paper transition hover:bg-[#1d4ed8]"
+          className="flex items-center justify-center gap-2 rounded-sm bg-[#2563eb] px-4 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-paper transition hover:bg-[#1d4ed8]"
         >
-          Read original article
+          Read original
           <svg
             width="12"
             height="12"
@@ -335,6 +339,10 @@ function NewsCard({ article }: { article: NewsArticle }) {
             <path d="M14 2L7 9" />
           </svg>
         </a>
+      ) : (
+        <p className="text-xs text-ink-3">
+          Source link unavailable for this article.
+        </p>
       )}
     </div>
   );
