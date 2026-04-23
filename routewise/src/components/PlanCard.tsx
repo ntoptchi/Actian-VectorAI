@@ -161,7 +161,7 @@ export function PlanCard() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="relative self-start rounded-2xl bg-paper-3 p-6 shadow-[0_20px_40px_-20px_rgba(15,23,42,0.18)] ring-1 ring-rule"
+      className="relative self-start rounded-2xl bg-paper-3 p-4 shadow-[0_20px_40px_-20px_rgba(15,23,42,0.18)] ring-1 ring-rule sm:p-6"
     >
       <h2 className="text-base font-semibold text-ink">Where are you headed?</h2>
       <p className="mt-1 text-sm text-ink-3">

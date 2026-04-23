@@ -178,6 +178,65 @@ body {
   50%, 100%  { background-position: 100% 50%, 100% 0, left 20px top 0, 50% 100%, 0 100%, 0 20px }
 }
 
+/* ─── Mobile map UI animations ─── */
+
+/* Bottom card slides up from below */
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+.anim-sheet-up {
+  animation: sheet-up 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+/* Backdrop fades in */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.anim-fade-in {
+  animation: fade-in 0.2s ease both;
+}
+
+/* Card content crossfade when switching items */
+@keyframes content-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.anim-content-in {
+  animation: content-in 0.25s ease both;
+}
+
+/* Chip row slides up on first load */
+@keyframes chips-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.anim-chips-up {
+  animation: chips-up 0.4s cubic-bezier(0.32, 0.72, 0, 1) 0.3s both;
+}
+
+/* Individual chip stagger entrance */
+@keyframes chip-pop {
+  from { opacity: 0; transform: scale(0.85) translateY(6px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.anim-chip-pop {
+  animation: chip-pop 0.3s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-sheet-up,
+  .anim-fade-in,
+  .anim-content-in,
+  .anim-chips-up,
+  .anim-chip-pop {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* Leaflet popups + tooltips on dark map should match brand. */
 .leaflet-tooltip,
 .leaflet-popup-content-wrapper {
@@ -187,7 +246,7 @@ body {
   border-radius: 4px !important;
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35) !important;
   font-family: var(--font-sans);
-  max-width: 490px !important;
+  max-width: 320px !important;
 }
 .leaflet-tooltip::before,
 .leaflet-tooltip-top::before {

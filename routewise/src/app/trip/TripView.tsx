@@ -6,6 +6,8 @@ import Link from "next/link";
 
 import { AlternatesPanel } from "~/components/AlternatesPanel";
 import { BriefingCard } from "~/components/BriefingCard";
+import { MobileBottomCard } from "~/components/MobileBottomCard";
+import { MobileChipRow } from "~/components/MobileChipRow";
 import type {
   HotspotSummary,
   NewsArticle,
@@ -38,6 +40,7 @@ export function TripView({
 }) {
   const [chosenId, setChosenId] = useState<string | null>(brief.chosen_route_id);
   const [selection, setSelection] = useState<Selection>(null);
+  const [calloutDismissed, setCalloutDismissed] = useState(false);
 
   const isChosenShowing = chosenId === brief.chosen_route_id;
   const segments = useMemo(
@@ -75,7 +78,7 @@ export function TripView({
   return (
     <main className="grid flex-1 grid-cols-1 lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_28rem]">
       {/* Map */}
-      <section className="relative h-[55vh] min-h-0 lg:h-auto">
+      <section className="relative h-dvh lg:h-auto">
         <RouteMap
           segments={segments}
           alternates={brief.alternates}
@@ -89,12 +92,12 @@ export function TripView({
         />
 
         {/* Top-left "Current View" chip */}
-        <div className="pointer-events-none absolute left-4 top-4 z-[1000] max-w-[16rem] rounded-sm bg-paper-2/95 p-3 ring-1 ring-rule shadow-[0_8px_24px_rgba(0,0,0,0.25)]">
+        <div className="pointer-events-none absolute left-2 top-2 z-[1000] max-w-[12rem] rounded-sm bg-paper-2/95 p-2 ring-1 ring-rule shadow-[0_8px_24px_rgba(0,0,0,0.25)] sm:left-4 sm:top-4 sm:max-w-[16rem] sm:p-3">
           <div className="eyebrow">Current View</div>
-          <div className="mt-1 font-display text-lg font-medium leading-tight text-ink">
+          <div className="mt-1 font-display text-base font-medium leading-tight text-ink sm:text-lg">
             {distanceKm} km · {totalMin} min
           </div>
-          <div className="mt-1 text-xs text-ink-3">{banner.summary}</div>
+          <div className="mt-1 hidden text-xs text-ink-3 sm:block">{banner.summary}</div>
         </div>
 
         {/* Floating callout near the worst hotspot — color + label adapt to
@@ -102,42 +105,69 @@ export function TripView({
             red on a 0.5x stretch (caught in QA — that lied about the data
             and wrecked credibility). Hidden entirely when there's nothing
             to surface so the map breathes. */}
-        {worstHotspot?.intensity_ratio != null && (() => {
+        {worstHotspot?.intensity_ratio != null && !calloutDismissed && (() => {
           const calloutTone = calloutToneFor(worstHotspot.intensity_ratio);
           return (
-            <button
-              type="button"
-              onClick={() =>
-                setSelection({ kind: "hotspot", data: worstHotspot })
-              }
-              className={`absolute bottom-6 left-1/2 z-[1000] -translate-x-1/2 rounded-sm px-4 py-3 text-left text-paper shadow-[0_12px_28px_rgba(11,31,68,0.4)] transition hover:scale-[1.02] ${calloutTone.bg}`}
+            <div
+              className={`absolute bottom-16 left-1/2 z-[1000] -translate-x-1/2 rounded-sm text-left text-paper shadow-[0_12px_28px_rgba(11,31,68,0.4)] lg:bottom-6 ${calloutTone.bg}`}
+              style={{ pointerEvents: "auto" }}
             >
-              <div className="flex items-center gap-2">
-                <Triangle />
-                <span className="eyebrow text-paper/80">{calloutTone.label}</span>
-              </div>
-              <div className="mt-1 text-sm font-medium">
-                {worstHotspot.coaching_line ?? worstHotspot.label}
-              </div>
-              <div className="mt-2 flex items-baseline gap-2">
-                <span className="font-display text-3xl font-medium leading-none">
-                  {worstHotspot.intensity_ratio.toFixed(1)}x
-                </span>
-                <span className="font-mono text-[0.625rem] uppercase tracking-[0.18em] text-paper/80">
-                  FL avg frequency
-                </span>
-              </div>
-            </button>
+              <button
+                type="button"
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  setCalloutDismissed(true);
+                }}
+                aria-label="Dismiss"
+                className="absolute right-1.5 top-1.5 z-10 grid h-7 w-7 place-items-center rounded-full text-paper/70 transition hover:bg-paper/15 hover:text-paper"
+              >
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                  <path d="M1 1l8 8M9 1l-8 8" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setSelection({ kind: "hotspot", data: worstHotspot })
+                }
+                className="px-3 py-2 pr-9 transition hover:scale-[1.02] active:scale-95 sm:px-4 sm:py-3 sm:pr-10"
+              >
+                <div className="flex items-center gap-2">
+                  <Triangle />
+                  <span className="eyebrow text-paper/80">{calloutTone.label}</span>
+                </div>
+                <div className="mt-1 text-sm font-medium">
+                  {worstHotspot.coaching_line ?? worstHotspot.label}
+                </div>
+                <div className="mt-2 flex items-baseline gap-2">
+                  <span className="font-display text-2xl font-medium leading-none sm:text-3xl">
+                    {worstHotspot.intensity_ratio.toFixed(1)}x
+                  </span>
+                  <span className="font-mono text-[0.625rem] uppercase tracking-[0.18em] text-paper/80">
+                    FL avg frequency
+                  </span>
+                </div>
+              </button>
+            </div>
           );
         })()}
+
+        {/* Mobile chip row — tap to open bottom card */}
+        <MobileChipRow
+          hotspots={hotspots}
+          newsArticles={newsArticles}
+          briefingHref={briefingHref}
+          onSelect={setSelection}
+        />
       </section>
 
-      {/* Right rail */}
-      <aside className="flex flex-col border-rule bg-paper-2 lg:min-h-0 lg:overflow-y-auto lg:border-l">
-        <div className="flex flex-col gap-6 p-6">
+      {/* Right rail — desktop only */}
+      <aside className="hidden lg:flex flex-col border-rule bg-paper-2 lg:min-h-0 lg:overflow-y-auto lg:border-l">
+        <div className="flex flex-col gap-5 p-4 sm:gap-6 sm:p-6">
           <header className="flex flex-col gap-2">
             <span className="eyebrow">Safety Briefing</span>
-            <h1 className="display text-3xl">Tonight&apos;s Route</h1>
+            <h1 className="display text-2xl sm:text-3xl">Tonight&apos;s Route</h1>
           </header>
 
           <div>
@@ -239,13 +269,25 @@ export function TripView({
         </Link>
       </aside>
 
-      {/* Briefing card overlay (mockup 1) */}
+      {/* Desktop: side-panel briefing card */}
       {selection && (
-        <BriefingCard
+        <div className="hidden lg:block">
+          <BriefingCard
+            subject={selection}
+            hotspots={hotspots}
+            stops={brief.fatigue_plan.suggested_stops}
+            onClose={() => setSelection(null)}
+          />
+        </div>
+      )}
+
+      {/* Mobile: bottom card */}
+      {selection && (
+        <MobileBottomCard
           subject={selection}
-          hotspots={hotspots}
-          stops={brief.fatigue_plan.suggested_stops}
+          segments={segments}
           onClose={() => setSelection(null)}
+          onNavigate={setSelection}
         />
       )}
     </main>

@@ -111,9 +111,9 @@ function Shell({
   return (
     <div className="min-h-screen bg-paper-grain">
       <SiteHeader active="routes" />
-      <main className="mx-auto flex max-w-2xl flex-col gap-5 px-6 pt-20">
+      <main className="mx-auto flex max-w-2xl flex-col gap-5 px-4 pt-12 sm:px-6 sm:pt-20">
         <span className="eyebrow">Safety Briefing</span>
-        <h1 className="display text-4xl">{title}</h1>
+        <h1 className="display text-3xl sm:text-4xl">{title}</h1>
         {children}
       </main>
     </div>
