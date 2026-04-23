@@ -55,9 +55,12 @@ export function SiteHeader({ variant = "paper", active }: Props) {
           })}
         </nav>
 
-        <span className="ml-auto hidden text-xs text-ink-4 sm:inline">
-          Free · no signup
-        </span>
+        {/* Right-side utility slot. Intentionally empty by default —
+            the header is a utility bar, not a marketing surface. The
+            "Free · no signup" tagline used to live here; it broke the
+            dashboard's immersion, so callers can now opt-in to real
+            tools (Print/Share/Export) per page if they need them. */}
+        <div className="ml-auto flex items-center gap-2">{/* actions */}</div>
       </div>
     </header>
   );
