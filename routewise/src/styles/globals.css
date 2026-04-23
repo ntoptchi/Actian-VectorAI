@@ -27,8 +27,12 @@
   /* Accents — readable amber/red/green rather than antique gold. */
   --color-gold: #d97706; /* amber-600, "heads-up" */
   --color-gold-2: #f59e0b; /* amber-500 for surfaces */
+  /* amber-700 — used for the "Critical" hotspot tier so it still reads
+     as alarmed amber next to warning's amber-600 without dropping the
+     badge into fire-alarm red. */
+  --color-gold-strong: #b45309;
 
-  --color-alert: #dc2626; /* red-600, critical */
+  --color-alert: #dc2626; /* red-600, reserved for fatal-severity news */
   --color-alert-2: #fee2e2; /* red-100 surface */
 
   --color-warn: #d97706; /* same as gold for now */

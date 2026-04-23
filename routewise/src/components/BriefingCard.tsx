@@ -1,5 +1,6 @@
 "use client";
 
+import { humanizeFactor } from "~/lib/factors";
 import { segmentLocationLabel } from "~/lib/segmentLabels";
 import type {
   FatigueStop,
@@ -190,7 +191,7 @@ export function BriefingCard({ subject, hotspots, stops, onClose }: Props) {
                         {i + 1}
                       </span>
                       <span className="font-mono text-[0.625rem] uppercase tracking-[0.16em] text-ink-3">
-                        Factor · {f.factor} · {Math.round(f.fraction * 100)}%
+                        Factor · {humanizeFactor(f.factor)} · {Math.round(f.fraction * 100)}%
                       </span>
                     </div>
                   </li>
@@ -351,7 +352,7 @@ function FactorStat({
 }) {
   const valueColor =
     tone === "alert"
-      ? "text-alert"
+      ? "text-gold-strong"
       : tone === "gold"
         ? "text-gold"
         : tone === "good"
@@ -414,13 +415,16 @@ function statusFor(subject: { kind: "hotspot"; data: HotspotSummary } | { kind: 
       ? subject.data.risk_band
       : bandFromIntensity(subject.data.intensity_ratio);
 
+  // High-risk status on a crash-cluster drawer reads as amber, not red:
+  // the data says "pay attention here", not "road is closed". Red is
+  // reserved for fatal-severity news incidents (see NewsBriefingCard).
   switch (band) {
     case "high":
       return {
         label: "High Risk",
         glyph: "!",
-        dot: "bg-alert",
-        text: "text-alert",
+        dot: "bg-gold-strong",
+        text: "text-gold-strong",
       };
     case "moderate":
       return {

@@ -299,7 +299,7 @@ function calloutToneFor(ratio: number): { label: string; bg: string } {
   //   >= 2.0x  → "HIGH RISK ZONE" (alert red)
   //   >= 1.2x  → "ELEVATED RISK"  (warn gold)
   //   < 1.2x   → "WATCH ZONE"     (ink — informational, not alarming)
-  if (ratio >= 2) return { label: "High Risk Zone", bg: "bg-alert" };
+  if (ratio >= 2) return { label: "High Risk Zone", bg: "bg-gold-strong" };
   if (ratio >= 1.2) return { label: "Elevated Risk", bg: "bg-warn" };
   return { label: "Watch Zone", bg: "bg-ink" };
 }
@@ -317,9 +317,13 @@ function HotspotRow({
       : (h.intensity_ratio ?? 0) >= 1.5
         ? "warn"
         : "muted";
+  // Critical hotspots tier amber, not red — a crash cluster is a
+  // heads-up, not an emergency, and the red pill was being read as a
+  // hard stop/closure in QA. Amber-700 ("gold-strong") keeps it
+  // visually distinct from the amber-600 warning tier below it.
   const toneStyles =
     tone === "alert"
-      ? "bg-alert-2 text-alert"
+      ? "bg-gold-strong/15 text-gold-strong"
       : tone === "warn"
         ? "bg-gold/15 text-gold"
         : "bg-paper text-ink-3";
@@ -341,7 +345,7 @@ function HotspotRow({
           <span
             className={`mt-1 inline-flex w-fit items-center rounded-sm px-1.5 py-0.5 font-mono text-[0.625rem] font-semibold uppercase tracking-[0.14em] ${
               tone === "alert"
-                ? "bg-alert text-paper"
+                ? "bg-gold-strong text-paper"
                 : tone === "warn"
                   ? "bg-gold text-paper"
                   : "bg-ink-3/15 text-ink-3"

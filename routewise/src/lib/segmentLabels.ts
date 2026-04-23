@@ -63,14 +63,22 @@ function nearestByKm<T>(
   return best;
 }
 
-// Labels look like "I-75 NB approaching Exit 136, Fort Myers" — split on
-// the first comma to separate road reference from place name.
+// Labels can take two shapes:
+//   * "I-75 NB approaching Exit 136, Fort Myers"  (legacy — road, place)
+//   * "Near Fort Myers"                           (new — named city only)
+// The second form is what the backend emits now that hotspots are
+// anchored to the nearest FL city. Detect and strip the "Near " prefix
+// so the place extractor returns just the bare city name, and the road
+// extractor returns null (no road info available in the short form).
 function extractRoadFromLabel(label: string): string | null {
+  if (/^near\s+/i.test(label)) return null;
   const [road] = label.split(",");
   return road?.trim() || null;
 }
 
 function extractPlaceFromLabel(label: string): string | null {
+  const nearMatch = label.match(/^near\s+(.+)$/i);
+  if (nearMatch) return nearMatch[1]?.trim() || null;
   const idx = label.indexOf(",");
   if (idx < 0) return null;
   return label.slice(idx + 1).trim() || null;

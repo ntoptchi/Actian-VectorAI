@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
+import { humanizeFactor } from "~/lib/factors";
 import type {
   AlternateSummary,
   FatigueStop,
@@ -573,7 +574,7 @@ function TimelineNode({ item }: { item: TimelineItem }) {
                 <span>{h.intensity_ratio.toFixed(1)}x FL avg</span>
               )}
               {h.top_factors[0] && (
-                <span>Top factor · {h.top_factors[0].factor}</span>
+                <span>Top factor · {humanizeFactor(h.top_factors[0].factor)}</span>
               )}
             </div>
           )}
@@ -635,12 +636,15 @@ function hotspotTone(h: HotspotSummary): {
 } {
   // Matches the tiers used in TripView's HotspotRow so the teen sees
   // consistent wording between the map list and the readthrough.
+  // Critical intentionally uses amber-700 (gold-strong), not red —
+  // a crash cluster needs attention, not the hard-stop pill that red
+  // reads as in road signage.
   const r = h.intensity_ratio ?? 0;
   if (r >= 2.5) {
     return {
       label: "Critical",
-      dotBg: "bg-alert",
-      pillBg: "bg-alert text-paper",
+      dotBg: "bg-gold-strong",
+      pillBg: "bg-gold-strong text-paper",
     };
   }
   if (r >= 1.5) {

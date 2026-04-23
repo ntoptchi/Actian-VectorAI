@@ -41,6 +41,7 @@ from backend.schemas import (
 from backend.services import (
     coaching,
     fatigue,
+    geocode,
     routing,
     scoring,
     segments as segments_svc,
@@ -277,17 +278,26 @@ def _hotspots_for(scored: _ScoredAlt) -> list[HotspotSummary]:
     ranked.sort(
         key=lambda s: (s.intensity_ratio or 0.0, s.n_crashes), reverse=True
     )
+    # Dedupe coaching lines across the trip so a teen reading the drawer
+    # doesn't see the same sentence repeated on every pin. The fallback
+    # variants in coaching.py guarantee we have enough unique lines to
+    # cover the six-hotspot cap.
+    used_coaching: set[str] = set()
     hotspots: list[HotspotSummary] = []
     for i, seg in enumerate(ranked[:6]):
         if not seg.polyline:
             continue
         mid = seg.polyline[len(seg.polyline) // 2]
         centroid = LatLon(lat=mid[1], lon=mid[0])
-        coaching_line = coaching.coaching_line(seg.top_factors)
+        line = coaching.coaching_line(
+            seg.top_factors, seed=i, exclude=used_coaching
+        )
+        used_coaching.add(line)
+        label = _segment_label(seg, centroid)
         hotspots.append(
             HotspotSummary(
                 hotspot_id=f"h_{i}_{seg.segment_id}",
-                label=_segment_label(seg, i),
+                label=label,
                 road_name=None,
                 centroid=centroid,
                 km_into_trip=(seg.from_km + seg.to_km) / 2.0,
@@ -297,15 +307,24 @@ def _hotspots_for(scored: _ScoredAlt) -> list[HotspotSummary]:
                 intensity_ratio=seg.intensity_ratio,
                 severity_mix=SeverityMix(),
                 top_factors=seg.top_factors,
-                coaching_line=coaching_line,
+                coaching_line=line,
             )
         )
     return hotspots
 
 
-def _segment_label(seg, idx: int) -> str:
+def _segment_label(seg, centroid: LatLon) -> str:
+    """Human-readable headline for a hotspot pin.
+
+    Prefers the nearest named FL city to the segment midpoint ("Near
+    Fort Myers"); falls back to a km-into-trip phrasing when no city
+    is within range so we never fabricate a place name.
+    """
+    city = geocode.nearest_city(centroid.lat, centroid.lon)
+    if city:
+        return f"Near {city}"
     km = (seg.from_km + seg.to_km) / 2.0
-    return f"Hotspot {idx + 1} — ~{km:.0f} km in"
+    return f"{km:.0f} km into the trip"
 
 
 def _wider_news_search(cell_union: set[str]) -> list[dict]:
