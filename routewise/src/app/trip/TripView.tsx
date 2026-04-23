@@ -109,8 +109,13 @@ export function TripView({
           const calloutTone = calloutToneFor(worstHotspot.intensity_ratio);
           return (
             <div
-              className={`absolute bottom-16 left-1/2 z-[1000] -translate-x-1/2 rounded-sm text-left text-paper shadow-[0_12px_28px_rgba(11,31,68,0.4)] lg:bottom-6 ${calloutTone.bg}`}
-              style={{ pointerEvents: "auto" }}
+              // Background is applied inline (not via a Tailwind class) because
+              // `bg-gold-strong` was silently failing to paint in some builds —
+              // the callout read as fully transparent against the dark map,
+              // which killed the entire point of the "HIGH RISK ZONE" flag.
+              // Inline style bypasses any JIT/content-scan edge case.
+              className="absolute bottom-16 left-1/2 z-[1000] -translate-x-1/2 rounded-sm text-left text-paper shadow-[0_12px_28px_rgba(11,31,68,0.4)] lg:bottom-6"
+              style={{ backgroundColor: calloutTone.bg, pointerEvents: "auto" }}
             >
               <button
                 type="button"
@@ -296,12 +301,16 @@ export function TripView({
 
 function calloutToneFor(ratio: number): { label: string; bg: string } {
   // Tier the callout to the *actual* intensity so the eyebrow doesn't lie:
-  //   >= 2.0x  → "HIGH RISK ZONE" (alert red)
-  //   >= 1.2x  → "ELEVATED RISK"  (warn gold)
-  //   < 1.2x   → "WATCH ZONE"     (ink — informational, not alarming)
-  if (ratio >= 2) return { label: "High Risk Zone", bg: "bg-gold-strong" };
-  if (ratio >= 1.2) return { label: "Elevated Risk", bg: "bg-warn" };
-  return { label: "Watch Zone", bg: "bg-ink" };
+  //   >= 2.0x  → "HIGH RISK ZONE" (red-600, hard stop)
+  //   >= 1.2x  → "ELEVATED RISK"  (amber-600)
+  //   < 1.2x   → "WATCH ZONE"     (slate ink, informational)
+  //
+  // Raw hex (not Tailwind class names) because the container sets the
+  // background via an inline style — Tailwind class interpolation was
+  // silently missing in some builds and the callout rendered transparent.
+  if (ratio >= 2) return { label: "High Risk Zone", bg: "#dc2626" };
+  if (ratio >= 1.2) return { label: "Elevated Risk", bg: "#d97706" };
+  return { label: "Watch Zone", bg: "#0f172a" };
 }
 
 function HotspotRow({
