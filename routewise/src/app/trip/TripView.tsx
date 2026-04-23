@@ -4,17 +4,20 @@ import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 
-import { AlternatesPanel } from "~/components/AlternatesPanel";
 import { BriefingCard } from "~/components/BriefingCard";
 import { MobileBottomCard } from "~/components/MobileBottomCard";
-import { MobileChipRow } from "~/components/MobileChipRow";
+import { MobileRiskPreview } from "~/components/MobileRiskPreview";
+import {
+  MobileRiskSheet,
+  type SheetSnap,
+} from "~/components/MobileRiskSheet";
+import { SidebarSections } from "~/components/SidebarSections";
 import type {
   CrashInsight,
   HotspotSummary,
   RouteSegment,
   TripBriefResponse,
 } from "~/lib/types";
-import { humanizeFactor } from "~/lib/factors";
 
 // Leaflet barfs at SSR; load the map component client-only.
 const RouteMap = dynamic(() => import("~/components/RouteMap"), {
@@ -42,6 +45,16 @@ export function TripView({
   const [chosenId, setChosenId] = useState<string | null>(brief.chosen_route_id);
   const [selection, setSelection] = useState<Selection>(null);
   const [calloutDismissed, setCalloutDismissed] = useState(false);
+  // Mobile sheet state lives here so the red callout can react to it
+  // (fades out when the sheet is expanded to full, preventing the
+  // callout from peeking out from behind the sheet edge).
+  const [sheetSnap, setSheetSnap] = useState<SheetSnap>("peek");
+  // Which chip in the mobile tray is "selected" — drives the preview
+  // card above the tray. Null = fall back to the default (first
+  // hotspot by km, then first insight). Explicit null selection is
+  // not currently exposed in the UI; users always have *some* chip
+  // previewed unless both lists are empty.
+  const [selectedChipId, setSelectedChipId] = useState<string | null>(null);
 
   const isChosenShowing = chosenId === brief.chosen_route_id;
   const segments = useMemo(
@@ -68,13 +81,45 @@ export function TripView({
     [brief.route.distance_m],
   );
 
-  // Pick the worst hotspot for the floating "HIGH RISK ZONE" tag (mockup 2).
+  // Pick the worst hotspot for the *desktop* floating "HIGH RISK ZONE"
+  // tag (mockup 2). Mobile has been restructured: the card there is
+  // the preview of the currently-selected chip in the tray, not a
+  // separate worst-hotspot warning. See activeChip below.
   const worstHotspot = useMemo(() => {
     if (hotspots.length === 0) return null;
     return [...hotspots].sort(
       (a, b) => (b.intensity_ratio ?? 0) - (a.intensity_ratio ?? 0),
     )[0];
   }, [hotspots]);
+
+  // Mobile preview: resolve the effective selected chip. If the user
+  // hasn't explicitly selected one, default to the first hotspot by
+  // km — that's the "next up" item in the sorted tray — and fall
+  // back to the first insight if there are no hotspots.
+  const sortedHotspots = useMemo(
+    () => [...hotspots].sort((a, b) => a.km_into_trip - b.km_into_trip),
+    [hotspots],
+  );
+  const defaultChipId = useMemo(() => {
+    if (sortedHotspots[0]) return sortedHotspots[0].hotspot_id;
+    if (insights[0]) return insights[0].insight_id;
+    return null;
+  }, [sortedHotspots, insights]);
+  const activeChipId = selectedChipId ?? defaultChipId;
+  const activeChip = useMemo<
+    | { kind: "hotspot"; data: HotspotSummary }
+    | { kind: "insight"; data: CrashInsight }
+    | null
+  >(() => {
+    if (!activeChipId) return null;
+    const h = hotspots.find((x) => x.hotspot_id === activeChipId);
+    if (h) return { kind: "hotspot", data: h };
+    const i = insights.find((x) => x.insight_id === activeChipId);
+    if (i) return { kind: "insight", data: i };
+    return null;
+  }, [activeChipId, hotspots, insights]);
+
+  const sheetIsFull = sheetSnap === "full";
 
   return (
     <main className="grid flex-1 grid-cols-1 lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_28rem]">
@@ -101,22 +146,29 @@ export function TripView({
           <div className="mt-1 hidden text-xs text-ink-3 sm:block">{banner.summary}</div>
         </div>
 
-        {/* Floating callout near the worst hotspot — color + label adapt to
-            the real intensity so we don't scream "HIGH RISK ZONE" in alert
-            red on a 0.5x stretch (caught in QA — that lied about the data
-            and wrecked credibility). Hidden entirely when there's nothing
-            to surface so the map breathes. */}
+        {/* Desktop-only floating "HIGH RISK ZONE" callout. Color +
+            label adapt to the real intensity so we don't scream
+            "HIGH RISK ZONE" in alert red on a 0.5x stretch (caught
+            in QA — that lied about the data and wrecked credibility).
+            Hidden entirely when there's nothing to surface so the
+            map breathes.
+
+            Mobile has been restructured: the equivalent card there
+            is MobileRiskPreview below, which previews the chip the
+            user has selected in the tray rather than always showing
+            the worst hotspot. */}
         {worstHotspot?.intensity_ratio != null && !calloutDismissed && (() => {
           const calloutTone = calloutToneFor(worstHotspot.intensity_ratio);
           return (
             <div
-              // Background is applied inline (not via a Tailwind class) because
-              // `bg-gold-strong` was silently failing to paint in some builds —
-              // the callout read as fully transparent against the dark map,
-              // which killed the entire point of the "HIGH RISK ZONE" flag.
-              // Inline style bypasses any JIT/content-scan edge case.
-              className="absolute bottom-16 left-1/2 z-[1000] -translate-x-1/2 rounded-sm text-left text-paper shadow-[0_12px_28px_rgba(11,31,68,0.4)] lg:bottom-6"
-              style={{ backgroundColor: calloutTone.bg, pointerEvents: "auto" }}
+              // Background is applied inline (not via a Tailwind class)
+              // because `bg-gold-strong` was silently failing to paint
+              // in some builds — the callout read as fully transparent
+              // against the dark map, which killed the entire point of
+              // the "HIGH RISK ZONE" flag. Inline style bypasses any
+              // JIT/content-scan edge case.
+              className="absolute bottom-6 left-1/2 z-[1000] hidden -translate-x-1/2 rounded-sm text-left text-paper shadow-[0_12px_28px_rgba(11,31,68,0.4)] lg:block"
+              style={{ backgroundColor: calloutTone.bg }}
             >
               <button
                 type="button"
@@ -151,7 +203,7 @@ export function TripView({
                     {worstHotspot.intensity_ratio.toFixed(1)}x
                   </span>
                   <span className="font-mono text-[0.625rem] uppercase tracking-[0.18em] text-paper/80">
-                    FL avg frequency
+                    vs Florida avg
                   </span>
                 </div>
               </button>
@@ -159,12 +211,47 @@ export function TripView({
           );
         })()}
 
-        {/* Mobile chip row — tap to open bottom card */}
-        <MobileChipRow
+        {/* Mobile: selected-chip preview card. Sits directly above
+            the tray and renders whichever chip is currently selected
+            (or the default first chip if none). Fades out when the
+            sheet is expanded to full so the scrim reads cleanly. */}
+        {activeChip && !sheetIsFull && (
+          <MobileRiskPreview
+            item={activeChip}
+            onClick={() => {
+              // Pass the discriminated union through directly so TS
+              // keeps the narrow "hotspot" | "insight" variant —
+              // rebuilding the object with `{ kind, data }` widens it.
+              setSelection(activeChip);
+            }}
+          />
+        )}
+
+        {/* Mobile draggable sheet — peek shows the risk chip rail,
+            full reveals the shared sidebar sections. */}
+        <MobileRiskSheet
+          brief={brief}
+          chosenId={chosenId}
           hotspots={hotspots}
           insights={insights}
           briefingHref={briefingHref}
-          onSelect={setSelection}
+          snap={sheetSnap}
+          onSnapChange={setSheetSnap}
+          selectedChipId={activeChipId}
+          onSelectChip={setSelectedChipId}
+          onOpenDetail={(s) => {
+            setSelection(s);
+            // Keep selectedChipId in sync when opening detail from
+            // the sidebar list, so collapsing back to peek shows the
+            // last-interacted item previewed.
+            if (s.kind === "hotspot") setSelectedChipId(s.data.hotspot_id);
+            if (s.kind === "insight") setSelectedChipId(s.data.insight_id);
+            // Collapse the sheet when the user commits to inspecting
+            // an item — the detail card stacks above, and the sheet
+            // being expanded behind it would trap scrolls.
+            setSheetSnap("peek");
+          }}
+          onChangeAlternate={setChosenId}
         />
       </section>
 
@@ -176,95 +263,14 @@ export function TripView({
             <h1 className="display text-2xl sm:text-3xl">Tonight&apos;s Route</h1>
           </header>
 
-          <div>
-            <div className="mb-2 flex flex-col gap-0.5">
-              <h2 className="text-base font-semibold text-ink">
-                Recommended Route
-              </h2>
-              {brief.alternates.length > 1 && (
-                <p className="text-xs text-ink-3">
-                  Compared against{" "}
-                  {brief.alternates.length - 1}{" "}
-                  {brief.alternates.length - 1 === 1 ? "alternate" : "alternates"}
-                  {" "}— pick any to see its briefing.
-                </p>
-              )}
-            </div>
-            <AlternatesPanel
-              alternates={brief.alternates}
-              chosenId={chosenId}
-              onSelect={(id) => setChosenId(id)}
-            />
-          </div>
-
-          <div>
-            <div className="mb-2 flex items-center justify-between">
-              <h2 className="text-base font-semibold text-ink">
-                Safety Hotspots
-              </h2>
-              <InfoDot />
-            </div>
-            {hotspots.length === 0 ? (
-              <p className="rounded-sm bg-paper-3 px-3 py-4 text-xs text-ink-3 ring-1 ring-rule">
-                No critical hotspots on the chosen route — clean stretch for
-                tonight&apos;s conditions.
-              </p>
-            ) : (
-              <ul className="flex flex-col gap-2">
-                {hotspots.map((h) => (
-                  <HotspotRow
-                    key={h.hotspot_id}
-                    h={h}
-                    onClick={() =>
-                      setSelection({ kind: "hotspot", data: h })
-                    }
-                  />
-                ))}
-              </ul>
-            )}
-          </div>
-
-          {insights.length > 0 && (
-            <div>
-              <div className="mb-2 flex items-center justify-between">
-                <h2 className="text-base font-semibold text-ink">
-                  Lessons from the Road
-                </h2>
-                <span className="font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-ink-3">
-                  {insights.length} lesson{insights.length !== 1 ? "s" : ""}
-                </span>
-              </div>
-              <ul className="flex flex-col gap-2">
-                {insights.map((ins) => (
-                  <InsightRow
-                    key={ins.insight_id}
-                    insight={ins}
-                    onClick={() =>
-                      setSelection({ kind: "insight", data: ins })
-                    }
-                  />
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {brief.fatigue_plan.suggested_stops.length > 0 && (
-            <div>
-              <h2 className="mb-2 text-base font-semibold text-ink">
-                Suggested Stops
-              </h2>
-              <ul className="flex flex-col divide-y divide-rule rounded-sm bg-paper-3 ring-1 ring-rule">
-                {brief.fatigue_plan.suggested_stops.map((s, i) => (
-                  <li key={i} className="flex items-center justify-between px-3 py-2.5">
-                    <span className="text-sm text-ink">{s.label}</span>
-                    <span className="font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-ink-3">
-                      {s.km_into_trip.toFixed(0)} km
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+          <SidebarSections
+            brief={brief}
+            chosenId={chosenId}
+            hotspots={hotspots}
+            insights={insights}
+            onChangeAlternate={setChosenId}
+            onSelect={setSelection}
+          />
         </div>
 
         <Link
@@ -314,174 +320,10 @@ function calloutToneFor(ratio: number): { label: string; bg: string } {
   return { label: "Watch Zone", bg: "#0f172a" };
 }
 
-function HotspotRow({
-  h,
-  onClick,
-}: {
-  h: HotspotSummary;
-  onClick: () => void;
-}) {
-  const tone =
-    (h.intensity_ratio ?? 0) >= 2.5
-      ? "alert"
-      : (h.intensity_ratio ?? 0) >= 1.5
-        ? "warn"
-        : "muted";
-  // Critical hotspots tier amber, not red — a crash cluster is a
-  // heads-up, not an emergency, and the red pill was being read as a
-  // hard stop/closure in QA. Amber-700 ("gold-strong") keeps it
-  // visually distinct from the amber-600 warning tier below it.
-  const toneStyles =
-    tone === "alert"
-      ? "bg-gold-strong/15 text-gold-strong"
-      : tone === "warn"
-        ? "bg-gold/15 text-gold"
-        : "bg-paper text-ink-3";
-  return (
-    <li>
-      <button
-        type="button"
-        onClick={onClick}
-        className="flex w-full items-start gap-3 rounded-sm bg-paper-3 p-3 text-left ring-1 ring-rule transition hover:ring-ink"
-      >
-        <span
-          className={`mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-sm ${toneStyles}`}
-        >
-          {tone === "alert" ? <Triangle /> : <EyeOff />}
-        </span>
-        <div className="flex flex-col gap-0.5">
-          <span className="text-sm font-medium text-ink">{h.label}</span>
-          <span className="text-xs text-ink-3">{h.coaching_line}</span>
-          <span
-            className={`mt-1 inline-flex w-fit items-center rounded-sm px-1.5 py-0.5 font-mono text-[0.625rem] font-semibold uppercase tracking-[0.14em] ${
-              tone === "alert"
-                ? "bg-gold-strong text-paper"
-                : tone === "warn"
-                  ? "bg-gold text-paper"
-                  : "bg-ink-3/15 text-ink-3"
-            }`}
-          >
-            {tone === "alert"
-              ? "Critical"
-              : tone === "warn"
-                ? "Warning"
-                : "Notice"}
-          </span>
-        </div>
-      </button>
-    </li>
-  );
-}
-
-function InsightRow({
-  insight,
-  onClick,
-}: {
-  insight: CrashInsight;
-  onClick: () => void;
-}) {
-  // Leading tag chip uses the first risk factor; falls back to a
-  // generic "Lesson" label if the insight has no classified factors.
-  const primary = insight.risk_factors[0];
-  const primaryLabel = primary ? humanizeFactor(primary) : "Lesson";
-
-  // One-liner from the incident summary — the row surfaces what
-  // happened in shortest form, not the lesson itself (the lesson
-  // opens inside the modal on click, so it stays high-impact).
-  const oneLiner = summariseIncident(insight.incident_summary, insight.headline);
-
-  return (
-    <li>
-      <button
-        type="button"
-        onClick={onClick}
-        className="flex w-full items-start gap-3 rounded-sm bg-paper-3 p-3 text-left ring-1 ring-rule transition hover:ring-ink"
-      >
-        <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-sm bg-gold-strong/15 text-gold-strong">
-          <LessonBulb />
-        </span>
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <span
-            className="inline-flex w-fit items-center rounded-sm bg-gold-strong/10 px-1.5 py-0.5 font-mono text-[0.625rem] font-semibold uppercase tracking-[0.14em] text-gold-strong"
-          >
-            {primaryLabel}
-          </span>
-          <span className="text-sm font-medium text-ink line-clamp-2">
-            {oneLiner}
-          </span>
-          {insight.source.publisher && (
-            <span className="text-[0.6875rem] text-ink-3 line-clamp-1">
-              {insight.source.publisher}
-              {insight.source.publish_date
-                ? ` · ${insight.source.publish_date}`
-                : ""}
-            </span>
-          )}
-        </div>
-      </button>
-    </li>
-  );
-}
-
-/** Trim the incident summary down to a single scannable sentence. */
-function summariseIncident(summary: string, fallback: string): string {
-  const text = (summary || fallback || "").trim();
-  if (!text) return "Crash lesson";
-  // Prefer the first sentence; otherwise cap at ~120 chars on a word boundary.
-  const firstDot = text.indexOf(". ");
-  if (firstDot > 20 && firstDot < 160) return text.slice(0, firstDot + 1);
-  if (text.length <= 140) return text;
-  return text.slice(0, 140).replace(/\s\S*$/, "") + "…";
-}
-
-function LessonBulb() {
-  return (
-    <svg
-      width="13"
-      height="13"
-      viewBox="0 0 12 12"
-      fill="currentColor"
-    >
-      <path d="M6 0a4 4 0 0 0-2.5 7.1V8.5a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1V7.1A4 4 0 0 0 6 0Z" />
-      <rect x="4.5" y="10" width="3" height="1.4" rx="0.4" />
-    </svg>
-  );
-}
-
-function InfoDot() {
-  return (
-    <span
-      aria-hidden
-      className="grid h-5 w-5 place-items-center rounded-full bg-ink text-[0.625rem] font-semibold text-paper"
-    >
-      i
-    </span>
-  );
-}
-
 function Triangle() {
   return (
     <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
       <path d="M6 0 L12 11 L0 11 Z" />
-    </svg>
-  );
-}
-
-function EyeOff() {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.4"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M2 2l12 12" />
-      <path d="M2.5 8s2-4 5.5-4 5.5 4 5.5 4-2 4-5.5 4S2.5 8 2.5 8Z" />
-      <circle cx="8" cy="8" r="2" />
     </svg>
   );
 }

@@ -103,7 +103,7 @@ export function BriefingView({ brief, originName, destName, mapHref }: Props) {
   const [acknowledged, setAcknowledged] = useState(false);
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-10 px-4 py-8 sm:gap-16 sm:px-6 sm:py-12">
+    <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 pb-10 pt-5 sm:gap-12 sm:px-6 sm:pb-14 sm:pt-6">
       <div>
         <Link
           href={mapHref}
@@ -114,28 +114,46 @@ export function BriefingView({ brief, originName, destName, mapHref }: Props) {
       </div>
 
       {/* Section 1 — Trip identity */}
-      <section className="flex flex-col gap-6">
+      <section className="flex flex-col gap-3 sm:gap-4">
         <span className="eyebrow">Tonight&apos;s drive</span>
-        <h1 className="display text-2xl sm:text-4xl md:text-5xl">
+        <h1 className="display text-[1.75rem] leading-[1.05] sm:text-4xl md:text-5xl">
           {originName ?? "Your origin"} → {destName ?? "your destination"}
         </h1>
-        <p className="max-w-[52ch] text-base leading-relaxed text-ink-3">
+        <p className="max-w-[52ch] text-[0.9375rem] leading-relaxed text-ink-3 sm:text-base">
           {brief.conditions_banner.summary}
         </p>
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-4 rounded-sm bg-paper-3 p-5 ring-1 ring-rule sm:grid-cols-4">
-          <Stat label="Distance" value={`${distanceKm} km`} />
-          <Stat label="Drive time" value={durationText} />
-          <Stat label="Depart" value={formatClock(depart)} sub={formatDay(depart)} />
-          <Stat label="Arrive" value={formatClock(arrive)} sub={formatDay(arrive)} />
-        </dl>
-        <div className="flex flex-col gap-1.5 rounded-sm border-l-[3px] border-ink bg-paper-3 p-4 ring-1 ring-rule">
-          <span className="font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-ink-3">
-            Recommended route
-          </span>
-          <p className="text-sm leading-relaxed text-ink">
-            {routeIntro(chosen, chosenMatches, brief.alternates.length)}
-          </p>
-        </div>
+        <SummaryStats
+          items={[
+            {
+              label: "Distance",
+              value: `${distanceKm} km`,
+              icon: "distance",
+            },
+            {
+              label: "Drive time",
+              value: durationText,
+              icon: "duration",
+            },
+            {
+              label: "Depart",
+              value: formatClock(depart),
+              sub: formatDay(depart),
+              icon: "depart",
+            },
+            {
+              label: "Arrive",
+              value: formatClock(arrive),
+              sub: formatDay(arrive),
+              icon: "arrive",
+            },
+          ]}
+        />
+        <RecommendedRouteCard
+          chosen={chosen}
+          chosenMatches={chosenMatches}
+          altCount={brief.alternates.length}
+          intro={routeIntro(chosen, chosenMatches, brief.alternates.length)}
+        />
       </section>
 
       {/* Section 2 — Conditions tonight */}
@@ -182,19 +200,37 @@ export function BriefingView({ brief, originName, destName, mapHref }: Props) {
 
       {/* Section 3 — Pre-trip checklist */}
       {checklistTotal > 0 && (
-        <section className="flex flex-col gap-5">
+        <section className="flex flex-col gap-4">
           <div className="flex items-baseline justify-between gap-3">
             <span className="eyebrow eyebrow-rule">
               <span>Before you leave</span>
             </span>
             <span className="shrink-0 font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-ink-3">
-              {doneCount} of {checklistTotal} done
+              {doneCount} / {checklistTotal}
             </span>
           </div>
-          <ul className="flex flex-col gap-2">
+          {/* Progress rail — a briefing earns a progress bar, not a
+              todo list. Shows commitment-to-completion at a glance. */}
+          <div
+            className="h-[3px] w-full overflow-hidden rounded-full bg-paper-2"
+            aria-hidden
+          >
+            <div
+              className="h-full bg-ink transition-[width] duration-300 ease-out"
+              style={{
+                width: `${
+                  checklistTotal === 0
+                    ? 0
+                    : Math.round((doneCount / checklistTotal) * 100)
+                }%`,
+              }}
+            />
+          </div>
+          <ul className="flex flex-col divide-y divide-rule overflow-hidden rounded-sm bg-paper-3 ring-1 ring-rule">
             {brief.pre_trip_checklist.map((item, i) => (
               <ChecklistItem
                 key={i}
+                index={i}
                 text={item}
                 checked={!!checked[i]}
                 onToggle={() =>
@@ -223,7 +259,12 @@ export function BriefingView({ brief, originName, destName, mapHref }: Props) {
             speed limit and keep your eyes up anyway.
           </div>
         ) : (
-          <ol className="relative flex flex-col gap-5 border-l border-rule pl-6">
+          // Receded rail: deliberately faint (ink-4/30) so the cards
+          // are the headline act. The rail is *connective tissue*,
+          // not a competing element. Critical hotspot dots retain a
+          // heavier size + color so active warnings still punch
+          // through the quieter structure around them.
+          <ol className="relative flex flex-col gap-5 pl-7 before:absolute before:bottom-1 before:left-[3px] before:top-1 before:w-[2px] before:rounded-full before:bg-ink-4/30">
             {timeline.map((item, i) => (
               <TimelineNode key={`${item.kind}-${i}`} item={item} />
             ))}
@@ -269,7 +310,7 @@ export function BriefingView({ brief, originName, destName, mapHref }: Props) {
       </section>
 
       {/* Section 6 — Ready to drive */}
-      <section className="flex flex-col gap-5 rounded-sm bg-paper-3 p-4 ring-1 ring-rule sm:p-6">
+      <section className="flex flex-col gap-5 rounded-sm bg-paper-3 p-5 ring-1 ring-rule sm:p-6">
         <span className="font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-ink-3">
           Ready to drive
         </span>
@@ -291,26 +332,38 @@ export function BriefingView({ brief, originName, destName, mapHref }: Props) {
           />
           <span>I&apos;ve read the briefing and I&apos;m good to drive.</span>
         </label>
-        <div className="flex flex-wrap gap-3">
+        {/* CTA stack: one primary action, one quieter secondary link.
+            Primary is the logo's charcoal ink at full saturation when
+            enabled — same chip-of-paint as the masthead mark, so it
+            reads as *the* action, not a styled link. When locked it
+            drops to a muted paper-2 fill with a helper line calling
+            out exactly what's blocking it. Secondary is pure text. */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-5">
           <Link
             href={mapHref}
             aria-disabled={!acknowledged}
             tabIndex={acknowledged ? undefined : -1}
-            className={`inline-flex items-center gap-2 rounded-sm px-4 py-2.5 text-sm font-semibold transition ${
+            className={`inline-flex items-center justify-center gap-2 rounded-sm px-6 py-3 text-sm font-semibold tracking-tight transition-colors duration-200 ${
               acknowledged
                 ? "bg-ink text-paper hover:bg-ink-2"
                 : "pointer-events-none bg-paper-2 text-ink-4 ring-1 ring-rule"
             }`}
           >
-            Back to route map →
+            Back to the route
+            <span aria-hidden>→</span>
           </Link>
           <Link
             href="/"
-            className="inline-flex items-center gap-2 px-2 py-2.5 text-sm font-medium text-ink-3 transition hover:text-ink"
+            className="inline-flex items-center gap-1 text-sm font-medium text-ink-3 underline-offset-4 transition hover:text-ink hover:underline"
           >
             Plan another trip
           </Link>
         </div>
+        {!acknowledged && (
+          <span className="text-[0.6875rem] text-ink-3">
+            Check the box above to unlock.
+          </span>
+        )}
       </section>
     </main>
   );
@@ -318,24 +371,169 @@ export function BriefingView({ brief, originName, destName, mapHref }: Props) {
 
 /* ------------------------------ sub-components ------------------------------ */
 
-function Stat({
-  label,
-  value,
-  sub,
+type SummaryIcon = "distance" | "duration" | "depart" | "arrive";
+
+/**
+ * Hero metrics row. Rendered as a single unified card with interior
+ * divider lines rather than four boxed tiles — the stats belong to
+ * *this* trip, so they should read as one object, not a quartet of
+ * disconnected chips.
+ *
+ * The card sits on a very faint slate-tinted fill (paper-2) rather
+ * than the page's off-white, so it anchors visually against the
+ * surrounding copy without needing shadows or heavy rings. Each cell
+ * gets a small stroke icon next to its label — utilitarian, not
+ * decorative, at the same weight as the mono-caps label itself.
+ *
+ * On mobile we stack 2x2 with both axes dividered; on sm+ we flatten
+ * to a single row with only vertical dividers between cells.
+ */
+function SummaryStats({
+  items,
 }: {
-  label: string;
-  value: string;
-  sub?: string;
+  items: {
+    label: string;
+    value: string;
+    sub?: string;
+    icon: SummaryIcon;
+  }[];
 }) {
   return (
-    <div className="flex flex-col gap-1">
-      <dt className="font-mono text-[0.625rem] uppercase tracking-[0.14em] text-ink-3">
-        {label}
-      </dt>
-      <dd className="font-display text-xl font-semibold leading-tight text-ink">
-        {value}
-      </dd>
-      {sub && <dd className="text-[0.6875rem] text-ink-3">{sub}</dd>}
+    <dl className="grid grid-cols-2 overflow-hidden rounded-sm bg-paper-2 ring-1 ring-rule sm:grid-cols-4">
+      {items.map((s, i) => {
+        const cls = [
+          "flex flex-col gap-1 px-4 py-4 sm:px-5",
+          i % 2 === 1 && "border-l border-rule",
+          i >= 2 && "border-t border-rule sm:border-t-0",
+          i > 0 && "sm:border-l sm:border-rule",
+        ]
+          .filter(Boolean)
+          .join(" ");
+        return (
+          <div key={s.label} className={cls}>
+            <dt className="flex items-center gap-1.5 font-mono text-[0.625rem] uppercase tracking-[0.08em] text-ink-3">
+              <StatIcon name={s.icon} />
+              {s.label}
+            </dt>
+            <dd className="font-display text-2xl font-semibold leading-tight tracking-tight text-ink">
+              {s.value}
+            </dd>
+            {s.sub && (
+              <dd className="text-[0.6875rem] text-ink-3">{s.sub}</dd>
+            )}
+          </div>
+        );
+      })}
+    </dl>
+  );
+}
+
+function StatIcon({ name }: { name: SummaryIcon }) {
+  const common = {
+    width: 12,
+    height: 12,
+    viewBox: "0 0 16 16",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.6,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    "aria-hidden": true,
+    className: "shrink-0 text-ink-3",
+  };
+  switch (name) {
+    case "distance":
+      // Segment line w/ ruler ticks — "how far."
+      return (
+        <svg {...common}>
+          <path d="M2 8h12" />
+          <path d="M4 6v4M8 5.5v5M12 6v4" />
+        </svg>
+      );
+    case "duration":
+      // Clock face — "how long."
+      return (
+        <svg {...common}>
+          <circle cx="8" cy="8" r="5.5" />
+          <path d="M8 5v3l2 1.5" />
+        </svg>
+      );
+    case "depart":
+      // Arrow leaving a dot — "from here."
+      return (
+        <svg {...common}>
+          <circle cx="3.5" cy="8" r="1" fill="currentColor" stroke="none" />
+          <path d="M6 8h7" />
+          <path d="M10.5 5.5 13 8l-2.5 2.5" />
+        </svg>
+      );
+    case "arrive":
+      // Arrow into a dot — "to here."
+      return (
+        <svg {...common}>
+          <path d="M3 8h7" />
+          <path d="M7.5 5.5 10 8l-2.5 2.5" />
+          <circle cx="12.5" cy="8" r="1" fill="currentColor" stroke="none" />
+        </svg>
+      );
+  }
+}
+
+/**
+ * Recommended-route card. Three jobs:
+ *   1. Say *unambiguously* which route was picked (checkmark badge +
+ *      "chosen" eyebrow). A thicker accent bar earns the authority.
+ *   2. Explain in one line *why* it was picked ({@link routeIntro}).
+ *   3. Back that up with compact metrics — matched crashes, how many
+ *      alternates were considered, and the minutes-cost vs the fastest
+ *      option (only shown if non-zero; zero-cost comparisons read as
+ *      filler).
+ */
+function RecommendedRouteCard({
+  chosen,
+  chosenMatches,
+  altCount,
+  intro,
+}: {
+  chosen: AlternateSummary | null;
+  chosenMatches: number;
+  altCount: number;
+  intro: string;
+}) {
+  const minutesCost = chosen?.minutes_delta_vs_fastest ?? 0;
+  const minutesCostLabel =
+    minutesCost > 0 ? `+${Math.round(minutesCost)} min vs fastest` : null;
+  return (
+    <div className="flex items-start gap-4 rounded-sm border-l-4 border-ink bg-paper-3 p-4 ring-1 ring-ink/15 sm:p-5">
+      <span
+        aria-hidden
+        className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-ink text-paper"
+      >
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path
+            d="M2 6.5 4.7 9 10 3"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </span>
+      <div className="flex flex-1 flex-col gap-2">
+        <span className="font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-ink">
+          Recommended route
+        </span>
+        <p className="text-sm leading-relaxed text-ink">{intro}</p>
+        <div className="mt-1 flex flex-wrap gap-x-5 gap-y-1 font-mono text-[0.625rem] uppercase tracking-[0.06em] text-ink-3">
+          <span>
+            {chosenMatches} matched crash{chosenMatches === 1 ? "" : "es"}
+          </span>
+          <span>
+            {altCount} {altCount === 1 ? "route" : "routes"} compared
+          </span>
+          {minutesCostLabel && <span>{minutesCostLabel}</span>}
+        </div>
+      </div>
     </div>
   );
 }
@@ -371,11 +569,24 @@ function KeyNumber({ value, label }: { value: string; label: string }) {
   );
 }
 
+/**
+ * Editorial briefing-style checklist row. We intentionally move away
+ * from the default "boxed todo" feel by:
+ *   - Numbering each item (01, 02…) so the set reads as a sequence,
+ *     not a flat list.
+ *   - Housing all rows inside a single divided card (parent container
+ *     in the caller sets the ring/divide), so individual rings don't
+ *     chop the section into loose chips.
+ *   - Treating the check as the right-edge affordance (briefing
+ *     sign-off), not the primary visual anchor on the left.
+ */
 function ChecklistItem({
+  index,
   text,
   checked,
   onToggle,
 }: {
+  index: number;
   text: string;
   checked: boolean;
   onToggle: () => void;
@@ -386,18 +597,33 @@ function ChecklistItem({
         type="button"
         onClick={onToggle}
         aria-pressed={checked}
-        className={`flex w-full items-start gap-3 rounded-sm p-3 text-left ring-1 ring-rule transition ${
-          checked
-            ? "bg-paper-2 text-ink-3"
-            : "bg-paper-3 text-ink hover:bg-paper-2"
+        className={`group flex w-full items-center gap-4 px-4 py-3 text-left transition ${
+          checked ? "bg-paper-2/60" : "bg-paper-3 hover:bg-paper-2/50"
         }`}
       >
         <span
           aria-hidden
-          className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-sm border transition ${
+          className={`w-7 shrink-0 font-mono text-[0.6875rem] font-semibold tracking-[0.1em] tabular-nums transition ${
+            checked ? "text-ink-4" : "text-ink-3"
+          }`}
+        >
+          {String(index + 1).padStart(2, "0")}
+        </span>
+        <span
+          className={`flex-1 text-sm leading-snug transition ${
+            checked
+              ? "text-ink-3 line-through decoration-ink-4/60"
+              : "text-ink"
+          }`}
+        >
+          {text}
+        </span>
+        <span
+          aria-hidden
+          className={`grid h-5 w-5 shrink-0 place-items-center rounded-sm border transition ${
             checked
               ? "border-ink bg-ink text-paper"
-              : "border-rule bg-paper text-transparent"
+              : "border-rule bg-paper text-transparent group-hover:border-ink-4"
           }`}
         >
           <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
@@ -409,13 +635,6 @@ function ChecklistItem({
               strokeLinejoin="round"
             />
           </svg>
-        </span>
-        <span
-          className={`flex-1 text-sm leading-snug ${
-            checked ? "line-through decoration-ink-4" : ""
-          }`}
-        >
-          {text}
         </span>
       </button>
     </li>
@@ -535,26 +754,36 @@ function TimelineNode({ item }: { item: TimelineItem }) {
   if (item.kind === "hotspot") {
     const h = item.data;
     const tone = hotspotTone(h);
+    // Only "active warning" tiers (Critical / Watch) get the heavier
+    // dot treatment; the quieter Notice tier uses the smaller
+    // recessed dot so it doesn't shout from the rail.
+    const activeWarning = tone.label !== "Notice";
     return (
       <li className="relative">
         <span
           aria-hidden
-          className={`absolute -left-[30px] top-1.5 h-3 w-3 rounded-full ring-2 ring-paper ${tone.dotBg}`}
+          className={
+            activeWarning
+              ? `absolute -left-[31px] top-1.5 h-3.5 w-3.5 rounded-full ring-[3px] ring-paper ${tone.dotBg}`
+              : `absolute -left-[30px] top-2 h-3 w-3 rounded-full ring-2 ring-paper ${tone.dotBg}`
+          }
         />
-        <div className="flex flex-col gap-2 rounded-sm bg-paper-3 p-4 ring-1 ring-rule">
+        <div
+          className={`flex flex-col gap-2 rounded-sm p-4 ring-1 ${tone.cardBg} ${tone.cardRing} ${tone.accentBorder}`}
+        >
           <div className="flex items-start justify-between gap-3">
             <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-              <span className="font-mono text-[0.625rem] uppercase tracking-[0.14em] text-ink-3">
+              <span className="font-mono text-[0.625rem] uppercase tracking-[0.06em] text-ink-3">
                 km {h.km_into_trip.toFixed(0)}
               </span>
               {eta && (
-                <span className="font-mono text-[0.625rem] uppercase tracking-[0.14em] text-ink-4">
+                <span className="font-mono text-[0.625rem] uppercase tracking-[0.06em] text-ink-3">
                   · ~{eta}
                 </span>
               )}
             </div>
             <span
-              className={`shrink-0 rounded-sm px-1.5 py-0.5 text-[0.625rem] font-semibold uppercase tracking-[0.14em] ${tone.pillBg}`}
+              className={`shrink-0 rounded-sm px-1.5 py-0.5 text-[0.625rem] font-semibold uppercase tracking-[0.08em] ${tone.pillBg}`}
             >
               {tone.label}
             </span>
@@ -564,7 +793,7 @@ function TimelineNode({ item }: { item: TimelineItem }) {
             {h.coaching_line}
           </p>
           {(h.n_crashes > 0 || h.top_factors.length > 0) && (
-            <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1 font-mono text-[0.625rem] uppercase tracking-[0.14em] text-ink-4">
+            <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1 font-mono text-[0.625rem] uppercase tracking-[0.06em] text-ink-3">
               {h.n_crashes > 0 && (
                 <span>
                   {h.n_crashes} matched crash{h.n_crashes === 1 ? "" : "es"}
@@ -588,17 +817,23 @@ function TimelineNode({ item }: { item: TimelineItem }) {
       <li className="relative">
         <span
           aria-hidden
-          className="absolute -left-[30px] top-1.5 h-3 w-3 rounded-full bg-ink-4 ring-2 ring-paper"
+          className="absolute -left-[30px] top-2 h-3 w-3 rounded-full bg-ink-4 ring-2 ring-paper"
         />
-        <div className="flex items-start justify-between gap-3 rounded-sm bg-paper-2 p-3 ring-1 ring-rule">
-          <div className="flex flex-col gap-0.5">
-            <span className="font-mono text-[0.625rem] uppercase tracking-[0.14em] text-ink-3">
-              Rest stop · km {item.km.toFixed(0)}
-              {eta && ` · ~${eta}`}
-            </span>
-            <span className="text-sm text-ink">{item.data.label}</span>
+        {/* Rest stops are *calm* — cool neutral tint, smaller dot.
+            The left-border in ink-4 ties the card back to its dot
+            without turning up the visual volume. */}
+        <div className="flex items-start justify-between gap-3 rounded-sm border-l-2 border-ink-4/50 bg-paper-2 p-3 ring-1 ring-rule">
+          <div className="flex items-center gap-2.5">
+            <RestIcon />
+            <div className="flex flex-col gap-0.5">
+              <span className="font-mono text-[0.625rem] uppercase tracking-[0.06em] text-ink-3">
+                Rest stop · km {item.km.toFixed(0)}
+                {eta && ` · ~${eta}`}
+              </span>
+              <span className="text-sm text-ink">{item.data.label}</span>
+            </div>
           </div>
-          <span className="shrink-0 font-mono text-[0.625rem] uppercase tracking-[0.14em] text-ink-4">
+          <span className="shrink-0 font-mono text-[0.625rem] uppercase tracking-[0.06em] text-ink-3">
             Stretch &amp; refuel
           </span>
         </div>
@@ -610,11 +845,17 @@ function TimelineNode({ item }: { item: TimelineItem }) {
     <li className="relative">
       <span
         aria-hidden
-        className="absolute -left-[30px] top-1.5 h-3 w-3 rounded-full bg-gold ring-2 ring-paper"
+        className="absolute -left-[30px] top-2 h-3 w-3 rounded-full bg-gold ring-2 ring-paper"
       />
-      <div className="flex items-start justify-between gap-3 rounded-sm bg-paper-2 p-3 ring-1 ring-rule">
+      {/* Sunset is an *environmental change*, not an alert. A small
+          sun-dipping glyph does the cognitive lifting — the reader
+          doesn't have to parse the label to know "something about
+          the light is changing." Faint gold tint keeps it in the
+          same family as the gold dot on the rail. */}
+      <div className="flex items-start gap-2.5 rounded-sm border-l-2 border-gold bg-gold/[0.06] p-3 ring-1 ring-rule">
+        <SunsetIcon />
         <div className="flex flex-col gap-0.5">
-          <span className="font-mono text-[0.625rem] uppercase tracking-[0.14em] text-ink-3">
+          <span className="font-mono text-[0.625rem] uppercase tracking-[0.06em] text-ink-3">
             Sunset · ~km {item.km.toFixed(0)} · {eta}
           </span>
           <span className="text-sm text-ink">
@@ -627,24 +868,80 @@ function TimelineNode({ item }: { item: TimelineItem }) {
   );
 }
 
+function RestIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+      className="mt-0.5 shrink-0 text-ink-3"
+    >
+      <path d="M2 11h12" />
+      <path d="M3 11V7.5a1.5 1.5 0 0 1 1.5-1.5h5A2.5 2.5 0 0 1 12 8.5V11" />
+      <path d="M12 11V8.5h.5A1.5 1.5 0 0 1 14 10v1" />
+    </svg>
+  );
+}
+
+function SunsetIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+      className="mt-0.5 shrink-0 text-gold-strong"
+    >
+      <path d="M3 11h10" />
+      <path d="M5 11a3 3 0 0 1 6 0" />
+      <path d="M8 3v2" />
+      <path d="M3.5 5 4.6 6.1" />
+      <path d="M12.5 5 11.4 6.1" />
+      <path d="M1.5 11h.5M14 11h.5" />
+      <path d="M8 13v1" />
+    </svg>
+  );
+}
+
 /* --------------------------------- helpers --------------------------------- */
 
 function hotspotTone(h: HotspotSummary): {
   label: string;
   dotBg: string;
   pillBg: string;
+  cardBg: string;
+  cardRing: string;
+  accentBorder: string;
 } {
   // Matches the tiers used in TripView's HotspotRow so the teen sees
   // consistent wording between the map list and the readthrough.
   // Critical intentionally uses amber-700 (gold-strong), not red —
   // a crash cluster needs attention, not the hard-stop pill that red
   // reads as in road signage.
+  //
+  // Card-level tinting: Critical and Watch get a faint warning wash
+  // (at ~4% alpha of their tier color) plus a 4px accent border on
+  // the left. Notice stays neutral so it doesn't cry wolf.
   const r = h.intensity_ratio ?? 0;
   if (r >= 2.5) {
     return {
       label: "Critical",
       dotBg: "bg-gold-strong",
       pillBg: "bg-gold-strong text-paper",
+      cardBg: "bg-gold-strong/[0.05]",
+      cardRing: "ring-gold-strong/25",
+      accentBorder: "border-l-4 border-gold-strong",
     };
   }
   if (r >= 1.5) {
@@ -652,12 +949,18 @@ function hotspotTone(h: HotspotSummary): {
       label: "Watch",
       dotBg: "bg-gold",
       pillBg: "bg-gold text-paper",
+      cardBg: "bg-gold/[0.06]",
+      cardRing: "ring-gold/30",
+      accentBorder: "border-l-4 border-gold",
     };
   }
   return {
     label: "Notice",
     dotBg: "bg-ink-3",
     pillBg: "bg-ink-3/15 text-ink-3",
+    cardBg: "bg-paper-3",
+    cardRing: "ring-rule",
+    accentBorder: "",
   };
 }
 
