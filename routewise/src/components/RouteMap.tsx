@@ -202,8 +202,8 @@ export default function RouteMap({
             click: () => onNewsClick?.(n),
           }}
         >
-          <Tooltip direction="top" offset={[0, -6]} maxWidth={490}>
-            <div style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 470 }}>
+          <Tooltip direction="top" offset={[0, -6]} maxWidth={320}>
+            <div style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 300 }}>
               <span className="font-semibold text-paper">{n.headline}</span>
               <span className="text-[0.6875rem] text-paper/70">
                 {" · "}{n.publisher}{n.publish_date ? ` · ${n.publish_date}` : ""} · click to read
@@ -393,16 +393,6 @@ function MapLayerSwitcher() {
         </div>
       </div>
     </div>
-  );
-}
-
-function LayersIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e2e8f0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 2 2 7l10 5 10-5-10-5Z" />
-      <path d="m2 17 10 5 10-5" />
-      <path d="m2 12 10 5 10-5" />
-    </svg>
   );
 }
 

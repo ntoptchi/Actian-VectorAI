@@ -77,7 +77,7 @@ export default function Home() {
 function Hero() {
   return (
     <section className="relative overflow-hidden">
-      <div className="relative mx-auto grid max-w-[1400px] gap-12 px-6 pb-20 pt-16 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16 lg:pt-20">
+      <div className="relative mx-auto grid max-w-[1400px] gap-8 px-4 pb-12 pt-10 sm:gap-12 sm:px-6 sm:pb-20 sm:pt-16 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16 lg:pt-20">
         <div className="flex flex-col">
           <span className="anim-in anim-in-1 inline-flex w-fit items-center gap-2 rounded-full bg-paper-2 px-3 py-1 text-xs font-medium text-ink-3">
             <span className="h-1.5 w-1.5 rounded-full bg-good" />
@@ -152,7 +152,7 @@ function CompactTripCard({ trip }: { trip: (typeof DEMO_TRIPS)[number] }) {
 function FeaturePair() {
   return (
     <section className="border-y border-rule bg-paper-2">
-      <div className="mx-auto grid max-w-[1400px] gap-12 px-6 py-16 lg:grid-cols-2">
+      <div className="mx-auto grid max-w-[1400px] gap-8 px-4 py-10 sm:gap-12 sm:px-6 sm:py-16 lg:grid-cols-2">
         <div className="grid gap-4 sm:grid-cols-2">
           <FeatureCard
             title="Where crashes actually happen"

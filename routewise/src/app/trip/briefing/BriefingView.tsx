@@ -102,7 +102,7 @@ export function BriefingView({ brief, originName, destName, mapHref }: Props) {
   const [acknowledged, setAcknowledged] = useState(false);
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-16 px-6 py-12">
+    <main className="mx-auto flex w-full max-w-3xl flex-col gap-10 px-4 py-8 sm:gap-16 sm:px-6 sm:py-12">
       <div>
         <Link
           href={mapHref}
@@ -115,7 +115,7 @@ export function BriefingView({ brief, originName, destName, mapHref }: Props) {
       {/* Section 1 — Trip identity */}
       <section className="flex flex-col gap-6">
         <span className="eyebrow">Tonight&apos;s drive</span>
-        <h1 className="display text-4xl sm:text-5xl">
+        <h1 className="display text-2xl sm:text-4xl md:text-5xl">
           {originName ?? "Your origin"} → {destName ?? "your destination"}
         </h1>
         <p className="max-w-[52ch] text-base leading-relaxed text-ink-3">
@@ -268,7 +268,7 @@ export function BriefingView({ brief, originName, destName, mapHref }: Props) {
       </section>
 
       {/* Section 6 — Ready to drive */}
-      <section className="flex flex-col gap-5 rounded-sm bg-paper-3 p-6 ring-1 ring-rule">
+      <section className="flex flex-col gap-5 rounded-sm bg-paper-3 p-4 ring-1 ring-rule sm:p-6">
         <span className="font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-ink-3">
           Ready to drive
         </span>
@@ -364,7 +364,7 @@ function ConditionStat({
 function KeyNumber({ value, label }: { value: string; label: string }) {
   return (
     <div className="flex flex-col gap-2 rounded-sm bg-paper-3 p-4 ring-1 ring-rule">
-      <span className="stat-numeral text-4xl text-ink">{value}</span>
+      <span className="stat-numeral text-3xl text-ink sm:text-4xl">{value}</span>
       <span className="text-xs leading-snug text-ink-3">{label}</span>
     </div>
   );
