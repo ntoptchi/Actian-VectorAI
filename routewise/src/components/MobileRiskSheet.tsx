@@ -10,8 +10,8 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import type {
+  CrashInsight,
   HotspotSummary,
-  NewsArticle,
   TripBriefResponse,
 } from "~/lib/types";
 import { SidebarSections } from "./SidebarSections";
@@ -20,20 +20,20 @@ export type SheetSnap = "peek" | "full";
 
 type Selection =
   | { kind: "hotspot"; data: HotspotSummary }
-  | { kind: "news"; data: NewsArticle };
+  | { kind: "insight"; data: CrashInsight };
 
 interface Props {
   brief: TripBriefResponse;
   chosenId: string | null;
   hotspots: HotspotSummary[];
-  newsArticles: NewsArticle[];
+  insights: CrashInsight[];
   briefingHref: string;
   snap: SheetSnap;
   onSnapChange: (snap: SheetSnap) => void;
   // Peek-rail chip interactions — tap to *select* (update the preview
   // card above the tray); tap-again on the already-selected chip to
   // *open detail* (MobileBottomCard). The selectedChipId is the
-  // hotspot_id or article_id of the currently-previewed item.
+  // hotspot_id or insight_id of the currently-previewed item.
   selectedChipId: string | null;
   onSelectChip: (id: string) => void;
   // Open the full detail sheet. Called from the sidebar list rows in
@@ -80,7 +80,7 @@ export function MobileRiskSheet({
   brief,
   chosenId,
   hotspots,
-  newsArticles,
+  insights,
   briefingHref,
   snap,
   onSnapChange,
@@ -238,7 +238,7 @@ export function MobileRiskSheet({
         {!isFull && (
           <PeekRail
             sortedHotspots={sortedHotspots}
-            newsArticles={newsArticles}
+            insights={insights}
             briefingHref={briefingHref}
             selectedChipId={selectedChipId}
             onSelectChip={onSelectChip}
@@ -257,7 +257,7 @@ export function MobileRiskSheet({
                   brief={brief}
                   chosenId={chosenId}
                   hotspots={hotspots}
-                  newsArticles={newsArticles}
+                  insights={insights}
                   onChangeAlternate={onChangeAlternate}
                   onSelect={onOpenDetail}
                 />
@@ -277,7 +277,7 @@ export function MobileRiskSheet({
 }
 
 /**
- * Peek-state chip rail. Each chip is a risk item (hotspot or news);
+ * Peek-state chip rail. Each chip is a risk item (hotspot or insight);
  * tapping selects it (drives the preview card above the tray), and
  * tapping an already-selected chip opens the full detail sheet —
  * the same "tap again to drill in" pattern iOS tab bars use.
@@ -288,14 +288,14 @@ export function MobileRiskSheet({
  */
 function PeekRail({
   sortedHotspots,
-  newsArticles,
+  insights,
   briefingHref,
   selectedChipId,
   onSelectChip,
   onOpenDetail,
 }: {
   sortedHotspots: HotspotSummary[];
-  newsArticles: NewsArticle[];
+  insights: CrashInsight[];
   briefingHref: string;
   selectedChipId: string | null;
   onSelectChip: (id: string) => void;
@@ -354,20 +354,24 @@ function PeekRail({
           );
         })}
 
-        {newsArticles.map((n) => {
-          const isSelected = selectedChipId === n.article_id;
+        {insights.map((ins) => {
+          const isSelected = selectedChipId === ins.insight_id;
           const delay = chipIndex * 60;
           chipIndex++;
+          // Chip body shows a trimmed incident summary — the same
+          // "what happened" one-liner used in the sidebar InsightRow,
+          // so the two surfaces don't read differently.
+          const label = chipLabel(ins);
           return (
             <button
-              key={n.article_id}
+              key={ins.insight_id}
               type="button"
               aria-pressed={isSelected}
               onClick={() => {
                 if (isSelected) {
-                  onOpenDetail({ kind: "news", data: n });
+                  onOpenDetail({ kind: "insight", data: ins });
                 } else {
-                  onSelectChip(n.article_id);
+                  onSelectChip(ins.insight_id);
                 }
               }}
               className={`anim-chip-pop flex flex-none items-center gap-1.5 rounded-full px-3 py-1.5 text-[0.6875rem] font-medium ring-inset transition active:scale-95 ${
@@ -379,10 +383,10 @@ function PeekRail({
             >
               <span
                 className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-                  isSelected ? "bg-paper" : "bg-[#2563eb]"
+                  isSelected ? "bg-paper" : "bg-gold-strong"
                 }`}
               />
-              <span className="max-w-[110px] truncate">{n.headline}</span>
+              <span className="max-w-[110px] truncate">{label}</span>
             </button>
           );
         })}
@@ -432,4 +436,16 @@ function Chevron({ up }: { up: boolean }) {
 
 function clamp(n: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, n));
+}
+
+/**
+ * Short chip label for an insight. Prefers a trimmed headline, falling
+ * back to the first risk factor or a generic "Lesson" so the chip
+ * never renders blank even for sparsely-tagged insights.
+ */
+function chipLabel(ins: CrashInsight): string {
+  const h = (ins.headline || "").trim();
+  if (h) return h.length > 40 ? h.slice(0, 40).replace(/\s\S*$/, "") + "…" : h;
+  if (ins.risk_factors[0]) return ins.risk_factors[0].replace(/_/g, " ");
+  return "Lesson";
 }

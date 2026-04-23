@@ -1,21 +1,22 @@
 "use client";
 
 import type {
+  CrashInsight,
   HotspotSummary,
-  NewsArticle,
   TripBriefResponse,
 } from "~/lib/types";
+import { humanizeFactor } from "~/lib/factors";
 import { AlternatesPanel } from "./AlternatesPanel";
 
 type Selection =
   | { kind: "hotspot"; data: HotspotSummary }
-  | { kind: "news"; data: NewsArticle };
+  | { kind: "insight"; data: CrashInsight };
 
 interface Props {
   brief: TripBriefResponse;
   chosenId: string | null;
   hotspots: HotspotSummary[];
-  newsArticles: NewsArticle[];
+  insights: CrashInsight[];
   onChangeAlternate: (routeId: string) => void;
   onSelect: (s: Selection) => void;
 }
@@ -26,7 +27,7 @@ interface Props {
  *
  *   1. Recommended Route (+ alternates)
  *   2. Safety Hotspots list
- *   3. Media Coverage list (only when news is present)
+ *   3. Lessons from the Road (VDB-retrieved crash insights)
  *   4. Suggested Stops list (only when any stops are present)
  *
  * Lives in its own file so the two surfaces can't drift. The section
@@ -38,7 +39,7 @@ export function SidebarSections({
   brief,
   chosenId,
   hotspots,
-  newsArticles,
+  insights,
   onChangeAlternate,
   onSelect,
 }: Props) {
@@ -87,21 +88,23 @@ export function SidebarSections({
         )}
       </div>
 
-      {newsArticles.length > 0 && (
+      {insights.length > 0 && (
         <div>
           <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-base font-semibold text-ink">Media Coverage</h2>
+            <h2 className="text-base font-semibold text-ink">
+              Lessons from the Road
+            </h2>
             <span className="font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-ink-3">
-              {newsArticles.length} article
-              {newsArticles.length !== 1 ? "s" : ""}
+              {insights.length} lesson
+              {insights.length !== 1 ? "s" : ""}
             </span>
           </div>
           <ul className="flex flex-col gap-2">
-            {newsArticles.map((n) => (
-              <NewsRow
-                key={n.article_id}
-                article={n}
-                onClick={() => onSelect({ kind: "news", data: n })}
+            {insights.map((ins) => (
+              <InsightRow
+                key={ins.insight_id}
+                insight={ins}
+                onClick={() => onSelect({ kind: "insight", data: ins })}
               />
             ))}
           </ul>
@@ -190,25 +193,23 @@ function HotspotRow({
   );
 }
 
-function NewsRow({
-  article,
+function InsightRow({
+  insight,
   onClick,
 }: {
-  article: NewsArticle;
+  insight: CrashInsight;
   onClick: () => void;
 }) {
-  const severityTone =
-    article.severity === "fatal"
-      ? "alert"
-      : article.severity === "serious"
-        ? "warn"
-        : "muted";
-  const badgeStyles =
-    severityTone === "alert"
-      ? "bg-alert text-paper"
-      : severityTone === "warn"
-        ? "bg-gold text-paper"
-        : "bg-[#2563eb]/15 text-[#2563eb]";
+  // Leading tag chip uses the first risk factor; falls back to a
+  // generic "Lesson" label when the insight has no classified factors.
+  const primary = insight.risk_factors[0];
+  const primaryLabel = primary ? humanizeFactor(primary) : "Lesson";
+
+  // One-liner from the incident summary — the row surfaces what
+  // happened in shortest form, not the lesson itself (the lesson
+  // opens inside the modal on click, so it stays high-impact).
+  const oneLiner = summariseIncident(insight.incident_summary, insight.headline);
+
   return (
     <li>
       <button
@@ -216,46 +217,52 @@ function NewsRow({
         onClick={onClick}
         className="flex w-full items-start gap-3 rounded-sm bg-paper-3 p-3 text-left ring-1 ring-rule transition hover:ring-ink"
       >
-        <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-sm bg-[#2563eb]/15 text-[#2563eb]">
-          <NewsIcon />
+        <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-sm bg-gold-strong/15 text-gold-strong">
+          <LessonBulb />
         </span>
-        <div className="flex flex-col gap-0.5">
-          <span className="text-sm font-medium text-ink">
-            {article.headline}
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <span className="inline-flex w-fit items-center rounded-sm bg-gold-strong/10 px-1.5 py-0.5 font-mono text-[0.625rem] font-semibold uppercase tracking-[0.14em] text-gold-strong">
+            {primaryLabel}
           </span>
-          <span className="text-xs text-ink-3">
-            {article.publisher}
-            {article.publish_date ? ` · ${article.publish_date}` : ""}
+          <span className="text-sm font-medium text-ink line-clamp-2">
+            {oneLiner}
           </span>
-          <span
-            className={`mt-1 inline-flex w-fit items-center rounded-sm px-1.5 py-0.5 font-mono text-[0.625rem] font-semibold uppercase tracking-[0.14em] ${badgeStyles}`}
-          >
-            {article.severity === "fatal"
-              ? "Fatal"
-              : article.severity === "serious"
-                ? "Serious"
-                : "Report"}
-          </span>
+          {insight.source.publisher && (
+            <span className="text-[0.6875rem] text-ink-3 line-clamp-1">
+              {insight.source.publisher}
+              {insight.source.publish_date
+                ? ` · ${insight.source.publish_date}`
+                : ""}
+            </span>
+          )}
         </div>
       </button>
     </li>
   );
 }
 
-function NewsIcon() {
+/** Trim the incident summary down to a single scannable sentence. */
+function summariseIncident(summary: string, fallback: string): string {
+  const text = (summary || fallback || "").trim();
+  if (!text) return "Crash lesson";
+  // Prefer the first sentence; otherwise cap at ~120 chars on a word boundary.
+  const firstDot = text.indexOf(". ");
+  if (firstDot > 20 && firstDot < 160) return text.slice(0, firstDot + 1);
+  if (text.length <= 140) return text;
+  return text.slice(0, 140).replace(/\s\S*$/, "") + "…";
+}
+
+function LessonBulb() {
   return (
     <svg
-      width="14"
-      height="14"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.4"
-      strokeLinecap="round"
-      strokeLinejoin="round"
+      width="13"
+      height="13"
+      viewBox="0 0 12 12"
+      fill="currentColor"
+      aria-hidden
     >
-      <rect x="2" y="2" width="12" height="12" rx="1.5" />
-      <path d="M5 5h6M5 8h6M5 11h3" />
+      <path d="M6 0a4 4 0 0 0-2.5 7.1V8.5a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1V7.1A4 4 0 0 0 6 0Z" />
+      <rect x="4.5" y="10" width="3" height="1.4" rx="0.4" />
     </svg>
   );
 }

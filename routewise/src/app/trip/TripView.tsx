@@ -13,8 +13,8 @@ import {
 } from "~/components/MobileRiskSheet";
 import { SidebarSections } from "~/components/SidebarSections";
 import type {
+  CrashInsight,
   HotspotSummary,
-  NewsArticle,
   RouteSegment,
   TripBriefResponse,
 } from "~/lib/types";
@@ -32,7 +32,7 @@ const RouteMap = dynamic(() => import("~/components/RouteMap"), {
 type Selection =
   | { kind: "hotspot"; data: HotspotSummary }
   | { kind: "segment"; data: RouteSegment }
-  | { kind: "news"; data: NewsArticle }
+  | { kind: "insight"; data: CrashInsight }
   | null;
 
 export function TripView({
@@ -51,9 +51,9 @@ export function TripView({
   const [sheetSnap, setSheetSnap] = useState<SheetSnap>("peek");
   // Which chip in the mobile tray is "selected" — drives the preview
   // card above the tray. Null = fall back to the default (first
-  // hotspot by km, then first news article). Explicit null selection
-  // is not currently exposed in the UI; users always have *some*
-  // chip previewed unless both lists are empty.
+  // hotspot by km, then first insight). Explicit null selection is
+  // not currently exposed in the UI; users always have *some* chip
+  // previewed unless both lists are empty.
   const [selectedChipId, setSelectedChipId] = useState<string | null>(null);
 
   const isChosenShowing = chosenId === brief.chosen_route_id;
@@ -66,8 +66,8 @@ export function TripView({
     () => (isChosenShowing ? brief.hotspots : []),
     [isChosenShowing, brief.hotspots],
   );
-  const newsArticles = useMemo<NewsArticle[]>(
-    () => (isChosenShowing ? (brief.news_articles ?? []) : []),
+  const insights = useMemo<CrashInsight[]>(
+    () => (isChosenShowing ? (brief.insights ?? []) : []),
     [isChosenShowing, brief],
   );
 
@@ -95,29 +95,29 @@ export function TripView({
   // Mobile preview: resolve the effective selected chip. If the user
   // hasn't explicitly selected one, default to the first hotspot by
   // km — that's the "next up" item in the sorted tray — and fall
-  // back to the first news article if there are no hotspots.
+  // back to the first insight if there are no hotspots.
   const sortedHotspots = useMemo(
     () => [...hotspots].sort((a, b) => a.km_into_trip - b.km_into_trip),
     [hotspots],
   );
   const defaultChipId = useMemo(() => {
     if (sortedHotspots[0]) return sortedHotspots[0].hotspot_id;
-    if (newsArticles[0]) return newsArticles[0].article_id;
+    if (insights[0]) return insights[0].insight_id;
     return null;
-  }, [sortedHotspots, newsArticles]);
+  }, [sortedHotspots, insights]);
   const activeChipId = selectedChipId ?? defaultChipId;
   const activeChip = useMemo<
     | { kind: "hotspot"; data: HotspotSummary }
-    | { kind: "news"; data: NewsArticle }
+    | { kind: "insight"; data: CrashInsight }
     | null
   >(() => {
     if (!activeChipId) return null;
     const h = hotspots.find((x) => x.hotspot_id === activeChipId);
     if (h) return { kind: "hotspot", data: h };
-    const n = newsArticles.find((x) => x.article_id === activeChipId);
-    if (n) return { kind: "news", data: n };
+    const i = insights.find((x) => x.insight_id === activeChipId);
+    if (i) return { kind: "insight", data: i };
     return null;
-  }, [activeChipId, hotspots, newsArticles]);
+  }, [activeChipId, hotspots, insights]);
 
   const sheetIsFull = sheetSnap === "full";
 
@@ -131,10 +131,10 @@ export function TripView({
           chosenRouteId={chosenId}
           hotspots={hotspots}
           stops={brief.fatigue_plan.suggested_stops}
-          newsArticles={newsArticles}
+          insights={insights}
           onSegmentClick={(s) => setSelection({ kind: "segment", data: s })}
           onHotspotClick={(h) => setSelection({ kind: "hotspot", data: h })}
-          onNewsClick={(n) => setSelection({ kind: "news", data: n })}
+          onInsightClick={(i) => setSelection({ kind: "insight", data: i })}
         />
 
         {/* Top-left "Current View" chip */}
@@ -220,8 +220,8 @@ export function TripView({
             item={activeChip}
             onClick={() => {
               // Pass the discriminated union through directly so TS
-              // keeps the narrow "hotspot" | "news" variant — rebuilding
-              // the object with `{ kind, data }` widens it.
+              // keeps the narrow "hotspot" | "insight" variant —
+              // rebuilding the object with `{ kind, data }` widens it.
               setSelection(activeChip);
             }}
           />
@@ -233,7 +233,7 @@ export function TripView({
           brief={brief}
           chosenId={chosenId}
           hotspots={hotspots}
-          newsArticles={newsArticles}
+          insights={insights}
           briefingHref={briefingHref}
           snap={sheetSnap}
           onSnapChange={setSheetSnap}
@@ -245,7 +245,7 @@ export function TripView({
             // the sidebar list, so collapsing back to peek shows the
             // last-interacted item previewed.
             if (s.kind === "hotspot") setSelectedChipId(s.data.hotspot_id);
-            if (s.kind === "news") setSelectedChipId(s.data.article_id);
+            if (s.kind === "insight") setSelectedChipId(s.data.insight_id);
             // Collapse the sheet when the user commits to inspecting
             // an item — the detail card stacks above, and the sheet
             // being expanded behind it would trap scrolls.
@@ -267,7 +267,7 @@ export function TripView({
             brief={brief}
             chosenId={chosenId}
             hotspots={hotspots}
-            newsArticles={newsArticles}
+            insights={insights}
             onChangeAlternate={setChosenId}
             onSelect={setSelection}
           />

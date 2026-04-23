@@ -1,10 +1,11 @@
 "use client";
 
-import type { HotspotSummary, NewsArticle } from "~/lib/types";
+import type { CrashInsight, HotspotSummary } from "~/lib/types";
+import { humanizeFactor } from "~/lib/factors";
 
 type PreviewItem =
   | { kind: "hotspot"; data: HotspotSummary }
-  | { kind: "news"; data: NewsArticle };
+  | { kind: "insight"; data: CrashInsight };
 
 interface Props {
   item: PreviewItem;
@@ -18,8 +19,10 @@ interface Props {
  *
  * Design rules (from product review):
  *   - Left-aligned type, wider than tall (spans the tray width).
- *   - Eyebrow is the *place name* ("Near Miami"), not a tier label —
- *     the color of the card already conveys severity/intensity.
+ *   - Eyebrow is the *place name* ("Near Miami") for hotspots or the
+ *     primary risk factor for insights — the color of the card already
+ *     conveys severity/intensity, so the eyebrow is free to carry
+ *     context instead of tier.
  *   - Stat row reads "2.1x vs Florida avg" (not "FL AVG FREQUENCY"),
  *     so the comparison is legible to a non-analyst driver at a
  *     glance.
@@ -72,30 +75,39 @@ export function MobileRiskPreview({ item, onClick }: Props) {
     );
   }
 
-  // News preview — same shape, different fields + severity tone.
-  const n = item.data;
-  const tone = newsTone(n.severity);
+  // Insight preview — same shape, amber "lesson" tone, eyebrow is the
+  // dominant risk factor (or publisher when there are no tags).
+  const ins = item.data;
+  const primary = ins.risk_factors[0];
+  const eyebrow = primary
+    ? humanizeFactor(primary)
+    : ins.source.publisher
+      ? ins.source.publisher
+      : "Lesson";
+  const body = ins.lesson?.trim() || ins.incident_summary?.trim() || ins.headline;
   return (
     <button
       type="button"
       onClick={onClick}
-      aria-label={`Open article: ${n.headline}`}
+      aria-label={`Open lesson: ${ins.headline}`}
       className="fixed inset-x-3 bottom-44 z-[1000] flex flex-col gap-1 rounded-lg px-4 py-2 text-left text-paper shadow-[0_10px_24px_rgba(11,31,68,0.35)] transition active:scale-[0.99] lg:hidden"
-      style={{ backgroundColor: tone.bg }}
+      style={{ backgroundColor: "#b45309" }}
     >
       <div className="flex items-center gap-2">
-        <NewsGlyph />
+        <LessonBulb />
         <span className="truncate font-mono text-[0.625rem] font-semibold uppercase tracking-[0.18em] text-paper/85">
-          {n.publisher}
-          {n.publish_date ? ` · ${n.publish_date}` : ""}
+          {eyebrow}
         </span>
       </div>
       <p className="line-clamp-2 text-[0.8125rem] leading-snug text-paper/95">
-        {n.headline}
+        {body}
       </p>
-      <span className="inline-flex w-fit items-center rounded-sm bg-paper/15 px-1.5 py-0.5 font-mono text-[0.625rem] font-semibold uppercase tracking-[0.14em] text-paper">
-        {tone.label}
-      </span>
+      {ins.source.publisher && (
+        <span className="inline-flex w-fit items-center rounded-sm bg-paper/15 px-1.5 py-0.5 font-mono text-[0.625rem] font-semibold uppercase tracking-[0.14em] text-paper">
+          {ins.source.publisher}
+          {ins.source.publish_date ? ` · ${ins.source.publish_date}` : ""}
+        </span>
+      )}
     </button>
   );
 }
@@ -107,14 +119,6 @@ function hotspotTone(ratio: number | null): { bg: string } {
   if (ratio != null && ratio >= 2) return { bg: "#dc2626" };
   if (ratio != null && ratio >= 1.2) return { bg: "#d97706" };
   return { bg: "#0f172a" };
-}
-
-function newsTone(
-  severity: NewsArticle["severity"],
-): { bg: string; label: string } {
-  if (severity === "fatal") return { bg: "#dc2626", label: "Fatal" };
-  if (severity === "serious") return { bg: "#d97706", label: "Serious" };
-  return { bg: "#0f172a", label: "Report" };
 }
 
 function Triangle() {
@@ -131,21 +135,17 @@ function Triangle() {
   );
 }
 
-function NewsGlyph() {
+function LessonBulb() {
   return (
     <svg
       width="12"
       height="12"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="round"
-      strokeLinejoin="round"
+      viewBox="0 0 12 12"
+      fill="currentColor"
       aria-hidden
     >
-      <rect x="2" y="2" width="12" height="12" rx="1.5" />
-      <path d="M5 5h6M5 8h6M5 11h3" />
+      <path d="M6 0a4 4 0 0 0-2.5 7.1V8.5a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1V7.1A4 4 0 0 0 6 0Z" />
+      <rect x="4.5" y="10" width="3" height="1.4" rx="0.4" />
     </svg>
   );
 }

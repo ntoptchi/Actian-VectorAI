@@ -16,9 +16,9 @@ import "leaflet/dist/leaflet.css";
 import { segmentLocationLabel } from "~/lib/segmentLabels";
 import type {
   AlternateSummary,
+  CrashInsight,
   FatigueStop,
   HotspotSummary,
-  NewsArticle,
   RiskBand,
   RouteSegment,
 } from "~/lib/types";
@@ -43,10 +43,10 @@ interface Props {
   chosenRouteId: string | null;
   hotspots: HotspotSummary[];
   stops?: FatigueStop[];
-  newsArticles: NewsArticle[];
+  insights: CrashInsight[];
   onSegmentClick?: (seg: RouteSegment) => void;
   onHotspotClick?: (h: HotspotSummary) => void;
-  onNewsClick?: (n: NewsArticle) => void;
+  onInsightClick?: (i: CrashInsight) => void;
 }
 
 export default function RouteMap({
@@ -55,10 +55,10 @@ export default function RouteMap({
   chosenRouteId,
   hotspots,
   stops,
-  newsArticles,
+  insights,
   onSegmentClick,
   onHotspotClick,
-  onNewsClick,
+  onInsightClick,
 }: Props) {
   const center = useMemo<[number, number]>(() => {
     const all = segments.flatMap((s) => s.polyline);
@@ -186,28 +186,35 @@ export default function RouteMap({
         </CircleMarker>
       ))}
 
-      {/* News article pins — distinct diamond shape via rotated square */}
-      {newsArticles.map((n) => (
+      {/* Insight pins — amber "lesson" markers, distinct from the
+          red hotspot pins so a glance separates "a cluster of crashes
+          here tonight" from "here's a lesson that applies along this
+          stretch". Pin location is the *segment midpoint* from the
+          retrieval service, not the article's original lat/lon, so
+          pins always sit on the route rather than floating off it. */}
+      {insights.map((ins) => (
         <CircleMarker
-          key={n.article_id}
-          center={[n.location.lat, n.location.lon]}
+          key={ins.insight_id}
+          center={[ins.pin_location.lat, ins.pin_location.lon]}
           radius={7}
           pathOptions={{
             color: "#f3ece0",
             weight: 2,
-            fillColor: "#2563eb",
+            fillColor: "#d97706",
             fillOpacity: 0.95,
           }}
           eventHandlers={{
-            click: () => onNewsClick?.(n),
+            click: () => onInsightClick?.(ins),
           }}
         >
-          <Tooltip direction="top" offset={[0, -6]} maxWidth={320}>
-            <div style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 300 }}>
-              <span className="font-semibold text-paper">{n.headline}</span>
-              <span className="text-[0.6875rem] text-paper/70">
-                {" · "}{n.publisher}{n.publish_date ? ` · ${n.publish_date}` : ""} · click to read
-              </span>
+          <Tooltip direction="top" offset={[0, -6]}>
+            <div style={{ maxWidth: 300 }}>
+              <div className="font-semibold text-paper">
+                {ins.headline}
+              </div>
+              <div className="text-[0.6875rem] uppercase tracking-[0.14em] text-paper/70">
+                Lesson from a past crash · click to read
+              </div>
             </div>
           </Tooltip>
         </CircleMarker>

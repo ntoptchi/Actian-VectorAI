@@ -58,6 +58,30 @@ export interface SeverityMix {
   unknown: number;
 }
 
+// Citation-level metadata rendered only in the modal footer — the
+// news article itself is not the content, the lesson is.
+export interface InsightSource {
+  publisher: string | null;
+  article_url: string | null;
+  publish_date: string | null;
+  article_headline: string | null;
+}
+
+// One LLM-enriched crash lesson retrieved from the coaching VDB.
+// Backs both the hotspot anecdote drawer and the route-wide "Lessons
+// from the road" list/map pins.
+export interface CrashInsight {
+  insight_id: string;
+  headline: string;
+  lesson: string;
+  incident_summary: string;
+  risk_factors: string[];
+  pin_location: LatLon;
+  segment_id: string | null;
+  similarity: number;
+  source: InsightSource;
+}
+
 export interface HotspotSummary {
   hotspot_id: string;
   label: string;
@@ -71,18 +95,7 @@ export interface HotspotSummary {
   severity_mix: SeverityMix;
   top_factors: FactorWeight[];
   coaching_line: string;
-}
-
-export interface NewsArticle {
-  article_id: string;
-  headline: string;
-  excerpt: string;
-  publisher: string;
-  article_url: string;
-  publish_date: string | null;
-  location: LatLon;
-  severity: "fatal" | "serious" | "minor" | "pdo" | "unknown";
-  linked_crash_ids: string[];
+  insight: CrashInsight | null;
 }
 
 export interface TripBriefRequest {
@@ -130,7 +143,7 @@ export interface TripBriefResponse {
   chosen_route_id: string | null;
   alternates: AlternateSummary[];
   segments: RouteSegment[];
-  news_articles: NewsArticle[];
+  insights: CrashInsight[];
 }
 
 export interface CrashExcerpt {
