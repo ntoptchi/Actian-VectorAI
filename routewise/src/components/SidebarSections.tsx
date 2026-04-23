@@ -175,7 +175,11 @@ function HotspotRow({
           <span
             className={`mt-1 inline-flex w-fit items-center rounded-sm px-1.5 py-0.5 font-mono text-[0.625rem] font-semibold uppercase tracking-[0.14em] ${
               tone === "alert"
-                ? "bg-gold-strong text-paper"
+                ? // Hex literal instead of `bg-gold-strong` because the
+                  // plain full-opacity utility was silently not being
+                  // emitted (see note in BriefingView's hotspotTone) —
+                  // left Critical pills here unfilled.
+                  "bg-[#b45309] text-paper"
                 : tone === "warn"
                   ? "bg-gold text-paper"
                   : "bg-ink-3/15 text-ink-3"
