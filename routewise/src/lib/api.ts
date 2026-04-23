@@ -51,7 +51,7 @@ export async function fetchTripBrief(
     hotspots: raw.hotspots ?? [],
     pre_trip_checklist: raw.pre_trip_checklist ?? [],
     chosen_route_id: raw.chosen_route_id ?? null,
-    news_articles: raw.news_articles ?? [],
+    insights: raw.insights ?? [],
   } as TripBriefResponse;
 }
 

@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     vdb_host: str = "localhost"
     vdb_port: int = 50051
     vdb_collection: str = "routewise_crashes"
+    # Smaller, named+sparse collection powering the VDB-driven coaching
+    # line and the "Lessons from the road" insight layer. Distinct from
+    # vdb_collection so the two can be rebuilt independently.
+    vdb_coaching_collection: str = "routewise_coaching"
     vdb_vector_size: int = 384
 
     # --- Embedding model (offline MiniLM) ---

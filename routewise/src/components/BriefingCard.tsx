@@ -3,16 +3,16 @@
 import { humanizeFactor } from "~/lib/factors";
 import { segmentLocationLabel } from "~/lib/segmentLabels";
 import type {
+  CrashInsight,
   FatigueStop,
   HotspotSummary,
-  NewsArticle,
   RouteSegment,
 } from "~/lib/types";
 
 type CardSubject =
   | { kind: "hotspot"; data: HotspotSummary }
   | { kind: "segment"; data: RouteSegment }
-  | { kind: "news"; data: NewsArticle };
+  | { kind: "insight"; data: CrashInsight };
 
 interface Props {
   subject: CardSubject | null;
@@ -30,9 +30,9 @@ interface Props {
 export function BriefingCard({ subject, hotspots, stops, onClose }: Props) {
   if (!subject) return null;
 
-  // News articles get their own card layout.
-  if (subject.kind === "news") {
-    return <NewsBriefingCard article={subject.data} onClose={onClose} />;
+  // Standalone crash insights get their own lesson-first card layout.
+  if (subject.kind === "insight") {
+    return <InsightBriefingCard insight={subject.data} onClose={onClose} />;
   }
 
   const title =
@@ -199,6 +199,14 @@ export function BriefingCard({ subject, hotspots, stops, onClose }: Props) {
               </ul>
             </div>
           )}
+
+          {/* Inline anecdote: a real crash lesson retrieved from the
+              coaching VDB. Lives inside the hotspot card (not a
+              separate modal) because the lesson is the *explanation*
+              for why this hotspot is worth surfacing. */}
+          {subject.kind === "hotspot" && subject.data.insight && (
+            <InlineInsightBlock insight={subject.data.insight} />
+          )}
         </div>
       </aside>
     </>
@@ -207,24 +215,54 @@ export function BriefingCard({ subject, hotspots, stops, onClose }: Props) {
 
 
 /**
- * Dedicated card layout for news articles. Blue accent instead of red,
- * shows headline, full excerpt, publisher/date, severity badge,
- * and a link to the original article.
+ * Compact in-card anecdote block. Mirrors the InsightBriefingCard's
+ * lesson-first hierarchy: lesson hero, incident summary secondary,
+ * source link demoted to a muted footer line.
  */
-function NewsBriefingCard({
-  article,
+function InlineInsightBlock({ insight }: { insight: CrashInsight }) {
+  return (
+    <div className="flex flex-col gap-3">
+      <span className="eyebrow eyebrow-rule">
+        <span>A lesson from a past crash</span>
+      </span>
+      <div className="flex flex-col gap-3 rounded-sm border-l-[3px] border-gold-strong bg-[#fbf5ea] p-4">
+        <p className="text-sm leading-relaxed text-ink">{insight.lesson}</p>
+        {insight.incident_summary && (
+          <div className="flex flex-col gap-1 border-t border-rule/60 pt-3">
+            <span className="font-mono text-[0.625rem] font-semibold uppercase tracking-[0.16em] text-ink-3">
+              Incident Summary
+            </span>
+            <p className="text-[0.8125rem] leading-relaxed text-ink-2">
+              {insight.incident_summary}
+            </p>
+          </div>
+        )}
+        <SourceFooter source={insight.source} />
+      </div>
+    </div>
+  );
+}
+
+
+/**
+ * Lesson-first card layout for a standalone ``CrashInsight`` pulled
+ * from the coaching VDB. Hierarchy (top to bottom):
+ *
+ *   1. "THE LESSON" — the actionable takeaway. Hero content.
+ *   2. "INCIDENT SUMMARY" — one-paragraph retelling of what happened.
+ *   3. Risk-factor chips — the classified ingredients of the crash.
+ *   4. Source footer — muted single-line citation to the news article.
+ *      The headline of the original article never becomes the card's
+ *      title or body; it lives only in the footer so the learning stays
+ *      front-and-centre.
+ */
+function InsightBriefingCard({
+  insight,
   onClose,
 }: {
-  article: NewsArticle;
+  insight: CrashInsight;
   onClose?: () => void;
 }) {
-  const severityColor =
-    article.severity === "fatal"
-      ? { dot: "bg-alert", text: "text-alert", label: "Fatal Incident" }
-      : article.severity === "serious"
-        ? { dot: "bg-warn", text: "text-warn", label: "Serious Incident" }
-        : { dot: "bg-[#2563eb]", text: "text-[#2563eb]", label: "Media Report" };
-
   return (
     <>
       <div
@@ -236,108 +274,129 @@ function NewsBriefingCard({
       <aside
         role="dialog"
         aria-modal="true"
-        aria-label="News article"
+        aria-label="Crash lesson"
         className="fixed inset-y-0 right-0 z-[1200] flex w-full max-w-[28rem] flex-col overflow-y-auto bg-paper-2 shadow-[-20px_0_40px_-20px_rgba(11,31,68,0.4)] lg:right-[28rem] lg:max-w-[26rem]"
       >
-        {/* Close + status bar */}
+        {/* Eyebrow bar */}
         <div className="flex items-center justify-between border-b border-rule px-4 py-3 sm:px-6">
           <div className="flex items-center gap-2">
-            <span
-              className={`grid h-5 w-5 place-items-center rounded-full text-[0.625rem] font-bold text-paper ${severityColor.dot}`}
-            >
-              !
+            <span className="grid h-5 w-5 place-items-center rounded-full bg-gold-strong text-[0.625rem] font-bold text-paper">
+              <BulbIcon />
             </span>
-            <span
-              className={`font-mono text-[0.6875rem] uppercase tracking-[0.16em] ${severityColor.text}`}
-            >
-              {severityColor.label}
-            </span>
-            <span className="font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-ink-4">
-              · Media coverage
+            <span className="font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-gold-strong">
+              Lesson from a past crash
             </span>
           </div>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close article"
+            aria-label="Close lesson"
             className="grid h-10 w-10 place-items-center rounded-full text-ink-3 transition hover:bg-paper-3 hover:text-ink sm:h-8 sm:w-8"
           >
             <CloseIcon />
           </button>
         </div>
 
-        <div className="flex flex-col gap-5 px-4 py-5 sm:gap-6 sm:px-6 sm:py-6">
-          {/* Headline */}
+        <div className="flex flex-col gap-6 px-4 py-5 sm:px-6 sm:py-6">
+          {/* Headline derived from lesson_cause — not the article title */}
           <div className="flex flex-col gap-2">
-            <h2 className="display text-2xl leading-tight">{article.headline}</h2>
-            <div className="flex items-center gap-2 text-xs text-ink-3">
-              <NewsCardIcon />
-              <span>
-                {article.publisher}
-                {article.publish_date ? ` · ${article.publish_date}` : ""}
-              </span>
-            </div>
+            <h2 className="display text-2xl leading-tight">{insight.headline}</h2>
           </div>
 
-          {/* Article excerpt */}
-          <div className="flex gap-3 rounded-sm border-l-[3px] border-[#2563eb] bg-[#e7ecf4] p-4">
-            <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[#2563eb] text-paper">
-              <NewsCardIcon />
-            </span>
-            <div className="flex flex-col gap-1.5">
-              <span className="font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.16em] text-ink-2">
-                From the article
+          {/* THE LESSON — hero */}
+          <div className="flex flex-col gap-3 rounded-sm border-l-[3px] border-gold-strong bg-[#fbf5ea] p-5">
+            <div className="flex items-center gap-2">
+              <span className="grid h-6 w-6 place-items-center rounded-full bg-gold-strong text-paper">
+                <BulbIcon />
               </span>
-              <p className="text-sm italic leading-relaxed text-ink">
-                &ldquo;{article.excerpt}&rdquo;
+              <span className="font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.16em] text-gold-strong">
+                The Lesson
+              </span>
+            </div>
+            <p className="text-base leading-relaxed text-ink">{insight.lesson}</p>
+          </div>
+
+          {/* INCIDENT SUMMARY — secondary, muted */}
+          {insight.incident_summary && (
+            <div className="flex flex-col gap-2">
+              <span className="eyebrow eyebrow-rule">
+                <span>Incident Summary</span>
+              </span>
+              <p className="text-sm leading-relaxed text-ink-2">
+                {insight.incident_summary}
               </p>
             </div>
-          </div>
+          )}
 
-          {/* Location */}
-          <div className="rounded-sm bg-paper-3 p-4 ring-1 ring-rule">
-            <div className="flex items-center gap-2">
-              <PinIcon />
-              <span className="font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-ink-3">
-                Reported Location
+          {/* RISK FACTORS — compact chips */}
+          {insight.risk_factors.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <span className="font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.16em] text-ink-3">
+                Risk factors in this crash
               </span>
-            </div>
-            <div className="mt-2 text-sm text-ink">
-              {article.location.lat.toFixed(4)}°N, {Math.abs(article.location.lon).toFixed(4)}°W
-            </div>
-          </div>
-
-          {/* Linked crashes */}
-          {article.linked_crash_ids.length > 0 && (
-            <div className="rounded-sm bg-paper-3 p-4 ring-1 ring-rule">
-              <span className="font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-ink-3">
-                Linked Crash Records
-              </span>
-              <ul className="mt-2 flex flex-col gap-1">
-                {article.linked_crash_ids.map((id) => (
-                  <li key={id} className="text-sm font-mono text-ink-2">
-                    {id}
+              <ul className="flex flex-wrap gap-1.5">
+                {insight.risk_factors.slice(0, 8).map((tag) => (
+                  <li
+                    key={tag}
+                    className="rounded-sm bg-paper-3 px-2 py-1 font-mono text-[0.6875rem] uppercase tracking-[0.08em] text-ink-2 ring-1 ring-rule"
+                  >
+                    {humanizeFactor(tag)}
                   </li>
                 ))}
               </ul>
             </div>
           )}
 
-          {/* Read original */}
-          {article.article_url && (
-            <a
-              href={article.article_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 rounded-sm bg-[#2563eb] px-4 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-paper transition hover:bg-[#1d4ed8]"
-            >
-              Read Original Article
-              <ExternalLinkIcon />
-            </a>
-          )}
+          {/* SOURCE FOOTER — muted, single line, de-emphasised */}
+          <SourceFooter source={insight.source} />
         </div>
       </aside>
     </>
+  );
+}
+
+
+/**
+ * Muted "Source · Publisher · Date →" line.
+ *
+ * Deliberately renders as a single understated row at the bottom of
+ * the card. The news article is a citation, not the content — so it's
+ * sized and toned to sit quieter than the lesson body above it.
+ */
+function SourceFooter({
+  source,
+}: {
+  source: CrashInsight["source"];
+}) {
+  if (!source.article_url && !source.publisher) return null;
+  const parts: string[] = [];
+  if (source.publisher) parts.push(source.publisher);
+  if (source.publish_date) parts.push(source.publish_date);
+  const line = parts.join(" · ");
+
+  const inner = (
+    <span className="flex items-center gap-1.5 font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-ink-3">
+      <span className="text-ink-4">Source</span>
+      {line && <span>· {line}</span>}
+      {source.article_url && <ExternalLinkIcon />}
+    </span>
+  );
+
+  return (
+    <div className="border-t border-rule pt-4">
+      {source.article_url ? (
+        <a
+          href={source.article_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="transition hover:text-ink"
+        >
+          {inner}
+        </a>
+      ) : (
+        inner
+      )}
+    </div>
   );
 }
 
@@ -535,24 +594,6 @@ function BulbIcon() {
     <svg width="11" height="11" viewBox="0 0 12 12" fill="currentColor">
       <path d="M6 0a4 4 0 0 0-2.5 7.1V8.5a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1V7.1A4 4 0 0 0 6 0Z" />
       <rect x="4.5" y="10" width="3" height="1.4" rx="0.4" />
-    </svg>
-  );
-}
-
-function NewsCardIcon() {
-  return (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.4"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <rect x="2" y="2" width="12" height="12" rx="1.5" />
-      <path d="M5 5h6M5 8h6M5 11h3" />
     </svg>
   );
 }

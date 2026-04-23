@@ -1,22 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import type { HotspotSummary, NewsArticle } from "~/lib/types";
+import type { CrashInsight, HotspotSummary } from "~/lib/types";
 
 type Selection =
   | { kind: "hotspot"; data: HotspotSummary }
-  | { kind: "news"; data: NewsArticle };
+  | { kind: "insight"; data: CrashInsight };
 
 interface Props {
   hotspots: HotspotSummary[];
-  newsArticles: NewsArticle[];
+  insights: CrashInsight[];
   briefingHref: string;
   onSelect: (s: Selection) => void;
 }
 
 export function MobileChipRow({
   hotspots,
-  newsArticles,
+  insights,
   briefingHref,
   onSelect,
 }: Props) {
@@ -51,19 +51,19 @@ export function MobileChipRow({
           );
         })}
 
-        {newsArticles.map((n) => {
+        {insights.map((ins) => {
           const delay = chipIndex * 60;
           chipIndex++;
           return (
             <button
-              key={n.article_id}
+              key={ins.insight_id}
               type="button"
-              onClick={() => onSelect({ kind: "news", data: n })}
+              onClick={() => onSelect({ kind: "insight", data: ins })}
               className="anim-chip-pop flex flex-none items-center gap-2 rounded-full bg-paper/95 px-3.5 py-2 text-xs font-medium text-ink shadow-md ring-1 ring-rule backdrop-blur-sm active:scale-95"
               style={{ animationDelay: `${delay}ms` }}
             >
-              <span className="h-2 w-2 shrink-0 rounded-full bg-[#2563eb]" />
-              <span className="max-w-[120px] truncate">{n.headline}</span>
+              <span className="h-2 w-2 shrink-0 rounded-full bg-gold-strong" />
+              <span className="max-w-[120px] truncate">{ins.headline}</span>
             </button>
           );
         })}
