@@ -207,9 +207,16 @@ export function BriefingCard({ subject, hotspots, stops, onClose }: Props) {
 
 
 /**
- * Dedicated card layout for news articles. Blue accent instead of red,
- * shows headline, full excerpt, publisher/date, severity badge,
- * and a link to the original article.
+ * Dedicated card layout for news articles.
+ *
+ * Intentionally *minimal*: headline, publisher + date, severity badge,
+ * and a single "Read original" link that opens the article externally.
+ * We deliberately do NOT reproduce any article text (excerpt, location
+ * coords, linked crash IDs) in our UI — the underlying data point (a
+ * crash at this location) already lives in our 150K-record corpus and
+ * drives the hotspot scoring; the article is only here as a citation.
+ * Keeping the card to a citation-plus-link shape also sidesteps any
+ * copy-reproduction concern with the publisher's text.
  */
 function NewsBriefingCard({
   article,
@@ -279,61 +286,24 @@ function NewsBriefingCard({
             </div>
           </div>
 
-          {/* Article excerpt */}
-          <div className="flex gap-3 rounded-sm border-l-[3px] border-[#2563eb] bg-[#e7ecf4] p-4">
-            <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[#2563eb] text-paper">
-              <NewsCardIcon />
-            </span>
-            <div className="flex flex-col gap-1.5">
-              <span className="font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.16em] text-ink-2">
-                From the article
-              </span>
-              <p className="text-sm italic leading-relaxed text-ink">
-                &ldquo;{article.excerpt}&rdquo;
-              </p>
-            </div>
-          </div>
-
-          {/* Location */}
-          <div className="rounded-sm bg-paper-3 p-4 ring-1 ring-rule">
-            <div className="flex items-center gap-2">
-              <PinIcon />
-              <span className="font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-ink-3">
-                Reported Location
-              </span>
-            </div>
-            <div className="mt-2 text-sm text-ink">
-              {article.location.lat.toFixed(4)}°N, {Math.abs(article.location.lon).toFixed(4)}°W
-            </div>
-          </div>
-
-          {/* Linked crashes */}
-          {article.linked_crash_ids.length > 0 && (
-            <div className="rounded-sm bg-paper-3 p-4 ring-1 ring-rule">
-              <span className="font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-ink-3">
-                Linked Crash Records
-              </span>
-              <ul className="mt-2 flex flex-col gap-1">
-                {article.linked_crash_ids.map((id) => (
-                  <li key={id} className="text-sm font-mono text-ink-2">
-                    {id}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Read original */}
-          {article.article_url && (
+          {/* Read original — the *only* action. No excerpt, no location
+              coords, no linked crash IDs: the article is a citation for
+              a data point already in our corpus, so the card stays a
+              headline + source + date + outbound link. */}
+          {article.article_url ? (
             <a
               href={article.article_url}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-center gap-2 rounded-sm bg-[#2563eb] px-4 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-paper transition hover:bg-[#1d4ed8]"
             >
-              Read Original Article
+              Read original
               <ExternalLinkIcon />
             </a>
+          ) : (
+            <p className="text-xs text-ink-3">
+              Source link unavailable for this article.
+            </p>
           )}
         </div>
       </aside>
