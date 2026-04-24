@@ -68,13 +68,12 @@ export function MobileBottomCard({
           <div className="mx-auto h-1 w-8 rounded-full bg-ink-4/40" />
           <button
             type="button"
-            onPointerDown={(e) => {
+            onClick={(e) => {
               e.stopPropagation();
-              e.preventDefault();
               onClose();
             }}
             aria-label="Close"
-            className="absolute right-3 top-2 z-10 grid h-9 w-9 place-items-center rounded-full bg-paper-3 text-ink-3 shadow-sm ring-1 ring-rule transition active:scale-90"
+            className="absolute right-3 top-2 z-10 grid h-9 w-9 place-items-center rounded-full bg-paper-3 text-ink-3 shadow-sm ring-1 ring-rule transition-colors"
           >
             <svg
               width="12"
@@ -149,10 +148,13 @@ function SegmentCard({
           </div>
         </div>
         <span
-          className="shrink-0 rounded-sm px-2 py-1 text-[0.625rem] font-bold uppercase tracking-wider"
+          className="shrink-0 rounded px-2 py-1 text-[0.625rem] font-bold uppercase tracking-wider"
           style={{
             backgroundColor: RISK_COLOR[segment.risk_band],
-            color: segment.risk_band === "low" ? "#0b1f44" : "#fff",
+            color:
+              segment.risk_band === "low" || segment.risk_band === "moderate"
+                ? "#0b1f44"
+                : "#fff",
           }}
         >
           {segment.risk_band}
@@ -455,7 +457,7 @@ function RiskBar({
               aria-label={`Segment ${seg.from_km.toFixed(0)}–${seg.to_km.toFixed(0)} km, ${seg.risk_band} risk`}
             >
               {isActive && (
-                <span className="absolute inset-0 ring-2 ring-ink rounded-sm" />
+                <span className="absolute inset-0 ring-2 ring-ink rounded-full" />
               )}
             </button>
           );

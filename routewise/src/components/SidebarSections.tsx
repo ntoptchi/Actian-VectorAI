@@ -68,7 +68,9 @@ export function SidebarSections({
       <div>
         <div className="mb-2 flex items-center justify-between">
           <h2 className="text-base font-semibold text-ink">Safety Hotspots</h2>
-          <InfoDot />
+          <span className="text-xs text-ink-4">
+            {hotspots.length} {hotspots.length === 1 ? "spot" : "spots"}
+          </span>
         </div>
         {hotspots.length === 0 ? (
           <p className="rounded-sm bg-paper-3 px-3 py-4 text-xs text-ink-3 ring-1 ring-rule">
@@ -188,7 +190,7 @@ function HotspotRow({
             {tone === "alert"
               ? "Critical"
               : tone === "warn"
-                ? "Warning"
+                ? "Watch"
                 : "Notice"}
           </span>
         </div>
@@ -268,17 +270,6 @@ function LessonBulb() {
       <path d="M6 0a4 4 0 0 0-2.5 7.1V8.5a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1V7.1A4 4 0 0 0 6 0Z" />
       <rect x="4.5" y="10" width="3" height="1.4" rx="0.4" />
     </svg>
-  );
-}
-
-function InfoDot() {
-  return (
-    <span
-      aria-hidden
-      className="grid h-5 w-5 place-items-center rounded-full bg-ink text-[0.625rem] font-semibold text-paper"
-    >
-      i
-    </span>
   );
 }
 

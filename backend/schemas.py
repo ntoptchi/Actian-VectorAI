@@ -278,6 +278,10 @@ class AlternateSummary(BaseModel):
     Frontend uses these to render the "+3 min, -38% risk" deltas in the
     alternates panel; the chosen route is identified by
     ``TripBriefResponse.chosen_route_id``.
+
+    ``segments`` carries the per-segment risk breakdown so the map can
+    paint every alternate with risk-band colours (at reduced opacity for
+    non-chosen routes).
     """
 
     route_id: str
@@ -289,6 +293,7 @@ class AlternateSummary(BaseModel):
     n_crashes: int
     minutes_delta_vs_fastest: float
     risk_delta_vs_fastest: float
+    segments: list[RouteSegment] = Field(default_factory=list)
 
 
 class TripBriefResponse(BaseModel):
@@ -310,6 +315,22 @@ class TripBriefResponse(BaseModel):
     # when the VDB is unavailable or the collection is missing — the
     # endpoint degrades cleanly in that case.
     insights: list[CrashInsight] = Field(default_factory=list)
+
+
+# --- /trip/routes fast-path response ----------------------------------------
+
+
+class RouteCandidate(BaseModel):
+    """Lightweight alternate returned by ``POST /trip/routes`` before scoring."""
+
+    route_id: str
+    polyline: list[list[float]]
+    distance_m: float
+    duration_s: float
+
+
+class RoutesOnlyResponse(BaseModel):
+    candidates: list[RouteCandidate] = Field(default_factory=list)
 
 
 # --- /hotspots/{id} response (s6.3) ----------------------------------------

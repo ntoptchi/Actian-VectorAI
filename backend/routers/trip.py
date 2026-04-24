@@ -34,6 +34,8 @@ from backend.schemas import (
     HotspotSummary,
     LatLon,
     Route,
+    RouteCandidate,
+    RoutesOnlyResponse,
     SeverityMix,
     TripBriefRequest,
     TripBriefResponse,
@@ -69,6 +71,26 @@ PRE_TRIP_CHECKLIST: list[str] = [
 # 1.0 = pick the safest at any time cost.
 # 0.4 lands "+5min for -25% risk" inside the chosen-route band.
 SAFETY_LAMBDA = 0.4
+
+
+@router.post("/routes", response_model=RoutesOnlyResponse)
+async def trip_routes(req: TripBriefRequest) -> RoutesOnlyResponse:
+    """Fast path: return OSRM alternate geometries without any scoring."""
+    departure = req.timestamp or datetime.now(timezone.utc)
+    if departure.tzinfo is None:
+        departure = departure.replace(tzinfo=timezone.utc)
+    alts = await routing.alternates(req.origin, req.destination, departure)
+    return RoutesOnlyResponse(
+        candidates=[
+            RouteCandidate(
+                route_id=a.route_id,
+                polyline=a.polyline,
+                distance_m=a.distance_m,
+                duration_s=a.duration_s,
+            )
+            for a in alts
+        ]
+    )
 
 
 @router.post("/brief", response_model=TripBriefResponse)
@@ -254,6 +276,7 @@ def _alternate_summaries(scored: list[_ScoredAlt]) -> list[AlternateSummary]:
                 n_crashes=s.n_crashes,
                 minutes_delta_vs_fastest=round(minutes_delta, 1),
                 risk_delta_vs_fastest=round(risk_delta_pct, 3),
+                segments=s.segments,
             )
         )
     return out
