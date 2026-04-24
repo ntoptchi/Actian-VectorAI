@@ -10,9 +10,11 @@ The ``./start.sh`` script picks this up automatically once it exists.
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 
 from backend.config import get_settings
 from backend.routers import hotspots, trip
@@ -75,3 +77,61 @@ async def health() -> dict:
         "vdb": vdb_health(),
         "crash_cache": cache_status(),
     }
+
+
+# --- Local PMTiles serving (supports HTTP Range requests) ---
+
+_PMTILES_PATH = Path(settings.data_dir).parent / "tiles-data" / "florida.pmtiles"
+
+
+@app.get("/tiles/{path:path}")
+async def serve_pmtiles(request: Request) -> Response:
+    """Serve the local PMTiles file with Range request support.
+
+    The protomaps-leaflet client reads tiles via HTTP Range requests
+    against a single .pmtiles file — no tile server needed.
+    """
+    if not _PMTILES_PATH.is_file():
+        return Response(status_code=404, content="PMTiles file not found")
+
+    file_size = _PMTILES_PATH.stat().st_size
+    range_header = request.headers.get("range")
+
+    if range_header:
+        # Parse "bytes=START-END"
+        range_spec = range_header.replace("bytes=", "")
+        parts = range_spec.split("-")
+        start = int(parts[0])
+        end = int(parts[1]) if parts[1] else file_size - 1
+        end = min(end, file_size - 1)
+        length = end - start + 1
+
+        with open(_PMTILES_PATH, "rb") as f:
+            f.seek(start)
+            data = f.read(length)
+
+        return Response(
+            content=data,
+            status_code=206,
+            headers={
+                "Content-Range": f"bytes {start}-{end}/{file_size}",
+                "Content-Length": str(length),
+                "Content-Type": "application/octet-stream",
+                "Accept-Ranges": "bytes",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Expose-Headers": "Content-Range, Content-Length",
+            },
+        )
+
+    with open(_PMTILES_PATH, "rb") as f:
+        data = f.read()
+
+    return Response(
+        content=data,
+        headers={
+            "Content-Length": str(file_size),
+            "Content-Type": "application/octet-stream",
+            "Accept-Ranges": "bytes",
+            "Access-Control-Allow-Origin": "*",
+        },
+    )

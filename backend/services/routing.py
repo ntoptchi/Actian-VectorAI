@@ -1,10 +1,9 @@
-"""Routing client.
+"""Routing client — fully local via self-hosted OSRM.
 
-Pivot: we now fetch *alternative* driving routes (typically 3) so the
-candidate-and-rerank pipeline has a real choice to make. ORS is the
-primary provider; OSRM (single route, no alternatives on the public
-instance) is the fallback; a straight-line "as the crow flies" stub is
-the last-resort fallback so /trip/brief never 500s on routing alone.
+Fetches *alternative* driving routes (typically up to 3) from a local
+OSRM instance so the candidate-and-rerank pipeline has a real choice
+to make. A straight-line "as the crow flies" stub is the last-resort
+fallback so /trip/brief never 500s on routing alone.
 """
 
 from __future__ import annotations
@@ -17,7 +16,6 @@ import httpx
 
 from backend.config import get_settings
 from backend.schemas import GeoJsonLineString, LatLon, Route
-from backend.services import ors_client
 
 logger = logging.getLogger(__name__)
 
@@ -39,37 +37,14 @@ async def alternates(
 ) -> list[RouteAlternate]:
     """Fetch >=1 candidate routes between origin and destination.
 
-    Tries ORS first (real alternatives), falls back to OSRM (single
-    route), then to a straight-line stub. The returned list is always
-    non-empty.
+    Tries local OSRM with alternatives, falls back to a straight-line
+    stub. The returned list is always non-empty.
     """
-    # 1. ORS: real alternatives.
     try:
-        ors_alts = await ors_client.directions(
-            (origin.lat, origin.lon),
-            (dest.lat, dest.lon),
-            alternatives=3,
-        )
-        return [
-            RouteAlternate(
-                route_id=f"alt_{i}",
-                polyline=a.polyline,
-                distance_m=a.distance_m,
-                duration_s=a.duration_s,
-            )
-            for i, a in enumerate(ors_alts)
-        ]
-    except Exception as exc:  # noqa: BLE001 — fall through to OSRM
-        logger.warning("ORS alternates failed, falling back to OSRM: %s", exc)
-
-    # 2. OSRM: single route, no alternatives.
-    try:
-        osrm = await _osrm_route(origin, dest)
-        return [RouteAlternate(route_id="alt_0", **osrm)]
+        return await _osrm_alternates(origin, dest)
     except Exception as exc:  # noqa: BLE001
         logger.warning("OSRM unreachable, using straight-line stub: %s", exc)
 
-    # 3. Straight-line stub.
     distance_m = _haversine_m(origin, dest)
     return [
         RouteAlternate(
@@ -104,26 +79,49 @@ async def route(origin: LatLon, dest: LatLon, departure: datetime) -> Route:
     return to_route(alts[0], departure)
 
 
-# --- OSRM fallback ---------------------------------------------------------
+# --- Local OSRM with alternatives ----------------------------------------
 
 
-async def _osrm_route(origin: LatLon, dest: LatLon) -> dict:
+async def _osrm_alternates(origin: LatLon, dest: LatLon) -> list[RouteAlternate]:
+    """Fetch up to 3 alternative routes from the local OSRM instance."""
     settings = get_settings()
     url = (
         f"{settings.osrm_base_url}/route/v1/driving/"
         f"{origin.lon},{origin.lat};{dest.lon},{dest.lat}"
     )
-    params = {"overview": "full", "geometries": "geojson", "alternatives": "false"}
+    params = {
+        "overview": "full",
+        "geometries": "geojson",
+        "alternatives": "3",
+    }
     async with httpx.AsyncClient(timeout=10.0) as client:
         resp = await client.get(url, params=params)
         resp.raise_for_status()
         data = resp.json()
-    leg = data["routes"][0]
-    return {
-        "polyline": leg["geometry"]["coordinates"],
-        "distance_m": float(leg["distance"]),
-        "duration_s": float(leg["duration"]),
-    }
+
+    routes = data.get("routes") or []
+    if not routes:
+        raise RuntimeError("OSRM returned no routes")
+
+    out: list[RouteAlternate] = []
+    for i, leg in enumerate(routes):
+        coords = leg.get("geometry", {}).get("coordinates") or []
+        if not coords:
+            continue
+        out.append(
+            RouteAlternate(
+                route_id=f"alt_{i}",
+                polyline=[[float(lon), float(lat)] for lon, lat in coords],
+                distance_m=float(leg["distance"]),
+                duration_s=float(leg["duration"]),
+            )
+        )
+
+    if not out:
+        raise RuntimeError("OSRM returned routes but no usable polylines")
+
+    logger.info("OSRM returned %d alternate(s)", len(out))
+    return out
 
 
 def _haversine_m(a: LatLon, b: LatLon) -> float:
