@@ -106,6 +106,21 @@ docker pull williamimoh/actian-vectorai-db:latest >/dev/null
 info "image ready"
 
 # ---------------------------------------------------------------------------
+section "Local map stack (OSRM routing + PMTiles basemap)"
+# ---------------------------------------------------------------------------
+# scripts/setup_local_map.sh is fully idempotent:
+#   * OSRM: skipped if osrm-data/florida-latest.osrm already exists.
+#   * PMTiles: skipped if tiles-data/florida.pmtiles already exists.
+#   * pmtiles CLI: auto-installed into .bin/ on first run, reused after.
+#
+# First-run cost on a cold box is ~5 min for OSRM preprocessing + ~2 min
+# for the PMTiles extract. Both run against real network + Docker, so
+# we surface any failure as a hard error — without these assets the
+# start.sh precheck will refuse to bring the services up.
+bash scripts/setup_local_map.sh \
+  || die "local map setup failed — see output above. Re-run ./install.sh once the issue is resolved."
+
+# ---------------------------------------------------------------------------
 section "Fetching pre-built VDB snapshot (optional fast-path)"
 # ---------------------------------------------------------------------------
 # Maintainers publish a gzipped dump of the fully-embedded collection as a

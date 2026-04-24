@@ -92,7 +92,17 @@ async def serve_pmtiles(request: Request) -> Response:
     against a single .pmtiles file — no tile server needed.
     """
     if not _PMTILES_PATH.is_file():
-        return Response(status_code=404, content="PMTiles file not found")
+        # Include the expected path so "the map is blank" is a one-glance
+        # diagnosis: either the user skipped ./install.sh or setup_local_map.sh
+        # couldn't materialise the file. Logged once, not per range request.
+        logger.warning("PMTiles file missing at %s — run ./install.sh", _PMTILES_PATH)
+        return Response(
+            status_code=404,
+            content=(
+                f"PMTiles file not found at {_PMTILES_PATH}. "
+                "Run ./install.sh (or bash scripts/setup_local_map.sh) to materialise it."
+            ),
+        )
 
     file_size = _PMTILES_PATH.stat().st_size
     range_header = request.headers.get("range")

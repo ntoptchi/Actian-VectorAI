@@ -72,7 +72,28 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-section "Starting Actian VectorAI DB"
+section "Verifying local map assets"
+# ---------------------------------------------------------------------------
+# docker-compose.yml brings up OSRM alongside the VDB, and OSRM will
+# crash-loop without florida-latest.osrm. The frontend hits the backend
+# for /tiles/florida.pmtiles too — a missing file there surfaces as a
+# blank basemap. Fail fast here (with a pointer) rather than let those
+# surface as cryptic 502s / 404s at request time.
+MISSING_ASSETS=()
+# OSRM writes a set of sidecar files under osrm-data/florida-latest.osrm.*
+# — there is no bare `florida-latest.osrm` file. `.cell_metrics` is
+# the final output of osrm-customize, so its presence means the full
+# extract→partition→customize pipeline completed.
+[ -s "osrm-data/florida-latest.osrm.cell_metrics" ] || MISSING_ASSETS+=("osrm-data/florida-latest.osrm.* (run osrm-customize)")
+[ -s "tiles-data/florida.pmtiles" ]                 || MISSING_ASSETS+=("tiles-data/florida.pmtiles")
+if [ "${#MISSING_ASSETS[@]}" -gt 0 ]; then
+  warn "missing local map asset(s):"
+  for f in "${MISSING_ASSETS[@]}"; do warn "  - $f"; done
+  die "run ./install.sh  (or just  bash scripts/setup_local_map.sh  to repair only the map stack)."
+fi
+
+# ---------------------------------------------------------------------------
+section "Starting Actian VectorAI DB + OSRM"
 # ---------------------------------------------------------------------------
 docker compose up -d
 "$VENV_PY" scripts/wait_vdb.py --timeout 60 \

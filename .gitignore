@@ -48,12 +48,16 @@ db.sqlite
 # ---------- Local map stack (OSRM + tileserver-gl) ----------
 osrm-data/
 tiles-data/
+# Repo-local binaries installed by scripts/setup_local_map.sh
+# (currently just the go-pmtiles CLI).
+.bin/
 
 # ---------- Actian VectorAI DB ----------
 # Docker volume mount with collection data. Too big for git (~1 GB for
 # routewise_crashes alone); teammates fetch a pre-built snapshot via
 # scripts/fetch_vdb_snapshot.py (pointer committed in vdb_snapshot.manifest.json).
 vectorai-db-beta/data/
+vectorai-db-beta/data/vde.log
 # Heavyweight tarballs of the DB image
 Actian_VectorAI_DB_Beta.tar
 # Transient download artifact from scripts/fetch_vdb_snapshot.py — we delete
@@ -81,6 +85,10 @@ data/cache/
 models/*/
 !models/all-MiniLM-L6-v2/
 !models/README.md
+
+# ---------- Scraper Data ----------
+# all data is alr in the /data folder
+scraper/data/
 
 # ---------- Env ----------
 # do not commit any .env files to git, except for the .env.example file
