@@ -140,6 +140,7 @@ export function TripView({
   const [selection, setSelection] = useState<Selection>(null);
   const [sheetSnap, setSheetSnap] = useState<SheetSnap>("peek");
   const [selectedChipId, setSelectedChipId] = useState<string | null>(null);
+  const [overviewCollapsed, setOverviewCollapsed] = useState(false);
   const [layers, setLayers] = useState<MapLayers>({
     riskColoring: true,
     lessonZones: true,
@@ -322,8 +323,10 @@ export function TripView({
               destinationName={destinationName}
               distanceKm={distanceKm}
               totalMin={totalMin}
+              segments={segments}
+              collapsed={overviewCollapsed}
+              onToggle={() => setOverviewCollapsed((v) => !v)}
             />
-            <BottomRouteBars segments={segments} distanceKm={distanceKm} />
           </>
         )}
 
@@ -494,32 +497,56 @@ function TripInfoCard({
   destinationName,
   distanceKm,
   totalMin,
+  segments,
+  collapsed,
+  onToggle,
 }: {
   originName: string;
   destinationName: string;
   distanceKm: number;
   totalMin: number;
+  segments: RouteSegment[];
+  collapsed: boolean;
+  onToggle: () => void;
 }) {
   return (
-    <div className="absolute left-3 top-3 z-1000 min-w-[18rem] rounded-xl border border-white/25 bg-ink/80 px-4 py-3 shadow-[0_10px_28px_rgba(0,0,0,0.35)] backdrop-blur-sm">
-      <div className="mb-1 text-[0.625rem] font-semibold uppercase tracking-[0.14em] text-paper/70">
-        Route Overview
-      </div>
-      <div className="flex items-start justify-between gap-5">
-        <div>
-          <div className="text-base font-semibold text-paper">
-            {originName} → {destinationName}
-          </div>
-          <div className="mt-1 text-xs text-paper/80">
-            {distanceKm} km · ~{Math.floor(totalMin / 60)}h {totalMin % 60}m
+    <div
+      className={`absolute left-3 top-3 z-1000 rounded-xl border border-white/25 bg-ink/85 shadow-[0_10px_28px_rgba(0,0,0,0.35)] backdrop-blur-sm ${
+        collapsed ? "w-auto" : "w-[min(92vw,820px)]"
+      }`}
+    >
+      <div className="flex items-stretch gap-4">
+        <div className="py-3 pl-4">
+          <div className="min-w-60 shrink-0">
+            <div className="mb-1 text-[0.625rem] font-semibold uppercase tracking-[0.14em] text-paper/70">
+              Route Overview
+            </div>
+            <div className="text-base font-semibold text-paper">
+              {originName} → {destinationName}
+            </div>
+            <div className="mt-1 text-xs text-paper/75">
+              {distanceKm} km · ~{Math.floor(totalMin / 60)}h {totalMin % 60}m
+            </div>
           </div>
         </div>
+        {!collapsed && (
+          <div className="min-w-0 flex-1 py-3 pt-3.5">
+            <RouteProfileBars segments={segments} distanceKm={distanceKm} />
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={onToggle}
+          className="shrink-0 rounded-r-xl border-l border-white/15 px-3 text-[0.625rem] font-semibold uppercase tracking-[0.14em] text-paper/75 transition hover:bg-white/10 hover:text-paper"
+        >
+          {collapsed ? ">" : "<"}
+        </button>
       </div>
     </div>
   );
 }
 
-function BottomRouteBars({
+function RouteProfileBars({
   segments,
   distanceKm,
 }: {
@@ -531,14 +558,14 @@ function BottomRouteBars({
     segments.length > 0 ? (segments[segments.length - 1]?.to_km ?? distanceKm) : distanceKm,
   );
   return (
-    <div className="absolute bottom-3 left-1/2 z-1000 w-[min(92vw,760px)] -translate-x-1/2 rounded-xl bg-paper-2/95 px-3 py-2 ring-1 ring-rule shadow-[0_8px_24px_rgba(0,0,0,0.25)] backdrop-blur-sm">
-      <div className="mb-1 flex items-center justify-between text-[0.625rem] uppercase tracking-[0.12em] text-ink-3">
+    <div>
+      <div className="mb-1 flex items-center justify-between text-[0.625rem] uppercase tracking-[0.12em] text-paper/60">
         <span>0 km</span>
         <span>{Math.round(totalKm)} km</span>
       </div>
       <div className="space-y-1.5">
-        <div className="text-[0.625rem] uppercase tracking-[0.12em] text-ink-3">Safety</div>
-        <div className="flex h-2 overflow-hidden rounded-full ring-1 ring-rule">
+        <div className="text-[0.625rem] uppercase tracking-[0.12em] text-paper/65">Safety</div>
+        <div className="flex h-2 overflow-hidden rounded-full ring-1 ring-white/15">
           {segments.map((s) => {
             const width = Math.max(1, ((s.to_km - s.from_km) / totalKm) * 100);
             return (
@@ -551,8 +578,8 @@ function BottomRouteBars({
             );
           })}
         </div>
-        <div className="text-[0.625rem] uppercase tracking-[0.12em] text-ink-3">Traffic</div>
-        <div className="flex h-2 overflow-hidden rounded-full ring-1 ring-rule">
+        <div className="text-[0.625rem] uppercase tracking-[0.12em] text-paper/65">Traffic</div>
+        <div className="flex h-2 overflow-hidden rounded-full ring-1 ring-white/15">
           {segments.map((s) => {
             const width = Math.max(1, ((s.to_km - s.from_km) / totalKm) * 100);
             return (
