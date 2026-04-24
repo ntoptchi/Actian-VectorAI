@@ -74,9 +74,9 @@ fi
 # ---------------------------------------------------------------------------
 section "Starting Actian VectorAI DB"
 # ---------------------------------------------------------------------------
-docker compose -f vectorai-db-beta/docker-compose.yml up -d
+docker compose up -d
 "$VENV_PY" scripts/wait_vdb.py --timeout 60 \
-  || die "VectorAI DB never came up. Check 'docker compose -f vectorai-db-beta/docker-compose.yml logs'."
+  || die "VectorAI DB never came up. Check 'docker compose logs vectoraidb'."
 
 # Sanity check: warn loudly if the collection is empty. Most "the trip
 # page is broken" reports trace back to nobody having run install.sh.

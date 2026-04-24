@@ -4,7 +4,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { ScrollArea } from "~/components/ui/scroll-area";
-import { CITIES, cityLabel, searchCities, type City } from "~/lib/cities";
+import { CITIES, cityLabel, nearestCity, searchCities, type City } from "~/lib/cities";
 import { cn } from "~/lib/utils";
 
 /**
@@ -103,29 +103,11 @@ export function PlanCard() {
     setLocating(true);
     setError(null);
     navigator.geolocation.getCurrentPosition(
-      async (pos) => {
+      (pos) => {
         const lat = pos.coords.latitude;
         const lon = pos.coords.longitude;
-        let name = "Current Location";
-        try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&zoom=10`,
-          );
-          if (res.ok) {
-            const data = await res.json();
-            const addr = data.address || {};
-            name =
-              addr.city ||
-              addr.town ||
-              addr.village ||
-              addr.suburb ||
-              addr.county ||
-              data.display_name?.split(",")[0] ||
-              "Current Location";
-          }
-        } catch {
-          // Fall back to "Current Location" if reverse geocode fails
-        }
+        const match = nearestCity(lat, lon);
+        const name = match?.name ?? "Current Location";
         const here: City = {
           id: `here-${lat.toFixed(4)}-${lon.toFixed(4)}`,
           name,

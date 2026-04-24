@@ -119,9 +119,9 @@ section "Fetching pre-built VDB snapshot (optional fast-path)"
 # corrupts whatever segment is currently paged in. We defensively stop any
 # already-running container so re-running install.sh mid-update is safe.
 # The normal `compose up -d` below restarts it.
-if docker compose -f vectorai-db-beta/docker-compose.yml ps -q 2>/dev/null | grep -q .; then
+if docker compose ps -q 2>/dev/null | grep -q .; then
   info "stopping running VDB container before extracting snapshot..."
-  docker compose -f vectorai-db-beta/docker-compose.yml stop >/dev/null 2>&1 || true
+  docker compose stop vectoraidb >/dev/null 2>&1 || true
 fi
 
 set +e
@@ -141,9 +141,9 @@ section "Booting Actian VectorAI DB (one-time, for seeding)"
 # We need the container running to seed it. Bring it up here, leave it up
 # afterwards — start.sh will reuse the same container (compose up -d is a
 # no-op if it's already running).
-docker compose -f vectorai-db-beta/docker-compose.yml up -d
+docker compose up -d vectoraidb
 "$VENV_PY" scripts/wait_vdb.py --timeout 90 \
-  || die "VectorAI DB never came up. Check 'docker compose -f vectorai-db-beta/docker-compose.yml logs'."
+  || die "VectorAI DB never came up. Check 'docker compose logs vectoraidb'."
 
 # ---------------------------------------------------------------------------
 section "Building processed data tables"

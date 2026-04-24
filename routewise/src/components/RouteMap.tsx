@@ -5,11 +5,11 @@ import L from "leaflet";
 import {
   MapContainer,
   Polyline,
-  TileLayer,
   Tooltip,
   CircleMarker,
   useMap,
 } from "react-leaflet";
+import { leafletLayer } from "protomaps-leaflet";
 
 import "leaflet/dist/leaflet.css";
 
@@ -272,69 +272,43 @@ function SegmentTooltip({
   );
 }
 
-type MapStyle = "terrain" | "satellite";
+const PMTILES_URL =
+  process.env.NEXT_PUBLIC_PMTILES_URL ??
+  "http://localhost:8080/tiles/florida.pmtiles";
 
-const MAP_STYLES: Record<MapStyle, { url: string; attribution: string; subdomains?: string }> = {
-  terrain: {
-    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-  },
-  satellite: {
-    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-    attribution: '&copy; Esri &mdash; Esri, Maxar, Earthstar Geographics',
-  },
-};
+type MapFlavor = "light" | "dark";
 
 function MapLayerSwitcher() {
   const map = useMap();
-  const [style, setStyle] = useState<MapStyle>("terrain");
+  const [flavor, setFlavor] = useState<MapFlavor>("light");
   const [open, setOpen] = useState(false);
-  const [layers, setLayers] = useState<L.TileLayer[]>([]);
+  const [layer, setLayer] = useState<L.Layer | null>(null);
 
   useEffect(() => {
-    layers.forEach((l) => map.removeLayer(l));
+    if (layer) map.removeLayer(layer);
 
-    const cfg = MAP_STYLES[style];
-    const base = L.tileLayer(cfg.url, {
-      attribution: cfg.attribution,
-      maxZoom: 19,
-      ...(cfg.subdomains ? { subdomains: cfg.subdomains } : {}),
+    const base = leafletLayer({
+      url: PMTILES_URL,
+      flavor,
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     });
     base.addTo(map);
     base.bringToBack();
+    setLayer(base);
 
-    const newLayers: L.TileLayer[] = [base];
-
-    // Add a labels overlay on satellite so streets/places are readable
-    if (style === "satellite") {
-      const labels = L.tileLayer(
-        "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}",
-        { maxZoom: 19, pane: "shadowPane" },
-      );
-      labels.addTo(map);
-      newLayers.push(labels);
-
-      const places = L.tileLayer(
-        "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
-        { maxZoom: 19, pane: "shadowPane" },
-      );
-      places.addTo(map);
-      newLayers.push(places);
-    }
-
-    setLayers(newLayers);
     return () => {
-      newLayers.forEach((l) => map.removeLayer(l));
+      map.removeLayer(base);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [style, map]);
+  }, [flavor, map]);
 
-  const pick = useCallback((s: MapStyle) => {
-    setStyle(s);
+  const pick = useCallback((f: MapFlavor) => {
+    setFlavor(f);
     setOpen(false);
   }, []);
 
-  const other: MapStyle = style === "terrain" ? "satellite" : "terrain";
+  const other: MapFlavor = flavor === "light" ? "dark" : "light";
 
   return (
     <div
@@ -365,7 +339,7 @@ function MapLayerSwitcher() {
           }}
           title="Switch map style"
         >
-          {style === "terrain" ? <TerrainIcon /> : <SatelliteIcon />}
+          {flavor === "light" ? <TerrainIcon /> : <DarkIcon />}
         </button>
 
         {/* The other option slides in directly below */}
@@ -393,9 +367,9 @@ function MapLayerSwitcher() {
               justifyContent: "center",
               boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
             }}
-            title={other === "satellite" ? "Satellite" : "Terrain"}
+            title={other === "dark" ? "Dark" : "Light"}
           >
-            {other === "satellite" ? <SatelliteIcon /> : <TerrainIcon />}
+            {other === "dark" ? <DarkIcon /> : <TerrainIcon />}
           </button>
         </div>
       </div>
@@ -412,13 +386,10 @@ function TerrainIcon() {
   );
 }
 
-function SatelliteIcon() {
+function DarkIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e2e8f0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10" />
-      <path d="M12 2a14.5 14.5 0 0 0 0 20" />
-      <path d="M12 2a14.5 14.5 0 0 1 0 20" />
-      <path d="M2 12h20" />
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
     </svg>
   );
 }

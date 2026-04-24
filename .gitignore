@@ -45,6 +45,10 @@ yarn-error.log*
 /prisma/db.sqlite-journal
 db.sqlite
 
+# ---------- Local map stack (OSRM + tileserver-gl) ----------
+osrm-data/
+tiles-data/
+
 # ---------- Actian VectorAI DB ----------
 # Docker volume mount with collection data. Too big for git (~1 GB for
 # routewise_crashes alone); teammates fetch a pre-built snapshot via

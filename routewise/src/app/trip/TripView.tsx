@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 
@@ -44,6 +44,7 @@ export function TripView({
 }) {
   const [chosenId, setChosenId] = useState<string | null>(brief.chosen_route_id);
   const [selection, setSelection] = useState<Selection>(null);
+
   const [calloutDismissed, setCalloutDismissed] = useState(false);
   // Mobile sheet state lives here so the red callout can react to it
   // (fades out when the sheet is expanded to full, preventing the
@@ -273,12 +274,15 @@ export function TripView({
           />
         </div>
 
+
         <Link
           href={briefingHref}
           className="sticky bottom-0 mt-auto border-t border-rule bg-ink py-4 text-center text-sm font-semibold text-paper transition hover:bg-ink-2"
         >
           Open full briefing
         </Link>
+
+
       </aside>
 
       {/* Desktop: side-panel briefing card */}
