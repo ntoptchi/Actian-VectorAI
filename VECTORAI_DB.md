@@ -1,6 +1,6 @@
 # RouteWise × Actian VectorAI DB
 
-**For the judges.** This is a walk-through of exactly how RouteWise uses
+This is a walk-through of exactly how RouteWise uses
 Actian VectorAI DB, why it's load-bearing rather than a bolt-on, the
 differentiators vs a stock RAG integration, and what we would ship next
 if we had another week. Everything below is grounded in the code that's
@@ -13,8 +13,8 @@ actually in this repo — every claim has a file-and-line citation.
 RouteWise is a pre-trip briefing for a teen about to do an unfamiliar
 long drive. Paste **Miami → Tampa, 6:30pm tonight**; get back:
 
-- the route (re-ranked across ORS alternates by crash risk, not just
-  duration);
+- the route (re-ranked across local-OSRM alternates by crash risk,
+  not just duration);
 - per-segment risk coloring on the map;
 - 3–6 hotspot cards ("Near Fort Myers", "83K vehicles/day, 2.4× the FL
   interstate rate in rain at night");
@@ -25,7 +25,7 @@ long drive. Paste **Miami → Tampa, 6:30pm tonight**; get back:
 Two of those five deliverables — **route re-ranking** and **every
 coaching card** — are literally powered by VectorAI DB retrieval. Turn
 the VDB off and every briefing card goes blank *and* the chosen route
-collapses to "fastest". That's our honesty test on stage. See the
+collapses to "fastest". That's our honesty test. See the
 degradation contract in
 
 ```17:18:backend/services/scoring.py
@@ -202,7 +202,7 @@ facet) and one sparse vector over the frozen factor vocabulary:
         )
 ```
 
-### 3.5 Prebuilt snapshot so judges don't re-embed
+### 3.5 Prebuilt snapshot so newcomers don't re-embed
 
 Rebuilding the crash corpus from raw FDOT + AADT is a ~1 hour CPU job.
 We ship a manifest pointing at a signed release artifact
@@ -523,7 +523,7 @@ channels, fused, recovers all of it.
 - **Idempotent retries.** `uuid5` point IDs plus linear-backoff retry
   on `DEADLINE_EXCEEDED` means bulk ingest survives the server's
   periodic 30–60 s index-flush pauses without hand-holding.
-- **Pre-built snapshot + marker files.** Teammates and judges don't
+- **Pre-built snapshot + marker files.** New contributors don't
   re-embed; they pull a signed release artifact. Version strings in
   the manifest match a marker file, so stale snapshots trigger a
   rebuild automatically.
@@ -542,6 +542,104 @@ means what you want it to mean — the two vectors are coming from the
 same sentence generator, not "my dense embedding of a query" vs "my
 dense embedding of a row of SQL". This is the thing that most
 vector-DB demos quietly get wrong.
+
+### 5.6 The whole stack runs offline, not just the VDB
+
+Every critical-path dependency except weather resolves to `localhost`.
+That's deliberate: a product that nudges teens into safer driving
+decisions shouldn't quietly break when they're on a rural interstate
+with two bars of signal.
+
+| Service | Where it runs | What replaced it |
+|---|---|---|
+| Vector DB | local Docker (`williamimoh/actian-vectorai-db:latest`) | — (always local) |
+| Embedding model | MiniLM-L6-v2 bundled under `models/` | no HF download at runtime |
+| Routing | local OSRM Docker container, `mld` algorithm, real `alternatives=3` | OpenRouteService + public OSRM |
+| Map tiles | single `florida.pmtiles` file served by FastAPI via HTTP `Range` | OpenStreetMap + Esri tile servers |
+| Reverse geocoding | nearest-neighbor over the city list we already ship | Nominatim |
+| Coaching copy | rule-based fallback in `backend/services/coaching.py` | — (always local) |
+
+The unified stack lives in one `docker-compose.yml` at the repo root:
+
+```1:22:docker-compose.yml
+services:
+  vectoraidb:
+    image: williamimoh/actian-vectorai-db:latest
+    container_name: vectoraidb
+    ports:
+      - "50051:50051"
+    volumes:
+      - ./vectorai-db-beta/data:/data
+    restart: unless-stopped
+    stop_grace_period: 2m
+
+  osrm:
+    image: ghcr.io/project-osrm/osrm-backend
+    platform: linux/amd64
+    container_name: osrm
+    ports:
+      - "5001:5000"
+    volumes:
+      - ./osrm-data:/data
+    command: osrm-routed --algorithm mld /data/florida-latest.osrm
+    restart: unless-stopped
+```
+
+Map tiles are served out of FastAPI with a Range-aware handler so
+`protomaps-leaflet` can stream vector tiles from the same origin as
+the API:
+
+```84:137:backend/main.py
+@app.get("/tiles/{path:path}")
+async def serve_pmtiles(request: Request) -> Response:
+    """Serve the local PMTiles file with Range request support.
+
+    The protomaps-leaflet client reads tiles via HTTP Range requests
+    against a single .pmtiles file — no tile server needed.
+    """
+    if not _PMTILES_PATH.is_file():
+        return Response(status_code=404, content="PMTiles file not found")
+
+    file_size = _PMTILES_PATH.stat().st_size
+    range_header = request.headers.get("range")
+```
+
+Bootstrap is a single script (`scripts/setup_local_map.sh`) that pulls
+the Florida OSM extract, runs the three-stage OSRM preprocess inside
+the OSRM container, extracts a Florida-bbox PMTiles slice from the
+Protomaps planet build, and cleans up the source PBF. After that,
+`docker compose up` boots the whole stack and nothing talks to the
+public internet on the hot path.
+
+The previous ORS client (`backend/services/ors_client.py`) is still
+checked in, but now *immediately* raises `ImportError` — a deliberate
+tripwire so any stale import fails loudly instead of silently
+re-introducing a cloud dependency:
+
+```1:10:backend/services/ors_client.py
+"""OpenRouteService client — DEPRECATED.
+
+Routing is now handled entirely by a self-hosted OSRM instance (see
+routing.py). This module is kept as a no-op so any stale imports
+fail loudly rather than silently degrading.
+"""
+
+raise ImportError(
+    "ors_client is deprecated. Routing uses local OSRM — see routing.py."
+)
+```
+
+**ARM caveat.** The OSRM image is pinned to `linux/amd64` in compose
+— it runs on Apple Silicon via Rosetta/QEMU, which works but isn't
+native. Swapping to a multi-arch image is a one-line change when ARM
+performance actually matters.
+
+**Why this matters to the VDB story.** The Actian engine itself is
+multi-arch (README §"Supported platforms"), and our MiniLM model is
+CPU-fine at 384-d — the only reason we were *ever* online was
+routing, tiles, and reverse-geocoding. Those are all gone. RouteWise
+runs on an air-gapped laptop and every VDB-driven surface (route
+re-rank, hotspot cards, insight pins) still works.
 
 ---
 
@@ -628,11 +726,13 @@ week's crashes show up tonight. No rebuild needed; the sparse
 vocabulary is frozen and unknown tags are silently dropped at query
 time by design (`backend/ingest/factor_vocab.py:encode_tags`).
 
-### 6.8 REST transport + TLS for demos
+### 6.8 Multi-arch OSRM image (finish the ARM story)
 
-`examples/13_rest_transport.py` + `examples/19_tls_connection.py` —
-useful once we host the VDB somewhere judges can `curl` it during the
-demo. Not a performance change, but a "let's show our work" change.
+Right now our compose pins OSRM to `linux/amd64` which runs under
+Rosetta on Apple Silicon. Switching to a multi-arch tag or to
+`osrm/osrm-backend` brings us to fully-native ARM end-to-end (the
+Actian image is already multi-arch per the library README). Pure
+infra change; no code.
 
 ### 6.9 Larger retrieval model behind the same 384-d interface
 
@@ -675,10 +775,14 @@ measured by eyeballing demo trips. We'd add:
 | Three-channel hybrid retrieval + RRF | `backend/services/coaching_retrieval.py` |
 | Orchestration + route re-ranking | `backend/routers/trip.py` |
 | Rule-based coaching fallback (when VDB returns nothing) | `backend/services/coaching.py` |
+| Unified local stack (VDB + OSRM) | `docker-compose.yml` |
+| Offline routing (local OSRM alternatives) | `backend/services/routing.py` |
+| Local PMTiles map serving (HTTP Range) | `backend/main.py` (`/tiles/*`) |
+| One-time local map data bootstrap | `scripts/setup_local_map.sh` |
 
 ---
 
-## 8. TL;DR for the panel
+## 8. TL;DR
 
 RouteWise uses Actian VectorAI DB as the **reasoning layer** of a
 safety product, not as a glorified embeddings key-value store. Two
@@ -689,3 +793,8 @@ retrieval fuses three channels with RRF, and the whole pipeline
 degrades gracefully when the VDB is unavailable — because we literally
 don't want to fake the result. If you turn the DB off, the screen
 tells you the truth.
+
+And every critical-path dependency except weather — embeddings,
+routing, map tiles, reverse geocoding, the vector DB itself — runs on
+`localhost`. You can unplug the Ethernet cable and the demo still
+works.
