@@ -12,6 +12,8 @@ import {
 import type {
   CrashInsight,
   HotspotSummary,
+  LessonZone,
+  NewsCrashPin,
   TripBriefResponse,
 } from "~/lib/types";
 import { SidebarSections } from "./SidebarSections";
@@ -20,13 +22,17 @@ export type SheetSnap = "peek" | "full";
 
 type Selection =
   | { kind: "hotspot"; data: HotspotSummary }
-  | { kind: "insight"; data: CrashInsight };
+  | { kind: "insight"; data: CrashInsight }
+  | { kind: "lesson_zone"; data: LessonZone }
+  | { kind: "news_crash"; data: NewsCrashPin };
 
 interface Props {
   brief: TripBriefResponse;
   chosenId: string | null;
   hotspots: HotspotSummary[];
   insights: CrashInsight[];
+  lessonZones: LessonZone[];
+  newsCrashes: NewsCrashPin[];
   briefingHref: string;
   snap: SheetSnap;
   onSnapChange: (snap: SheetSnap) => void;
@@ -81,6 +87,8 @@ export function MobileRiskSheet({
   chosenId,
   hotspots,
   insights,
+  lessonZones,
+  newsCrashes,
   briefingHref,
   snap,
   onSnapChange,
@@ -257,7 +265,9 @@ export function MobileRiskSheet({
                   brief={brief}
                   chosenId={chosenId}
                   hotspots={hotspots}
+                  lessonZones={lessonZones}
                   insights={insights}
+                  newsCrashes={newsCrashes}
                   onChangeAlternate={onChangeAlternate}
                   onSelect={onOpenDetail}
                 />

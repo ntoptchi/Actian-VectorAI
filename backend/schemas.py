@@ -224,6 +224,36 @@ class CrashInsight(BaseModel):
     source: InsightSource = Field(default_factory=InsightSource)
 
 
+class LessonZone(BaseModel):
+    """Clustered route stretch sharing a dominant crash-learning pattern."""
+
+    zone_id: str
+    theme: str
+    theme_label: str
+    headline: str
+    lesson: str
+    polyline: list[list[float]]
+    from_km: float
+    to_km: float
+    span_km: float
+    n_insights: int = 0
+    n_crashes: int = 0
+    risk_factors: list[str] = Field(default_factory=list)
+    representative_insight_id: str | None = None
+
+
+class NewsCrashPin(BaseModel):
+    """Map pin for a NEWS-sourced crash report inside the chosen corridor."""
+
+    crash_id: str
+    lat: float
+    lon: float
+    headline: str
+    article_url: str | None = None
+    publish_date: str | None = None
+    severity: Severity = "unknown"
+
+
 class HotspotSummary(BaseModel):
     """Inline hotspot card shown directly on the brief page."""
 
@@ -236,6 +266,7 @@ class HotspotSummary(BaseModel):
     mean_similarity: float
     aadt: int | None
     intensity_ratio: float | None
+    exposure_intensity_ratio: float | None = None
     severity_mix: SeverityMix
     top_factors: list[FactorWeight] = Field(default_factory=list)
     coaching_line: str
@@ -267,6 +298,7 @@ class RouteSegment(BaseModel):
     speed_limit_mph: int | None = None
     n_crashes: int = 0
     intensity_ratio: float | None = None
+    exposure_intensity_ratio: float | None = None
     risk_band: RiskBand = "low"
     top_factors: list[FactorWeight] = Field(default_factory=list)
     night_skewed: bool = False
@@ -315,6 +347,8 @@ class TripBriefResponse(BaseModel):
     # when the VDB is unavailable or the collection is missing — the
     # endpoint degrades cleanly in that case.
     insights: list[CrashInsight] = Field(default_factory=list)
+    lesson_zones: list[LessonZone] = Field(default_factory=list)
+    news_crashes: list[NewsCrashPin] = Field(default_factory=list)
 
 
 # --- /trip/routes fast-path response ----------------------------------------

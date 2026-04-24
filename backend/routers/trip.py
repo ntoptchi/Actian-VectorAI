@@ -33,6 +33,7 @@ from backend.schemas import (
     FatiguePlan,
     HotspotSummary,
     LatLon,
+    NewsCrashPin,
     Route,
     RouteCandidate,
     RoutesOnlyResponse,
@@ -45,6 +46,7 @@ from backend.services import (
     coaching_retrieval,
     fatigue,
     geocode,
+    lesson_zones,
     routing,
     scoring,
     segments as segments_svc,
@@ -149,6 +151,8 @@ async def trip_brief(req: TripBriefRequest) -> TripBriefResponse:
     #    snapped to the nearest segment midpoint. Empty list when the
     #    VDB is unavailable — the UI degrades gracefully.
     insights = _insights_for(chosen, hotspots, query_doc)
+    zones = lesson_zones.build_zones(chosen.segments, insights)
+    news_crashes = await asyncio.to_thread(_news_crashes_for, chosen, query_doc)
 
     # The chosen Route uses the chosen alternate's polyline so the
     # frontend can paint per-segment risk on it.
@@ -173,6 +177,8 @@ async def trip_brief(req: TripBriefRequest) -> TripBriefResponse:
         alternates=alternate_summaries,
         segments=chosen.segments,
         insights=insights,
+        lesson_zones=zones,
+        news_crashes=news_crashes,
     )
 
 
@@ -334,6 +340,7 @@ def _hotspots_for(scored: _ScoredAlt, query_doc) -> list[HotspotSummary]:
                 mean_similarity=(insight.similarity if insight else 0.0),
                 aadt=seg.aadt,
                 intensity_ratio=seg.intensity_ratio,
+                exposure_intensity_ratio=seg.exposure_intensity_ratio,
                 severity_mix=SeverityMix(),
                 top_factors=seg.top_factors,
                 coaching_line=line,
@@ -371,6 +378,80 @@ def _insights_for(
     # lessons appear at the top of the right-rail list.
     merged.sort(key=lambda i: i.similarity, reverse=True)
     return merged
+
+
+def _news_crashes_for(scored: _ScoredAlt, query_doc) -> list[NewsCrashPin]:
+    """Return NEWS-sourced crash reports along the chosen route corridor."""
+    seg_geoms = segments_svc.slice_route(scored.alt.polyline)
+    if not seg_geoms:
+        return []
+    cell_union: set[str] = set()
+    for seg in seg_geoms:
+        cell_union |= seg.cells
+    if not cell_union:
+        return []
+
+    results = scoring.retrieve_crashes_for_cells(cell_union, query_doc)
+    news_payloads = [
+        (r.get("payload") or {})
+        for r in results
+        if (r.get("payload") or {}).get("source") == "NEWS"
+    ]
+    if not news_payloads:
+        return []
+
+    deduped: dict[str, dict] = {}
+    for p in news_payloads:
+        crash_id = str(p.get("crash_id") or p.get("case_id") or "")
+        if not crash_id:
+            continue
+        prev = deduped.get(crash_id)
+        if prev is None:
+            deduped[crash_id] = p
+            continue
+        prev_sev = _severity_rank(str(prev.get("severity") or "unknown"))
+        cur_sev = _severity_rank(str(p.get("severity") or "unknown"))
+        if cur_sev > prev_sev:
+            deduped[crash_id] = p
+
+    pins: list[NewsCrashPin] = []
+    for p in deduped.values():
+        lat = p.get("lat")
+        lon = p.get("lon")
+        if lat is None or lon is None:
+            continue
+        pins.append(
+            NewsCrashPin(
+                crash_id=str(p.get("crash_id") or p.get("case_id") or ""),
+                lat=float(lat),
+                lon=float(lon),
+                headline=str(p.get("headline") or p.get("article_headline") or "Crash report"),
+                article_url=(str(p.get("article_url")) if p.get("article_url") else None),
+                publish_date=(str(p.get("publish_date")) if p.get("publish_date") else None),
+                severity=str(p.get("severity") or "unknown"),  # type: ignore[arg-type]
+            )
+        )
+
+    pins.sort(
+        key=lambda pin: (
+            _severity_rank(pin.severity),
+            pin.publish_date or "",
+        ),
+        reverse=True,
+    )
+    return pins[:40]
+
+
+def _severity_rank(severity: str) -> int:
+    if severity == "fatal":
+        return 4
+    if severity == "serious":
+        return 3
+    if severity == "minor":
+        return 2
+    if severity == "pdo":
+        return 1
+    return 0
 
 
 def _segment_label(seg, centroid: LatLon) -> str:
