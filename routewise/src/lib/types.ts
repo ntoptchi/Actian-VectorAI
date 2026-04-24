@@ -130,6 +130,7 @@ export interface AlternateSummary {
   n_crashes: number;
   minutes_delta_vs_fastest: number;
   risk_delta_vs_fastest: number;
+  segments: RouteSegment[];
 }
 
 export interface TripBriefResponse {
@@ -144,6 +145,18 @@ export interface TripBriefResponse {
   alternates: AlternateSummary[];
   segments: RouteSegment[];
   insights: CrashInsight[];
+}
+
+// Fast-path response from POST /trip/routes (no scoring).
+export interface RouteCandidate {
+  route_id: string;
+  polyline: [number, number][]; // [lon, lat]
+  distance_m: number;
+  duration_s: number;
+}
+
+export interface RoutesOnlyResponse {
+  candidates: RouteCandidate[];
 }
 
 export interface CrashExcerpt {

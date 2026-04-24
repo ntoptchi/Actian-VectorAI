@@ -217,4 +217,37 @@
 [2026-04-24 05:20:58.595] [vde] [info] [FaissVectorIndexDriver::Search] Index ntotal: 518
 [2026-04-24 05:20:58.595] [vde] [info] [FaissVectorIndexDriver::Search] Storage ntotal: 518
 [2026-04-24 05:20:58.595] [vde] [info] [FaissVectorIndexDriver::Search] Query top_k: 8
-[2026-04-24 05:20:58.595] [vde] [info] [FaissVectorIndexDriver:
+[2026-04-24 05:20:58.595] [vde] [info] [FaissVectorIndexDriver::Search] Configured efSearch: 64
+[2026-04-24 05:20:58.596] [vde] [info] [FaissVectorIndexDriver::Search] Request hnsw_ef override: 0
+[2026-04-24 05:20:58.596] [vde] [info] [FaissVectorIndexDriver::Search] Effective efSearch for this call: 64
+[2026-04-24 05:20:58.596] [vde] [info] [FaissVectorIndexDriver::Search] efConstruction: 200
+[2026-04-24 05:20:58.596] [vde] [info] [FaissVectorIndexDriver::Search] max_level: 2
+[2026-04-24 05:20:58.596] [vde] [info] [FaissVectorIndexDriver::Search] levels.size(): 518
+[2026-04-24 05:20:58.596] [vde] [info] [FaissVectorIndexDriver::Search] entry_point: 511
+[2026-04-24 05:20:58.596] [vde] [info] [FaissVectorIndexDriver::Search] M (neighbors at level 1): 32
+[2026-04-24 05:20:58.596] [vde] [info] [FaissVectorIndexDriver::Search] Storage exists: true, own_fields: true
+[2026-04-24 05:20:58.596] [vde] [info] [FaissVectorIndexDriver::Search] ============================================
+[2026-04-24 05:21:02.302] [vde] [info] [FlushManager] Timer started for 'routewise_coaching' (interval=3600s)
+[2026-04-24 06:21:02.708] [vde] [info] [VDECollection::SaveMetadata] Saving metadata for collection 'routewise_coaching' to: /data/routewise_coaching/metadata.json
+[2026-04-24 06:21:02.719] [vde] [info] [VDECollection::SaveMetadata] Metadata saved to /data/routewise_coaching/metadata.json (storage_type=StorageType::BTRIEVE_FILE, index_driver_type=IndexDriverType::FAISS)
+[2026-04-24 06:21:02.738] [vde] [info] [FaissVectorIndexDriver::Serialize] Serializing index to: /data/routewise_coaching/segment_0/vectors/factors_text
+[2026-04-24 06:21:02.738] [vde] [info] [FaissVectorIndexDriver::Serialize] Index stats: ntotal=518, id_map_size=518, deleted_ids=0
+[2026-04-24 06:21:02.738] [vde] [info] [FaissVectorIndexDriver::Serialize] HNSW params: efConstruction=200, efSearch=64, max_level=2
+[2026-04-24 06:21:02.739] [vde] [info] [FaissVectorIndexDriver::Serialize] Writing FAISS index to: /data/routewise_coaching/segment_0/vectors/factors_text/faiss.index
+[2026-04-24 06:21:02.744] [vde] [info] [FaissVectorIndexDriver::Serialize] FAISS index written successfully
+[2026-04-24 06:21:02.745] [vde] [info] [FaissVectorIndexDriver::Serialize] Index file size: 0.83 MB
+[2026-04-24 06:21:02.753] [vde] [info] [FaissVectorIndexDriver::Serialize] Metadata written to /data/routewise_coaching/segment_0/vectors/factors_text.meta
+[2026-04-24 06:21:02.753] [vde] [info] [FaissVectorIndexDriver::Serialize] Serialization completed
+[2026-04-24 06:21:02.753] [vde] [info] [FaissVectorIndexDriver::Serialize] Serializing index to: /data/routewise_coaching/segment_0/vectors/incident
+[2026-04-24 06:21:02.753] [vde] [info] [FaissVectorIndexDriver::Serialize] Index stats: ntotal=518, id_map_size=518, deleted_ids=0
+[2026-04-24 06:21:02.753] [vde] [info] [FaissVectorIndexDriver::Serialize] HNSW params: efConstruction=200, efSearch=64, max_level=2
+[2026-04-24 06:21:02.753] [vde] [info] [FaissVectorIndexDriver::Serialize] Writing FAISS index to: /data/routewise_coaching/segment_0/vectors/incident/faiss.index
+[2026-04-24 06:21:02.754] [vde] [info] [FaissVectorIndexDriver::Serialize] FAISS index written successfully
+[2026-04-24 06:21:02.755] [vde] [info] [FaissVectorIndexDriver::Serialize] Index file size: 0.83 MB
+[2026-04-24 06:21:02.760] [vde] [info] [FaissVectorIndexDriver::Serialize] Metadata written to /data/routewise_coaching/segment_0/vectors/incident.meta
+[2026-04-24 06:21:02.760] [vde] [info] [FaissVectorIndexDriver::Serialize] Serialization completed
+[2026-04-24 06:21:02.760] [vde] [info] [FaissVectorIndexDriver::Serialize] Serializing index to: /data/routewise_coaching/segment_0/vectors/lesson
+[2026-04-24 06:21:02.760] [vde] [info] [FaissVectorIndexDriver::Serialize] Index stats: ntotal=518, id_map_size=518, deleted_ids=0
+[2026-04-24 06:21:02.760] [vde] [info] [FaissVectorIndexDriver::Serialize] HNSW params: efConstruction=200, efSearch=64, max_level=2
+[2026-04-24 06:21:02.760] [vde] [info] [FaissVectorIndexDriver::Serialize] Writing FAISS index to: /data/routewise_coaching/segment_0/vectors/lesson/faiss.index
+[2026-04-24 06:21:02.761] [vde]

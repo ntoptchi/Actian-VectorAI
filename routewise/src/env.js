@@ -23,6 +23,9 @@ export const env = createEnv({
     NEXT_PUBLIC_PMTILES_URL: z
       .string()
       .default("http://localhost:8080/tiles/florida.pmtiles"),
+    NEXT_PUBLIC_BACKEND_URL: z
+      .string()
+      .default("http://localhost:8080"),
   },
 
   /**
@@ -34,6 +37,7 @@ export const env = createEnv({
     NODE_ENV: process.env.NODE_ENV,
     BACKEND_URL: process.env.BACKEND_URL,
     NEXT_PUBLIC_PMTILES_URL: process.env.NEXT_PUBLIC_PMTILES_URL,
+    NEXT_PUBLIC_BACKEND_URL: process.env.NEXT_PUBLIC_BACKEND_URL,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

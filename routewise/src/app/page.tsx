@@ -98,11 +98,12 @@ function Hero() {
 
           <div className="anim-in anim-in-4 mt-4 flex flex-col gap-2">
             <span className="text-xs font-medium text-ink-3">
-              Two real Florida drives
+              Try a real Florida drive
             </span>
-            <div className="grid max-w-xl gap-3 sm:grid-cols-2">
-              <CompactTripCard trip={DEMO_TRIPS[0]!} />
-              <CompactTripCard trip={DEMO_TRIPS[1]!} />
+            <div className="grid max-w-xl gap-3 sm:grid-cols-3">
+              {DEMO_TRIPS.map((trip) => (
+                <CompactTripCard key={trip.slug} trip={trip} />
+              ))}
             </div>
           </div>
         </div>
@@ -126,7 +127,7 @@ function CompactTripCard({ trip }: { trip: (typeof DEMO_TRIPS)[number] }) {
   return (
     <Link
       href={tripHref(trip)}
-      className="group flex flex-col overflow-hidden rounded-xl bg-paper-3 ring-1 ring-rule transition hover:-translate-y-0.5 hover:ring-ink"
+      className="group flex flex-col overflow-hidden rounded-xl bg-paper-3 ring-1 ring-rule transition duration-200 ease-out hover:-translate-y-0.5 hover:ring-ink hover:shadow-md"
     >
       <div className="h-[120px] w-full overflow-hidden" aria-hidden>
         <PresetArt slug={trip.slug} />
