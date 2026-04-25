@@ -3,6 +3,8 @@
 import type {
   CrashInsight,
   HotspotSummary,
+  LessonZone,
+  NewsCrashPin,
   TripBriefResponse,
 } from "~/lib/types";
 import { humanizeFactor } from "~/lib/factors";
@@ -10,13 +12,17 @@ import { AlternatesPanel } from "./AlternatesPanel";
 
 type Selection =
   | { kind: "hotspot"; data: HotspotSummary }
-  | { kind: "insight"; data: CrashInsight };
+  | { kind: "lesson_zone"; data: LessonZone }
+  | { kind: "insight"; data: CrashInsight }
+  | { kind: "news_crash"; data: NewsCrashPin };
 
 interface Props {
   brief: TripBriefResponse;
   chosenId: string | null;
   hotspots: HotspotSummary[];
+  lessonZones: LessonZone[];
   insights: CrashInsight[];
+  newsCrashes: NewsCrashPin[];
   onChangeAlternate: (routeId: string) => void;
   onSelect: (s: Selection) => void;
 }
@@ -39,7 +45,9 @@ export function SidebarSections({
   brief,
   chosenId,
   hotspots,
+  lessonZones,
   insights,
+  newsCrashes,
   onChangeAlternate,
   onSelect,
 }: Props) {
@@ -90,15 +98,34 @@ export function SidebarSections({
         )}
       </div>
 
-      {insights.length > 0 && (
+      {lessonZones.length > 0 && (
         <div>
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-base font-semibold text-ink">
-              Lessons from the Road
+              Lesson Zones
             </h2>
             <span className="font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-ink-3">
-              {insights.length} lesson
-              {insights.length !== 1 ? "s" : ""}
+              {lessonZones.length} zone{lessonZones.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+          <ul className="flex flex-col gap-2">
+            {lessonZones.map((zone) => (
+              <LessonZoneRow
+                key={zone.zone_id}
+                zone={zone}
+                onClick={() => onSelect({ kind: "lesson_zone", data: zone })}
+              />
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {insights.length > 0 && (
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="text-base font-semibold text-ink">Lessons</h2>
+            <span className="font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-ink-3">
+              {insights.length}
             </span>
           </div>
           <ul className="flex flex-col gap-2">
@@ -107,6 +134,26 @@ export function SidebarSections({
                 key={ins.insight_id}
                 insight={ins}
                 onClick={() => onSelect({ kind: "insight", data: ins })}
+              />
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {newsCrashes.length > 0 && (
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="text-base font-semibold text-ink">News Crash Reports</h2>
+            <span className="font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-ink-3">
+              {newsCrashes.length}
+            </span>
+          </div>
+          <ul className="flex flex-col gap-2">
+            {newsCrashes.map((n) => (
+              <NewsRow
+                key={n.crash_id}
+                news={n}
+                onClick={() => onSelect({ kind: "news_crash", data: n })}
               />
             ))}
           </ul>
@@ -134,6 +181,69 @@ export function SidebarSections({
         </div>
       )}
     </>
+  );
+}
+
+function InsightRow({
+  insight,
+  onClick,
+}: {
+  insight: CrashInsight;
+  onClick: () => void;
+}) {
+  const primary = insight.risk_factors[0];
+  const label = primary ? humanizeFactor(primary) : "Lesson";
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onClick}
+        className="flex w-full items-start gap-3 rounded-sm bg-paper-3 p-3 text-left ring-1 ring-rule transition hover:ring-ink"
+      >
+        <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-sm bg-gold-strong/15 text-gold-strong">
+          <LessonBulb />
+        </span>
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <span className="inline-flex w-fit items-center rounded-sm bg-gold-strong/10 px-1.5 py-0.5 font-mono text-[0.625rem] font-semibold uppercase tracking-[0.14em] text-gold-strong">
+            {label}
+          </span>
+          <span className="text-sm font-medium text-ink line-clamp-2">
+            {insight.lesson || insight.headline}
+          </span>
+        </div>
+      </button>
+    </li>
+  );
+}
+
+function NewsRow({
+  news,
+  onClick,
+}: {
+  news: NewsCrashPin;
+  onClick: () => void;
+}) {
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onClick}
+        className="flex w-full items-start gap-3 rounded-sm bg-paper-3 p-3 text-left ring-1 ring-rule transition hover:ring-ink"
+      >
+        <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-sm bg-blue-600/15 text-blue-700">
+          <NewsIcon />
+        </span>
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <span className="inline-flex w-fit items-center rounded-sm bg-blue-600/10 px-1.5 py-0.5 font-mono text-[0.625rem] font-semibold uppercase tracking-[0.14em] text-blue-700">
+            {news.severity}
+          </span>
+          <span className="text-sm font-medium text-ink line-clamp-2">{news.headline}</span>
+          {news.publish_date && (
+            <span className="text-[0.6875rem] text-ink-4">{news.publish_date}</span>
+          )}
+        </div>
+      </button>
+    </li>
   );
 }
 
@@ -174,6 +284,9 @@ function HotspotRow({
         <div className="flex flex-col gap-0.5">
           <span className="text-sm font-medium text-ink">{h.label}</span>
           <span className="text-xs text-ink-3">{h.coaching_line}</span>
+          <span className="text-[0.6875rem] text-ink-4">
+            Exposure: {fmtExposure(h.exposure_intensity_ratio)}
+          </span>
           <span
             className={`mt-1 inline-flex w-fit items-center rounded-sm px-1.5 py-0.5 font-mono text-[0.625rem] font-semibold uppercase tracking-[0.14em] ${
               tone === "alert"
@@ -199,22 +312,16 @@ function HotspotRow({
   );
 }
 
-function InsightRow({
-  insight,
+function LessonZoneRow({
+  zone,
   onClick,
 }: {
-  insight: CrashInsight;
+  zone: LessonZone;
   onClick: () => void;
 }) {
-  // Leading tag chip uses the first risk factor; falls back to a
-  // generic "Lesson" label when the insight has no classified factors.
-  const primary = insight.risk_factors[0];
-  const primaryLabel = primary ? humanizeFactor(primary) : "Lesson";
-
-  // One-liner from the incident summary — the row surfaces what
-  // happened in shortest form, not the lesson itself (the lesson
-  // opens inside the modal on click, so it stays high-impact).
-  const oneLiner = summariseIncident(insight.incident_summary, insight.headline);
+  const oneLiner = zone.lesson.length > 120
+    ? zone.lesson.slice(0, 120).replace(/\s\S*$/, "") + "…"
+    : zone.lesson;
 
   return (
     <li>
@@ -228,34 +335,24 @@ function InsightRow({
         </span>
         <div className="flex min-w-0 flex-col gap-0.5">
           <span className="inline-flex w-fit items-center rounded-sm bg-gold-strong/10 px-1.5 py-0.5 font-mono text-[0.625rem] font-semibold uppercase tracking-[0.14em] text-gold-strong">
-            {primaryLabel}
+            {zone.theme_label}
           </span>
           <span className="text-sm font-medium text-ink line-clamp-2">
             {oneLiner}
           </span>
-          {insight.source.publisher && (
-            <span className="text-[0.6875rem] text-ink-3 line-clamp-1">
-              {insight.source.publisher}
-              {insight.source.publish_date
-                ? ` · ${insight.source.publish_date}`
-                : ""}
-            </span>
-          )}
+          <span className="text-[0.6875rem] text-ink-3 line-clamp-1">
+            {zone.from_km.toFixed(0)}-{zone.to_km.toFixed(0)} km · {zone.n_insights} lesson
+            {zone.n_insights !== 1 ? "s" : ""}
+          </span>
         </div>
       </button>
     </li>
   );
 }
 
-/** Trim the incident summary down to a single scannable sentence. */
-function summariseIncident(summary: string, fallback: string): string {
-  const text = (summary || fallback || "").trim();
-  if (!text) return "Crash lesson";
-  // Prefer the first sentence; otherwise cap at ~120 chars on a word boundary.
-  const firstDot = text.indexOf(". ");
-  if (firstDot > 20 && firstDot < 160) return text.slice(0, firstDot + 1);
-  if (text.length <= 140) return text;
-  return text.slice(0, 140).replace(/\s\S*$/, "") + "…";
+function fmtExposure(ratio: number | null | undefined): string {
+  if (ratio == null) return "unavailable";
+  return `${ratio.toFixed(1)}x crashes per vehicle-km`;
 }
 
 function LessonBulb() {
@@ -296,6 +393,15 @@ function EyeOff() {
       <path d="M2 2l12 12" />
       <path d="M2.5 8s2-4 5.5-4 5.5 4 5.5 4-2 4-5.5 4S2.5 8 2.5 8Z" />
       <circle cx="8" cy="8" r="2" />
+    </svg>
+  );
+}
+
+function NewsIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2.5" y="2.5" width="11" height="11" rx="1.5" />
+      <path d="M5 6h6M5 8.5h6M5 11h3.5" />
     </svg>
   );
 }

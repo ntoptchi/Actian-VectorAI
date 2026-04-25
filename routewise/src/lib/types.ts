@@ -82,6 +82,32 @@ export interface CrashInsight {
   source: InsightSource;
 }
 
+export interface LessonZone {
+  zone_id: string;
+  theme: string;
+  theme_label: string;
+  headline: string;
+  lesson: string;
+  polyline: [number, number][]; // [lon, lat]
+  from_km: number;
+  to_km: number;
+  span_km: number;
+  n_insights: number;
+  n_crashes: number;
+  risk_factors: string[];
+  representative_insight_id: string | null;
+}
+
+export interface NewsCrashPin {
+  crash_id: string;
+  lat: number;
+  lon: number;
+  headline: string;
+  article_url: string | null;
+  publish_date: string | null;
+  severity: "fatal" | "serious" | "minor" | "pdo" | "unknown";
+}
+
 export interface HotspotSummary {
   hotspot_id: string;
   label: string;
@@ -92,6 +118,7 @@ export interface HotspotSummary {
   mean_similarity: number;
   aadt: number | null;
   intensity_ratio: number | null;
+  exposure_intensity_ratio: number | null;
   severity_mix: SeverityMix;
   top_factors: FactorWeight[];
   coaching_line: string;
@@ -115,6 +142,7 @@ export interface RouteSegment {
   speed_limit_mph: number | null;
   n_crashes: number;
   intensity_ratio: number | null;
+  exposure_intensity_ratio: number | null;
   risk_band: RiskBand;
   top_factors: FactorWeight[];
   night_skewed: boolean;
@@ -145,6 +173,8 @@ export interface TripBriefResponse {
   alternates: AlternateSummary[];
   segments: RouteSegment[];
   insights: CrashInsight[];
+  lesson_zones: LessonZone[];
+  news_crashes: NewsCrashPin[];
 }
 
 // Fast-path response from POST /trip/routes (no scoring).

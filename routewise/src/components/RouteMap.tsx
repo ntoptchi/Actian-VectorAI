@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import {
   MapContainer,
+  Pane,
   Polyline,
   Tooltip,
   CircleMarker,
@@ -32,12 +33,15 @@ const ROUTE_LABEL_STYLE = `
 `;
 
 import { segmentLocationLabel } from "~/lib/segmentLabels";
+import { MapControls, type MapLayers } from "~/components/MapControls";
 import type {
   AlternateSummary,
   CrashInsight,
   FatigueStop,
   HotspotSummary,
   LatLon,
+  LessonZone,
+  NewsCrashPin,
   RiskBand,
   RouteSegment,
 } from "~/lib/types";
@@ -63,12 +67,18 @@ interface Props {
   alternates: AlternateSummary[];
   chosenRouteId: string | null;
   hotspots: HotspotSummary[];
+  lessonZones: LessonZone[];
+  newsCrashes: NewsCrashPin[];
   stops?: FatigueStop[];
   insights: CrashInsight[];
+  layers: MapLayers;
   onSegmentClick?: (seg: RouteSegment) => void;
   onHotspotClick?: (h: HotspotSummary) => void;
   onInsightClick?: (i: CrashInsight) => void;
+  onLessonZoneClick?: (z: LessonZone) => void;
+  onNewsCrashClick?: (n: NewsCrashPin) => void;
   onAlternateClick?: (routeId: string) => void;
+  onToggleLayer?: (key: keyof MapLayers) => void;
 }
 
 export default function RouteMap({
@@ -78,13 +88,21 @@ export default function RouteMap({
   alternates,
   chosenRouteId,
   hotspots,
+  lessonZones,
+  newsCrashes,
   stops,
-  insights,
+  insights: _insights,
+  layers,
   onSegmentClick,
   onHotspotClick,
-  onInsightClick,
+  onInsightClick: _onInsightClick,
+  onLessonZoneClick,
+  onNewsCrashClick,
   onAlternateClick,
+  onToggleLayer,
 }: Props) {
+  const [mapFlavor, setMapFlavor] = useState<MapFlavor>("light");
+  const [otherRouteOpacity, setOtherRouteOpacity] = useState(0.4);
   const center = useMemo<[number, number]>(() => {
     if (origin && destination) {
       return [(origin.lat + destination.lat) / 2, (origin.lon + destination.lon) / 2];
@@ -134,7 +152,7 @@ export default function RouteMap({
       let start: number | null = null;
       const DURATION = 800;
       const tick = (ts: number) => {
-        if (start === null) start = ts;
+        start ??= ts;
         const t = Math.min((ts - start) / DURATION, 1);
         setDrawProgress(1 - Math.pow(1 - t, 3));
         if (t < 1) requestAnimationFrame(tick);
@@ -156,13 +174,32 @@ export default function RouteMap({
       zoomControl={false}
       className="h-full w-full"
     >
-      <MapLayerSwitcher />
+      <MapLayerManager flavor={mapFlavor} />
+      <Pane name="alternate-routes" style={{ zIndex: 410 }} />
+      <Pane name="alternate-hit" style={{ zIndex: 415 }} />
+      <Pane name="lesson-zones" style={{ zIndex: 420 }} />
+      <Pane name="chosen-route-glow" style={{ zIndex: 430 }} />
+      <Pane name="chosen-route" style={{ zIndex: 440 }} />
+      <Pane name="chosen-hit" style={{ zIndex: 445 }} />
+      <Pane name="route-labels" style={{ zIndex: 450 }} />
+      <Pane name="map-markers" style={{ zIndex: 460 }} />
+      {onToggleLayer && (
+        <MapControls
+          layers={layers}
+          onToggle={onToggleLayer}
+          flavor={mapFlavor}
+          onFlavorChange={setMapFlavor}
+          otherRouteOpacity={otherRouteOpacity}
+          onOtherRouteOpacityChange={setOtherRouteOpacity}
+        />
+      )}
       <style dangerouslySetInnerHTML={{ __html: ROUTE_LABEL_STYLE }} />
       <FitBounds bounds={bounds} />
 
       {/* Origin / destination markers */}
       {origin && (
         <CircleMarker
+          pane="map-markers"
           center={[origin.lat, origin.lon]}
           radius={7}
           pathOptions={{ color: "#fff", weight: 2.5, fillColor: "#22c55e", fillOpacity: 1 }}
@@ -174,6 +211,7 @@ export default function RouteMap({
       )}
       {destination && (
         <CircleMarker
+          pane="map-markers"
           center={[destination.lat, destination.lon]}
           radius={7}
           pathOptions={{ color: "#fff", weight: 2.5, fillColor: "#ef4444", fillOpacity: 1 }}
@@ -202,14 +240,15 @@ export default function RouteMap({
               segs.length > 0
                 ? segs.map((seg) => (
                     <Polyline
+                      pane="alternate-routes"
                       key={`altseg-${a.route_id}-${seg.segment_id}`}
                       positions={seg.polyline.map(
                         ([lon, lat]): [number, number] => [lat, lon],
                       )}
                       pathOptions={{
-                        color: RISK_COLOR[seg.risk_band],
+                        color: segmentColor(seg, layers),
                         weight: 3,
-                        opacity: 0.4,
+                        opacity: otherRouteOpacity,
                         lineCap: "round",
                         lineJoin: "round",
                       }}
@@ -218,12 +257,13 @@ export default function RouteMap({
                   ))
                 : [
                     <Polyline
+                      pane="alternate-routes"
                       key={`alt-${a.route_id}`}
                       positions={allPositions}
                       pathOptions={{
-                        color: "#5b8fc4",
+                        color: alternateSummaryColor(a, layers),
                         weight: 3,
-                        opacity: 0.35,
+                        opacity: otherRouteOpacity,
                         dashArray: "5 7",
                       }}
                       interactive={false}
@@ -234,6 +274,7 @@ export default function RouteMap({
               ...segLines,
               // Fat invisible hit-target so thin alternate lines are easy to click
               <Polyline
+                pane="alternate-hit"
                 key={`althit-${a.route_id}`}
                 positions={allPositions}
                 pathOptions={{
@@ -249,7 +290,7 @@ export default function RouteMap({
                 <Tooltip sticky direction="top" offset={[0, -10]}>
                   <div style={{ fontSize: 11, fontWeight: 500 }}>
                     {km} km · {mins} min ·{" "}
-                    <span style={{ color: RISK_COLOR[a.risk_band] }}>
+                    <span style={{ color: alternateSummaryColor(a, layers) }}>
                       {RISK_LABEL[a.risk_band]}
                     </span>
                   </div>
@@ -261,6 +302,7 @@ export default function RouteMap({
               // Persistent summary label at route midpoint
               midPoint && (
                 <CircleMarker
+                  pane="route-labels"
                   key={`altlabel-${a.route_id}`}
                   center={midPoint}
                   radius={0}
@@ -275,7 +317,11 @@ export default function RouteMap({
                     offset={[0, -4]}
                     className="route-label"
                   >
-                    <RouteLabel km={km} mins={mins} band={a.risk_band} />
+                    <RouteLabel
+                      km={km}
+                      mins={mins}
+                      color={alternateSummaryColor(a, layers)}
+                    />
                   </Tooltip>
                 </CircleMarker>
               ),
@@ -295,6 +341,7 @@ export default function RouteMap({
         const km = Math.round(chosenAlt.distance_m / 1000);
         return (
           <CircleMarker
+            pane="route-labels"
             key="chosen-label"
             center={mid}
             radius={0}
@@ -306,7 +353,12 @@ export default function RouteMap({
               offset={[0, -4]}
               className="route-label route-label--chosen"
             >
-              <RouteLabel km={km} mins={mins} band={chosenAlt.risk_band} chosen />
+              <RouteLabel
+                km={km}
+                mins={mins}
+                color={alternateSummaryColor(chosenAlt, layers)}
+                chosen
+              />
             </Tooltip>
           </CircleMarker>
         );
@@ -315,10 +367,14 @@ export default function RouteMap({
       {/* Chosen route — sweeps from origin to destination with risk colors */}
       {visibleSegments.map((seg) => (
         <Polyline
+          pane="chosen-route-glow"
           key={`glow-${seg.segment_id}`}
           positions={seg.polyline.map(([lon, lat]) => [lat, lon])}
           pathOptions={{
-            color: RISK_GLOW[seg.risk_band],
+            color: layers.riskColoring
+              && !layers.trafficVolume
+              ? RISK_GLOW[seg.risk_band]
+              : "rgba(148,163,184,0.28)",
             weight: 9,
             opacity: 0.35,
             lineCap: "round",
@@ -329,10 +385,11 @@ export default function RouteMap({
       ))}
       {visibleSegments.map((seg) => (
         <Polyline
+          pane="chosen-route"
           key={seg.segment_id}
           positions={seg.polyline.map(([lon, lat]) => [lat, lon])}
           pathOptions={{
-            color: RISK_COLOR[seg.risk_band],
+            color: segmentColor(seg, layers),
             weight: seg.risk_band === "low" ? 4 : 5,
             opacity: 0.95,
             lineCap: "round",
@@ -350,6 +407,7 @@ export default function RouteMap({
           invisible against the dark map but stays hit-testable. */}
       {sweepDone && segments.map((seg) => (
         <Polyline
+          pane="chosen-hit"
           key={`hit-${seg.segment_id}`}
           positions={seg.polyline.map(([lon, lat]) => [lat, lon])}
           pathOptions={{
@@ -371,8 +429,35 @@ export default function RouteMap({
       ))}
 
       {/* Hotspot pins — appear after the route sweep finishes */}
-      {sweepDone && hotspots.map((h) => (
+      {sweepDone && layers.lessonZones && lessonZones.map((zone) => (
+        <Polyline
+          pane="lesson-zones"
+          key={zone.zone_id}
+          positions={zone.polyline.map(([lon, lat]): [number, number] => [lat, lon])}
+          pathOptions={{
+            color: "#ffffff",
+            weight: 9,
+            opacity: 0.95,
+            lineCap: "round",
+            lineJoin: "round",
+            interactive: true,
+          }}
+          eventHandlers={{
+            click: () => onLessonZoneClick?.(zone),
+          }}
+        >
+          <Tooltip sticky direction="top" offset={[0, -8]}>
+            <div className="text-[0.6875rem] font-semibold text-paper">{zone.theme_label}</div>
+            <div className="text-[0.625rem] uppercase tracking-[0.12em] text-paper/70">
+              {zone.from_km.toFixed(0)}-{zone.to_km.toFixed(0)} km
+            </div>
+          </Tooltip>
+        </Polyline>
+      ))}
+
+      {sweepDone && layers.hotspots && hotspots.map((h) => (
         <CircleMarker
+          pane="map-markers"
           key={h.hotspot_id}
           center={[h.centroid.lat, h.centroid.lon]}
           radius={8}
@@ -395,34 +480,29 @@ export default function RouteMap({
         </CircleMarker>
       ))}
 
-      {/* Insight pins — amber "lesson" markers, distinct from the
-          red hotspot pins so a glance separates "a cluster of crashes
-          here tonight" from "here's a lesson that applies along this
-          stretch". Pin location is the *segment midpoint* from the
-          retrieval service, not the article's original lat/lon, so
-          pins always sit on the route rather than floating off it. */}
-      {sweepDone && insights.map((ins) => (
+      {sweepDone && layers.crashReports && newsCrashes.map((n) => (
         <CircleMarker
-          key={ins.insight_id}
-          center={[ins.pin_location.lat, ins.pin_location.lon]}
-          radius={7}
+          pane="map-markers"
+          key={n.crash_id}
+          center={[n.lat, n.lon]}
+          radius={8}
           pathOptions={{
-            color: "#f3ece0",
+            color: "#e2e8f0",
             weight: 2,
-            fillColor: "#d97706",
+            fillColor: "#2563eb",
             fillOpacity: 0.95,
           }}
           eventHandlers={{
-            click: () => onInsightClick?.(ins),
+            click: () => onNewsCrashClick?.(n),
           }}
         >
           <Tooltip direction="top" offset={[0, -6]}>
             <div style={{ maxWidth: 300 }}>
               <div className="font-semibold text-paper">
-                {ins.headline}
+                {n.headline}
               </div>
               <div className="text-[0.6875rem] uppercase tracking-[0.14em] text-paper/70">
-                Lesson from a past crash · click to read
+                News crash report · click for briefing
               </div>
             </div>
           </Tooltip>
@@ -430,6 +510,25 @@ export default function RouteMap({
       ))}
     </MapContainer>
   );
+}
+
+function segmentColor(seg: RouteSegment, layers: MapLayers): string {
+  if (layers.trafficVolume && seg.aadt != null) {
+    if (seg.aadt >= 80000) return "#0f172a";
+    if (seg.aadt >= 40000) return "#334155";
+    if (seg.aadt >= 18000) return "#64748b";
+    return "#94a3b8";
+  }
+  if (layers.riskColoring) return RISK_COLOR[seg.risk_band];
+  return "#64748b";
+}
+
+function alternateSummaryColor(
+  alt: AlternateSummary,
+  layers: MapLayers,
+): string {
+  if (layers.trafficVolume) return "#94a3b8";
+  return RISK_COLOR[alt.risk_band];
 }
 
 function SegmentTooltip({
@@ -446,7 +545,7 @@ function SegmentTooltip({
   // same helper, so "km 237 – 248" never leaks back into a tooltip.
   const title = segmentLocationLabel(seg, hotspots, stops);
   return (
-    <div className="min-w-[12rem] text-[0.6875rem] leading-relaxed text-paper">
+    <div className="min-w-48 text-[0.6875rem] leading-relaxed text-paper">
       <div className="flex items-start justify-between gap-3">
         <span className="font-semibold text-paper">{title}</span>
         <span
@@ -491,12 +590,12 @@ const RISK_LABEL: Record<RiskBand, string> = {
 function RouteLabel({
   km,
   mins,
-  band,
+  color,
   chosen,
 }: {
   km: number;
   mins: number;
-  band: RiskBand;
+  color: string;
   chosen?: boolean;
 }) {
   return (
@@ -514,7 +613,7 @@ function RouteLabel({
           width: 7,
           height: 7,
           borderRadius: "50%",
-          backgroundColor: RISK_COLOR[band],
+          backgroundColor: color,
           flexShrink: 0,
         }}
       />
@@ -531,10 +630,8 @@ const PMTILES_URL =
 
 type MapFlavor = "light" | "dark";
 
-function MapLayerSwitcher() {
+function MapLayerManager({ flavor }: { flavor: MapFlavor }) {
   const map = useMap();
-  const [flavor, setFlavor] = useState<MapFlavor>("light");
-  const [open, setOpen] = useState(false);
   const [layer, setLayer] = useState<L.Layer | null>(null);
 
   useEffect(() => {
@@ -545,7 +642,7 @@ function MapLayerSwitcher() {
       flavor,
       attribution:
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    });
+    }) as unknown as L.Layer & { addTo: (map: L.Map) => unknown; bringToBack: () => void };
     base.addTo(map);
     base.bringToBack();
     setLayer(base);
@@ -556,95 +653,7 @@ function MapLayerSwitcher() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [flavor, map]);
 
-  const pick = useCallback((f: MapFlavor) => {
-    setFlavor(f);
-    setOpen(false);
-  }, []);
-
-  const other: MapFlavor = flavor === "light" ? "dark" : "light";
-
-  return (
-    <div
-      className="leaflet-bottom leaflet-right"
-      style={{ pointerEvents: "auto", zIndex: 1000 }}
-    >
-      <div
-        className="leaflet-control"
-        style={{ margin: "0 10px 10px 0", display: "flex", flexDirection: "column-reverse", alignItems: "center", gap: 0 }}
-        onMouseEnter={() => setOpen(true)}
-        onMouseLeave={() => setOpen(false)}
-      >
-        {/* Current style icon */}
-        <button
-          onClick={() => setOpen((v) => !v)}
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 8,
-            border: "2px solid rgba(255,255,255,0.25)",
-            background: "rgba(15,23,42,0.85)",
-            backdropFilter: "blur(8px)",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
-          }}
-          title="Switch map style"
-        >
-          {flavor === "light" ? <TerrainIcon /> : <DarkIcon />}
-        </button>
-
-        {/* The other option slides in directly below */}
-        <div
-          style={{
-            overflow: "hidden",
-            maxHeight: open ? 44 : 0,
-            opacity: open ? 1 : 0,
-            transition: "max-height 0.2s ease, opacity 0.15s ease",
-          }}
-        >
-          <button
-            onClick={() => pick(other)}
-            style={{
-              marginBottom: 4,
-              width: 40,
-              height: 40,
-              borderRadius: 8,
-              border: "2px solid rgba(255,255,255,0.15)",
-              background: "rgba(15,23,42,0.85)",
-              backdropFilter: "blur(8px)",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
-            }}
-            title={other === "dark" ? "Dark" : "Light"}
-          >
-            {other === "dark" ? <DarkIcon /> : <TerrainIcon />}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function TerrainIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e2e8f0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="m3 20 5.5-11L12 15l3-4 6 9H3Z" />
-      <path d="M6 7a2 2 0 1 0 4 0 2 2 0 0 0-4 0" />
-    </svg>
-  );
-}
-
-function DarkIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e2e8f0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-    </svg>
-  );
+  return null;
 }
 
 function FitBounds({ bounds }: { bounds: L.LatLngBoundsExpression | null }) {

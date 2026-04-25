@@ -6,13 +6,17 @@ import type {
   CrashInsight,
   FatigueStop,
   HotspotSummary,
+  LessonZone,
+  NewsCrashPin,
   RouteSegment,
 } from "~/lib/types";
 
 type CardSubject =
   | { kind: "hotspot"; data: HotspotSummary }
   | { kind: "segment"; data: RouteSegment }
-  | { kind: "insight"; data: CrashInsight };
+  | { kind: "insight"; data: CrashInsight }
+  | { kind: "lesson_zone"; data: LessonZone }
+  | { kind: "news_crash"; data: NewsCrashPin };
 
 interface Props {
   subject: CardSubject | null;
@@ -34,6 +38,12 @@ export function BriefingCard({ subject, hotspots, stops, onClose }: Props) {
   if (subject.kind === "insight") {
     return <InsightBriefingCard insight={subject.data} onClose={onClose} />;
   }
+  if (subject.kind === "lesson_zone") {
+    return <LessonZoneBriefingCard zone={subject.data} onClose={onClose} />;
+  }
+  if (subject.kind === "news_crash") {
+    return <NewsCrashBriefingCard news={subject.data} onClose={onClose} />;
+  }
 
   const title =
     subject.kind === "hotspot"
@@ -45,8 +55,13 @@ export function BriefingCard({ subject, hotspots, stops, onClose }: Props) {
       : segmentSubtitle(subject.data);
   const coaching =
     subject.kind === "hotspot" ? subject.data.coaching_line : null;
+  const exposure =
+    subject.kind === "hotspot"
+      ? subject.data.exposure_intensity_ratio
+      : subject.data.exposure_intensity_ratio;
   const intensity = subject.data.intensity_ratio;
   const intensityDisplay = intensityDisplayFor(intensity);
+  const exposureDisplay = exposureDisplayFor(exposure);
   const factors = subject.data.top_factors;
   const aadt = subject.data.aadt;
   const nCrashes = subject.data.n_crashes;
@@ -126,15 +141,18 @@ export function BriefingCard({ subject, hotspots, stops, onClose }: Props) {
             </span>
             <div className="grid grid-cols-2 gap-3">
               <FactorStat
-                value={nCrashes}
-                label="Matched crashes for tonight's conditions"
-                tone="ink"
+                value={exposureDisplay.value}
+                label={exposureDisplay.label}
+                tone={exposureDisplay.tone}
               />
               <FactorStat
                 value={intensityDisplay.value}
                 label={intensityDisplay.label}
                 tone={intensityDisplay.tone}
               />
+            </div>
+            <div className="text-[0.6875rem] text-ink-4">
+              Drill-down: {nCrashes} matched crash{nCrashes === 1 ? "" : "es"}.
             </div>
           </div>
 
@@ -456,6 +474,97 @@ function intensityDisplayFor(ratio: number | null | undefined): {
     return { value: v, label: "Above the FL average rate", tone: "gold" };
   }
   return { value: v, label: "Well above the FL average rate", tone: "alert" };
+}
+
+function exposureDisplayFor(ratio: number | null | undefined): {
+  value: string;
+  label: string;
+  tone: "ink" | "gold" | "good" | "alert";
+} {
+  if (ratio == null) {
+    return {
+      value: "—",
+      label: "Exposure-normalized risk unavailable",
+      tone: "ink",
+    };
+  }
+  const v = `${ratio.toFixed(1)}x`;
+  if (ratio < 1) return { value: v, label: "Below route average per vehicle-km", tone: "good" };
+  if (ratio < 2) return { value: v, label: "Above route average per vehicle-km", tone: "gold" };
+  return { value: v, label: "Well above route average per vehicle-km", tone: "alert" };
+}
+
+function LessonZoneBriefingCard({
+  zone,
+  onClose,
+}: {
+  zone: LessonZone;
+  onClose?: () => void;
+}) {
+  return (
+    <InsightBriefingCard
+      insight={{
+        insight_id: zone.zone_id,
+        headline: zone.headline,
+        lesson: zone.lesson,
+        incident_summary: `${zone.theme_label} · ${zone.from_km.toFixed(0)}-${zone.to_km.toFixed(0)} km · ${zone.n_insights} lesson${zone.n_insights === 1 ? "" : "s"}`,
+        risk_factors: zone.risk_factors,
+        pin_location: { lat: 0, lon: 0 },
+        segment_id: zone.representative_insight_id,
+        similarity: 0,
+        source: {
+          publisher: "RouteWise zone synthesis",
+          article_url: null,
+          publish_date: null,
+          article_headline: null,
+        },
+      }}
+      onClose={onClose}
+    />
+  );
+}
+
+function NewsCrashBriefingCard({
+  news,
+  onClose,
+}: {
+  news: NewsCrashPin;
+  onClose?: () => void;
+}) {
+  return (
+    <>
+      <div aria-hidden onClick={onClose} className="fixed inset-0 z-[1100] bg-ink/40 lg:hidden" />
+      <aside
+        role="dialog"
+        aria-modal="true"
+        aria-label="Crash report"
+        className="fixed inset-y-0 right-0 z-[1200] flex w-full max-w-[28rem] flex-col overflow-y-auto bg-paper-2 shadow-[-20px_0_40px_-20px_rgba(11,31,68,0.4)] lg:right-[28rem] lg:max-w-[26rem]"
+      >
+        <div className="flex items-center justify-between border-b border-rule px-4 py-3 sm:px-6">
+          <span className="font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-ink-3">
+            News crash report
+          </span>
+          <button type="button" onClick={onClose} aria-label="Close" className="grid h-10 w-10 place-items-center rounded-full text-ink-3 transition hover:bg-paper-3 hover:text-ink sm:h-8 sm:w-8">
+            <CloseIcon />
+          </button>
+        </div>
+        <div className="flex flex-col gap-4 px-4 py-5 sm:px-6 sm:py-6">
+          <h2 className="display text-2xl leading-tight">{news.headline}</h2>
+          <div className="text-sm text-ink-2">
+            Severity: <span className="font-semibold">{news.severity}</span>
+            {news.publish_date ? ` · ${news.publish_date}` : ""}
+          </div>
+          {news.article_url ? (
+            <a href={news.article_url} target="_blank" rel="noopener noreferrer" className="inline-flex w-fit items-center rounded-sm bg-ink px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-paper">
+              Open source article
+            </a>
+          ) : (
+            <div className="text-xs text-ink-4">No source URL available for this report.</div>
+          )}
+        </div>
+      </aside>
+    </>
+  );
 }
 
 type Status = {

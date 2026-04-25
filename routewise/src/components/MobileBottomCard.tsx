@@ -5,6 +5,8 @@ import { humanizeFactor } from "~/lib/factors";
 import type {
   CrashInsight,
   HotspotSummary,
+  LessonZone,
+  NewsCrashPin,
   RiskBand,
   RouteSegment,
 } from "~/lib/types";
@@ -12,7 +14,9 @@ import type {
 type Selection =
   | { kind: "hotspot"; data: HotspotSummary }
   | { kind: "segment"; data: RouteSegment }
-  | { kind: "insight"; data: CrashInsight };
+  | { kind: "insight"; data: CrashInsight }
+  | { kind: "lesson_zone"; data: LessonZone }
+  | { kind: "news_crash"; data: NewsCrashPin };
 
 interface Props {
   subject: Selection;
@@ -32,6 +36,8 @@ const RISK_COLOR: Record<RiskBand, string> = {
 function subjectKey(s: Selection): string {
   if (s.kind === "segment") return `seg-${s.data.segment_id}`;
   if (s.kind === "hotspot") return `hs-${s.data.hotspot_id}`;
+  if (s.kind === "lesson_zone") return `zone-${s.data.zone_id}`;
+  if (s.kind === "news_crash") return `news-${s.data.crash_id}`;
   return `insight-${s.data.insight_id}`;
 }
 
@@ -105,6 +111,8 @@ export function MobileBottomCard({
             <HotspotCard hotspot={subject.data} />
           )}
           {subject.kind === "insight" && <InsightCard insight={subject.data} />}
+          {subject.kind === "lesson_zone" && <LessonZoneCard zone={subject.data} />}
+          {subject.kind === "news_crash" && <NewsCrashCard news={subject.data} />}
         </div>
       </div>
     </>
@@ -168,13 +176,13 @@ function SegmentCard({
           value={String(segment.n_crashes)}
         />
         <StatBox
-          label="vs FL average"
+          label="vs route avg exposure"
           value={
-            segment.intensity_ratio != null
-              ? `${segment.intensity_ratio.toFixed(1)}x`
+            segment.exposure_intensity_ratio != null
+              ? `${segment.exposure_intensity_ratio.toFixed(1)}x`
               : "—"
           }
-          tone={intensityTone(segment.intensity_ratio)}
+          tone={intensityTone(segment.exposure_intensity_ratio)}
         />
       </div>
 
@@ -250,14 +258,17 @@ function HotspotCard({ hotspot }: { hotspot: HotspotSummary }) {
       <div className="grid grid-cols-2 gap-3">
         <StatBox label="Matched crashes" value={String(hotspot.n_crashes)} />
         <StatBox
-          label="vs FL average"
+          label="vs route avg exposure"
           value={
-            hotspot.intensity_ratio != null
-              ? `${hotspot.intensity_ratio.toFixed(1)}x`
+            hotspot.exposure_intensity_ratio != null
+              ? `${hotspot.exposure_intensity_ratio.toFixed(1)}x`
               : "—"
           }
-          tone={intensityTone(hotspot.intensity_ratio)}
+          tone={intensityTone(hotspot.exposure_intensity_ratio)}
         />
+      </div>
+      <div className="text-[0.6875rem] text-ink-4">
+        Drill-down: {hotspot.n_crashes} matched crash{hotspot.n_crashes === 1 ? "" : "es"}.
       </div>
 
       {/* Top factor */}
@@ -278,6 +289,42 @@ function HotspotCard({ hotspot }: { hotspot: HotspotSummary }) {
       {/* Inline anecdote from the coaching VDB (same data as the
           right-rail desktop insight block, rendered compactly here). */}
       {hotspot.insight && <InlineInsightBlock insight={hotspot.insight} />}
+    </div>
+  );
+}
+
+function LessonZoneCard({ zone }: { zone: LessonZone }) {
+  return (
+    <div className="flex flex-col gap-4 pb-4">
+      <div>
+        <span className="text-[0.625rem] font-semibold uppercase tracking-wider text-gold-strong">
+          Lesson zone
+        </span>
+        <h3 className="mt-1 text-lg font-semibold text-ink">{zone.theme_label}</h3>
+        <span className="text-xs text-ink-3">
+          {zone.from_km.toFixed(0)}-{zone.to_km.toFixed(0)} km · {zone.n_insights} lesson{zone.n_insights === 1 ? "" : "s"}
+        </span>
+      </div>
+      <div className="rounded-sm border-l-[3px] border-gold-strong bg-[#fbf5ea] p-4">
+        <p className="text-sm leading-relaxed text-ink">{zone.lesson}</p>
+      </div>
+    </div>
+  );
+}
+
+function NewsCrashCard({ news }: { news: NewsCrashPin }) {
+  return (
+    <div className="flex flex-col gap-4 pb-4">
+      <h3 className="text-lg font-semibold text-ink">{news.headline}</h3>
+      <div className="text-sm text-ink-2">
+        Severity: <span className="font-semibold">{news.severity}</span>
+        {news.publish_date ? ` · ${news.publish_date}` : ""}
+      </div>
+      {news.article_url ? (
+        <a href={news.article_url} target="_blank" rel="noopener noreferrer" className="inline-flex w-fit rounded-sm bg-ink px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-paper">
+          Open source article
+        </a>
+      ) : null}
     </div>
   );
 }

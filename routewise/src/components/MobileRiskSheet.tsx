@@ -12,6 +12,8 @@ import {
 import type {
   CrashInsight,
   HotspotSummary,
+  LessonZone,
+  NewsCrashPin,
   TripBriefResponse,
 } from "~/lib/types";
 import { SidebarSections } from "./SidebarSections";
@@ -20,13 +22,17 @@ export type SheetSnap = "collapsed" | "half" | "full";
 
 type Selection =
   | { kind: "hotspot"; data: HotspotSummary }
-  | { kind: "insight"; data: CrashInsight };
+  | { kind: "insight"; data: CrashInsight }
+  | { kind: "lesson_zone"; data: LessonZone }
+  | { kind: "news_crash"; data: NewsCrashPin };
 
 interface Props {
   brief: TripBriefResponse;
   chosenId: string | null;
   hotspots: HotspotSummary[];
   insights: CrashInsight[];
+  lessonZones: LessonZone[];
+  newsCrashes: NewsCrashPin[];
   briefingHref: string;
   snap: SheetSnap;
   onSnapChange: (snap: SheetSnap) => void;
@@ -71,6 +77,8 @@ export function MobileRiskSheet({
   chosenId,
   hotspots,
   insights,
+  lessonZones,
+  newsCrashes,
   briefingHref,
   snap,
   onSnapChange,
@@ -181,7 +189,7 @@ export function MobileRiskSheet({
       <div
         aria-hidden
         onClick={() => onSnapChange("collapsed")}
-        className={`fixed inset-0 z-[899] bg-ink/40 transition-opacity duration-200 lg:hidden ${
+        className={`fixed inset-0 z-899 bg-ink/40 transition-opacity duration-200 lg:hidden ${
           showSidebar ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
       />
@@ -189,8 +197,7 @@ export function MobileRiskSheet({
       <div
         role="dialog"
         aria-label="Trip briefing"
-        aria-expanded={isFull}
-        className="anim-sheet-up fixed inset-x-0 bottom-0 z-[900] flex flex-col rounded-t-2xl bg-paper-2 shadow-[0_-12px_40px_rgba(11,31,68,0.25)] lg:hidden"
+        className="anim-sheet-up fixed inset-x-0 bottom-0 z-900 flex flex-col rounded-t-2xl bg-paper-2 shadow-[0_-12px_40px_rgba(11,31,68,0.25)] lg:hidden"
         style={{
           height: `${currentHeight}px`,
           transition:
@@ -253,7 +260,9 @@ export function MobileRiskSheet({
                   brief={brief}
                   chosenId={chosenId}
                   hotspots={hotspots}
+                  lessonZones={lessonZones}
                   insights={insights}
+                  newsCrashes={newsCrashes}
                   onChangeAlternate={onChangeAlternate}
                   onSelect={onOpenDetail}
                 />

@@ -209,14 +209,22 @@ def score_segments(
     # has 3x the crashes of an average mile of this trip" — which is what
     # the briefing UI actually wants to highlight.
     densities: list[float] = []
+    exposure_densities: list[float] = []
     for seg, crs in zip(segs, seg_crashes):
         seg_km = max(0.1, seg.to_km - seg.from_km)
         densities.append(len(crs) / seg_km)
+        exposure_densities.append(len(crs) / max(1.0, float(seg.aadt or 0)) / seg_km)
     nonzero = [d for d in densities if d > 0]
     mean_density = sum(nonzero) / len(nonzero) if nonzero else 0.0
+    exposure_nonzero = [d for d in exposure_densities if d > 0]
+    mean_exposure_density = (
+        sum(exposure_nonzero) / len(exposure_nonzero) if exposure_nonzero else 0.0
+    )
 
     out: list[RouteSegment] = []
-    for seg, crs, dens in zip(segs, seg_crashes, densities):
+    for seg, crs, dens, exposure_dens in zip(
+        segs, seg_crashes, densities, exposure_densities
+    ):
         n = len(crs)
         if n == 0 or mean_density <= 0:
             intensity = 0.0
@@ -224,6 +232,10 @@ def score_segments(
             # Cap at 5x so a single tiny segment can't dominate the route
             # average; same cap the legacy formula used.
             intensity = min(5.0, dens / mean_density)
+        if n == 0 or mean_exposure_density <= 0:
+            exposure_intensity = 0.0
+        else:
+            exposure_intensity = min(5.0, exposure_dens / mean_exposure_density)
         band = _risk_band(n, intensity)
         factors = _top_factors([c.get("payload") or {} for c in crs])
         out.append(
@@ -236,6 +248,7 @@ def score_segments(
                 speed_limit_mph=seg.speed_limit_mph,
                 n_crashes=n,
                 intensity_ratio=intensity,
+                exposure_intensity_ratio=exposure_intensity,
                 risk_band=band,
                 top_factors=factors,
             )

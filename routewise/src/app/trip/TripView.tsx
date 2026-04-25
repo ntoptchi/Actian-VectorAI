@@ -11,6 +11,7 @@ import {
   MobileRiskSheet,
   type SheetSnap,
 } from "~/components/MobileRiskSheet";
+import { type MapLayers } from "~/components/MapControls";
 import { SidebarSections } from "~/components/SidebarSections";
 import { fetchBrief, fetchRoutes } from "~/lib/client-api";
 import { parseDepart } from "~/lib/parse-depart";
@@ -19,6 +20,8 @@ import type {
   CrashInsight,
   HotspotSummary,
   LatLon,
+  LessonZone,
+  NewsCrashPin,
   RouteCandidate,
   RouteSegment,
   TripBriefResponse,
@@ -43,6 +46,8 @@ type Selection =
   | { kind: "hotspot"; data: HotspotSummary }
   | { kind: "segment"; data: RouteSegment }
   | { kind: "insight"; data: CrashInsight }
+  | { kind: "lesson_zone"; data: LessonZone }
+  | { kind: "news_crash"; data: NewsCrashPin }
   | null;
 
 type Phase = "init" | "routes" | "complete" | "error";
@@ -70,6 +75,8 @@ const EMPTY_BRIEF: TripBriefResponse = {
   alternates: [],
   segments: [],
   insights: [],
+  lesson_zones: [],
+  news_crashes: [],
 };
 
 export function TripView({
@@ -129,9 +136,15 @@ export function TripView({
   }, [brief.chosen_route_id]);
 
   const [selection, setSelection] = useState<Selection>(null);
-  const [calloutDismissed, setCalloutDismissed] = useState(false);
   const [sheetSnap, setSheetSnap] = useState<SheetSnap>("collapsed");
   const [selectedChipId, setSelectedChipId] = useState<string | null>(null);
+  const [layers, setLayers] = useState<MapLayers>({
+    riskColoring: true,
+    lessonZones: true,
+    hotspots: true,
+    trafficVolume: false,
+    crashReports: false,
+  });
 
   const isChosenShowing = chosenId === brief.chosen_route_id;
   const segments = useMemo(
@@ -145,6 +158,14 @@ export function TripView({
   );
   const insights = useMemo<CrashInsight[]>(
     () => (isChosenShowing ? (brief.insights ?? []) : []),
+    [isChosenShowing, brief],
+  );
+  const lessonZones = useMemo<LessonZone[]>(
+    () => (isChosenShowing ? (brief.lesson_zones ?? []) : []),
+    [isChosenShowing, brief],
+  );
+  const newsCrashes = useMemo<NewsCrashPin[]>(
+    () => (isChosenShowing ? (brief.news_crashes ?? []) : []),
     [isChosenShowing, brief],
   );
 
@@ -173,30 +194,6 @@ export function TripView({
     if (candidates.length > 0) return candidates[0]!.route_id;
     return null;
   }, [phase, chosenId, candidates]);
-
-  const banner = brief.conditions_banner;
-  const totalMin = useMemo(() => {
-    if (phase !== "complete") {
-      const fastest = candidates[0];
-      return fastest ? Math.round(fastest.duration_s / 60) : null;
-    }
-    return Math.round(brief.route.duration_s / 60);
-  }, [phase, brief.route.duration_s, candidates]);
-
-  const distanceKm = useMemo(() => {
-    if (phase !== "complete") {
-      const fastest = candidates[0];
-      return fastest ? Math.round(fastest.distance_m / 1000) : null;
-    }
-    return Math.round(brief.route.distance_m / 1000);
-  }, [phase, brief.route.distance_m, candidates]);
-
-  const worstHotspot = useMemo(() => {
-    if (hotspots.length === 0) return null;
-    return [...hotspots].sort(
-      (a, b) => (b.intensity_ratio ?? 0) - (a.intensity_ratio ?? 0),
-    )[0];
-  }, [hotspots]);
 
   const sortedHotspots = useMemo(
     () => [...hotspots].sort((a, b) => a.km_into_trip - b.km_into_trip),
@@ -255,17 +252,35 @@ export function TripView({
           alternates={displayAlternates}
           chosenRouteId={displayChosenId}
           hotspots={hotspots}
+          lessonZones={lessonZones}
+          newsCrashes={newsCrashes}
           stops={brief.fatigue_plan.suggested_stops}
           insights={insights}
+          layers={layers}
           onSegmentClick={(s) => setSelection({ kind: "segment", data: s })}
           onHotspotClick={(h) => setSelection({ kind: "hotspot", data: h })}
           onInsightClick={(i) => setSelection({ kind: "insight", data: i })}
+          onLessonZoneClick={(z) => setSelection({ kind: "lesson_zone", data: z })}
+          onNewsCrashClick={(n) => setSelection({ kind: "news_crash", data: n })}
           onAlternateClick={setChosenId}
+          onToggleLayer={(key) =>
+            setLayers((prev) => {
+              if (key === "trafficVolume") {
+                const nextTraffic = !prev.trafficVolume;
+                return { ...prev, trafficVolume: nextTraffic, riskColoring: nextTraffic ? false : prev.riskColoring };
+              }
+              if (key === "riskColoring") {
+                const nextRisk = !prev.riskColoring;
+                return { ...prev, riskColoring: nextRisk, trafficVolume: nextRisk ? false : prev.trafficVolume };
+              }
+              return { ...prev, [key]: !prev[key] };
+            })
+          }
         />
 
         {/* Loading status pill */}
         {isLoading && (
-          <div className="absolute left-1/2 top-4 z-[1100] -translate-x-1/2 sm:top-5">
+          <div className="absolute left-1/2 top-4 z-1100 -translate-x-1/2 sm:top-5">
             <div className="flex items-center gap-2.5 rounded-full bg-ink/90 px-4 py-2 shadow-[0_4px_20px_rgba(0,0,0,0.4)] backdrop-blur-md">
               <LoadingDots />
               <span className="text-xs font-medium tracking-wide text-paper/90">
@@ -274,67 +289,6 @@ export function TripView({
             </div>
           </div>
         )}
-
-        {/* Top-left "Current View" chip — show once we have distance info */}
-        {(distanceKm !== null && totalMin !== null) && (
-          <div className="pointer-events-none absolute left-2 top-2 z-[1000] max-w-[12rem] rounded-sm bg-paper-2/95 p-2 ring-1 ring-rule shadow-[0_8px_24px_rgba(0,0,0,0.25)] sm:left-4 sm:top-4 sm:max-w-[16rem] sm:p-3">
-            <div className="eyebrow">Current View</div>
-            <div className="mt-1 font-display text-base font-medium leading-tight text-ink sm:text-lg">
-              {distanceKm} km · {totalMin} min
-            </div>
-            {phase === "complete" && banner.summary && (
-              <div className="mt-1 hidden text-xs text-ink-3 sm:block">{banner.summary}</div>
-            )}
-          </div>
-        )}
-
-        {/* Desktop floating callout */}
-        {worstHotspot?.intensity_ratio != null && !calloutDismissed && (() => {
-          const calloutTone = calloutToneFor(worstHotspot.intensity_ratio);
-          return (
-            <div
-              className="absolute bottom-6 left-1/2 z-[1000] hidden -translate-x-1/2 rounded-sm text-left text-paper shadow-[0_12px_28px_rgba(11,31,68,0.4)] lg:block"
-              style={{ backgroundColor: calloutTone.bg }}
-            >
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setCalloutDismissed(true);
-                }}
-                aria-label="Dismiss"
-                className="absolute right-1.5 top-1.5 z-10 grid h-7 w-7 place-items-center rounded-full text-paper/70 transition hover:bg-paper/15 hover:text-paper"
-              >
-                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                  <path d="M1 1l8 8M9 1l-8 8" />
-                </svg>
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  setSelection({ kind: "hotspot", data: worstHotspot })
-                }
-                className="px-3 py-2 pr-9 transition-colors hover:brightness-110 sm:px-4 sm:py-3 sm:pr-10"
-              >
-                <div className="flex items-center gap-2">
-                  <Triangle />
-                  <span className="eyebrow text-paper/80">{calloutTone.label}</span>
-                </div>
-                <div className="mt-1 text-sm font-medium">
-                  {worstHotspot.coaching_line ?? worstHotspot.label}
-                </div>
-                <div className="mt-2 flex items-baseline gap-2">
-                  <span className="font-display text-2xl font-medium leading-none sm:text-3xl">
-                    {worstHotspot.intensity_ratio.toFixed(1)}x
-                  </span>
-                  <span className="font-mono text-[0.625rem] uppercase tracking-[0.18em] text-paper/80">
-                    vs Florida avg
-                  </span>
-                </div>
-              </button>
-            </div>
-          );
-        })()}
 
         {activeChip && !sheetIsFull && (
           <MobileRiskPreview
@@ -350,6 +304,8 @@ export function TripView({
           chosenId={chosenId}
           hotspots={hotspots}
           insights={insights}
+          lessonZones={lessonZones}
+          newsCrashes={newsCrashes}
           briefingHref={briefingHref}
           snap={sheetSnap}
           onSnapChange={setSheetSnap}
@@ -380,7 +336,9 @@ export function TripView({
               brief={brief}
               chosenId={chosenId}
               hotspots={hotspots}
+              lessonZones={lessonZones}
               insights={insights}
+              newsCrashes={newsCrashes}
               onChangeAlternate={setChosenId}
               onSelect={setSelection}
             />
@@ -492,22 +450,6 @@ function SidebarSkeleton({ phase }: { phase: Phase }) {
   );
 }
 
-// --- Helper functions (unchanged from original) --------------------------
-
-function calloutToneFor(ratio: number): { label: string; bg: string } {
-  if (ratio >= 2) return { label: "High Risk Zone", bg: "#dc2626" };
-  if (ratio >= 1.2) return { label: "Elevated Risk", bg: "#d97706" };
-  return { label: "Watch Zone", bg: "#0f172a" };
-}
-
-function Triangle() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
-      <path d="M6 0 L12 11 L0 11 Z" />
-    </svg>
-  );
-}
-
 function alternateAsSegments(
   brief: TripBriefResponse,
   routeId: string | null,
@@ -526,6 +468,7 @@ function alternateAsSegments(
       speed_limit_mph: null,
       n_crashes: alt.n_crashes,
       intensity_ratio: null,
+      exposure_intensity_ratio: null,
       risk_band: alt.risk_band,
       top_factors: [],
       night_skewed: false,
