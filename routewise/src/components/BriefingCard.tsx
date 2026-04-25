@@ -59,8 +59,6 @@ export function BriefingCard({ subject, hotspots, stops, onClose }: Props) {
     subject.kind === "hotspot"
       ? subject.data.exposure_intensity_ratio
       : subject.data.exposure_intensity_ratio;
-  const intensity = subject.data.intensity_ratio;
-  const intensityDisplay = intensityDisplayFor(intensity);
   const exposureDisplay = exposureDisplayFor(exposure);
   const factors = subject.data.top_factors;
   const aadt = subject.data.aadt;
@@ -146,13 +144,10 @@ export function BriefingCard({ subject, hotspots, stops, onClose }: Props) {
                 tone={exposureDisplay.tone}
               />
               <FactorStat
-                value={intensityDisplay.value}
-                label={intensityDisplay.label}
-                tone={intensityDisplay.tone}
+                value={nCrashes.toLocaleString()}
+                label={`Matched crash${nCrashes === 1 ? "" : "es"} for this segment`}
+                tone={nCrashes > 0 ? "alert" : "good"}
               />
-            </div>
-            <div className="text-[0.6875rem] text-ink-4">
-              Drill-down: {nCrashes} matched crash{nCrashes === 1 ? "" : "es"}.
             </div>
           </div>
 
@@ -441,39 +436,6 @@ function FactorStat({
       <span className="text-[0.6875rem] leading-snug text-ink-3">{label}</span>
     </div>
   );
-}
-
-/**
- * Color-codes the intensity stat against the FL baseline so the amber
- * tone *means something*. A 0.0x segment with zero matched crashes is
- * at-or-below baseline, which must read as neutral/good — coloring it
- * amber was actively misleading in QA.
- *
- *   null        → neutral, "baseline comparison unavailable"
- *   < 1.0x      → good,    "at or below the FL average"
- *   1.0 – 2.0x  → gold,    "above the FL average"
- *   >= 2.0x     → alert,   "well above the FL average"
- */
-function intensityDisplayFor(ratio: number | null | undefined): {
-  value: string;
-  label: string;
-  tone: "ink" | "gold" | "good" | "alert";
-} {
-  if (ratio == null) {
-    return {
-      value: "—",
-      label: "FL baseline comparison unavailable",
-      tone: "ink",
-    };
-  }
-  const v = `${ratio.toFixed(1)}x`;
-  if (ratio < 1) {
-    return { value: v, label: "At or below the FL average rate", tone: "good" };
-  }
-  if (ratio < 2) {
-    return { value: v, label: "Above the FL average rate", tone: "gold" };
-  }
-  return { value: v, label: "Well above the FL average rate", tone: "alert" };
 }
 
 function exposureDisplayFor(ratio: number | null | undefined): {
