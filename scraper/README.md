@@ -1,14 +1,14 @@
 # Scraper — crash ↔ news article linker
 
 Pipeline that takes the Florida FDOT crash GeoJSON in `data/raw/crash*.json`,
-filters to newsworthy crashes in the June 11 – Nov 7, 2011 window, queries
-Brave Search for each, fetches and extracts the article body, scores the
-match, and writes `{ article, crash }` pairs to `data/semanticCrashes.json`.
+filters to newsworthy crashes, queries Brave Search for each, fetches and
+extracts the article body, scores the match, and writes `{ article, crash }`
+pairs to `data/raw/semantic_crashes.json`.
 
 ## Setup
 
 ```bash
-cd accscent/scraper/nextup
+cd scraper
 pip install -r requirements.txt
 cp .env.example .env
 # paste your Brave API key into .env
@@ -37,7 +37,7 @@ CLI flags:
 
 ## Output
 
-`data/semanticCrashes.json` schema:
+`data/raw/semantic_crashes.json` schema:
 
 ```json
 {

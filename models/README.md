@@ -13,9 +13,9 @@ from sentence_transformers import SentenceTransformer
 SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2").save("models/all-MiniLM-L6-v2")
 ```
 
-`backend/backend/config.py` defaults `EMBEDDING_MODEL` to this directory when
-it exists; override via `EMBEDDING_MODEL` in `backend/.env` to point at a
-different checkpoint or the HF Hub slug.
+`backend/config.py` defaults `ROUTEWISE_MODEL_DIR` to this directory when
+it exists; override via the `ROUTEWISE_MODEL_DIR` environment variable to
+point at a different checkpoint or the HF Hub slug.
 
 The loader sets `HF_HUB_OFFLINE=1` / `TRANSFORMERS_OFFLINE=1` automatically
 when the path resolves to a local directory, suppressing the HF

@@ -1,29 +1,44 @@
-# Create T3 App
+# RouteWise Frontend
 
-This is a [T3 Stack](https://create.t3.gg/) project bootstrapped with `create-t3-app`.
+Next.js 15 + React 19 + TypeScript frontend for RouteWise.
 
-## What's next? How do I make an app with this?
+## Stack
 
-We try to keep this project as simple as possible, so you can start with just the scaffolding we set up for you, and add additional things later when they become necessary.
+- **Framework:** Next.js 15 (App Router, Turbopack dev)
+- **UI:** React 19, Tailwind CSS, shadcn/ui components
+- **Maps:** Leaflet + protomaps-leaflet (local PMTiles, no external tile server)
+- **State:** React hooks + URL params
 
-If you are not familiar with the different technologies used in this project, please refer to the respective docs. If you still are in the wind, please join our [Discord](https://t3.gg/discord) and ask for help.
+## Development
 
-- [Next.js](https://nextjs.org)
-- [NextAuth.js](https://next-auth.js.org)
-- [Prisma](https://prisma.io)
-- [Drizzle](https://orm.drizzle.team)
-- [Tailwind CSS](https://tailwindcss.com)
-- [tRPC](https://trpc.io)
+```bash
+npm install
+npm run dev        # starts on http://localhost:3000 (Turbopack)
+```
 
-## Learn More
+The frontend expects the FastAPI backend running on `http://localhost:8080`.
 
-To learn more about the [T3 Stack](https://create.t3.gg/), take a look at the following resources:
+## Key pages
 
-- [Documentation](https://create.t3.gg/)
-- [Learn the T3 Stack](https://create.t3.gg/en/faq#what-learning-resources-are-currently-available) — Check out these awesome tutorials
+| Route | File | Description |
+|---|---|---|
+| `/` | `src/app/page.tsx` | Origin/destination entry form |
+| `/trip` | `src/app/trip/page.tsx` | Trip briefing view (map + sidebar + cards) |
+| `/trip/briefing` | `src/app/trip/briefing/` | Briefing sub-route |
 
-You can check out the [create-t3-app GitHub repository](https://github.com/t3-oss/create-t3-app) — your feedback and contributions are welcome!
+## Key components
 
-## How do I deploy this?
+| Component | Description |
+|---|---|
+| `RouteMap` | Leaflet map with route polylines, risk coloring, hotspot pins, news markers |
+| `BriefingCard` | Slide-out card for hotspot details or news articles |
+| `AlternatesPanel` | Route alternates with crash counts and duration |
+| `SidebarSections` | Right sidebar: conditions, hotspots, lessons, media coverage |
+| `PlanCard` | Fatigue/rest-stop plan display |
+| `SiteHeader` | Top navigation bar |
 
-Follow our deployment guides for [Vercel](https://create.t3.gg/en/deployment/vercel), [Netlify](https://create.t3.gg/en/deployment/netlify) and [Docker](https://create.t3.gg/en/deployment/docker) for more information.
+## API integration
+
+All backend calls go through `src/lib/api.ts` and `src/lib/client-api.ts`,
+hitting the FastAPI backend's `/trip/brief` endpoint. Types are defined in
+`src/lib/types.ts`.

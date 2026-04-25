@@ -470,8 +470,8 @@ a SQL join would destroy.
    from structured fields with the free-text investigator narrative
    where present (CISS only). Records without narratives still get a
    coherent situation paragraph from the template alone.
-6. **Embed** with `sentence-transformers/all-MiniLM-L6-v2` (same model
-   as RigSense — bundled locally in `models/`, runs offline).
+6. **Embed** with `sentence-transformers/all-MiniLM-L6-v2` (bundled
+   locally in `models/`, runs offline).
 7. **Upsert** into VectorAI DB collection `routewise_crashes` with
    the full payload (§6.2). Use `uuid5(namespace, source + case_id)`
    for deterministic point IDs.
@@ -734,7 +734,7 @@ Payload indexes we want (exact filters needed at query time):
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│             Frontend (Vite + React + Leaflet)                   │
+│          Frontend (Next.js 15 + React 19 + TypeScript)          │
 │  Origin/dest form · Map with polyline · Hotspot pins            │
 │  Conditions banner · Fatigue plan · Briefing card modal         │
 │  Pre-trip checklist                                             │
@@ -768,24 +768,17 @@ Payload indexes we want (exact filters needed at query time):
   └───────────────────────────────┘
 ```
 
-**Reused from RigSense** (saves real time):
+**Key dependencies:**
 
-- `models/all-MiniLM-L6-v2/` — same model, bundled, offline.
-- `backend/backend/embeddings.py` — local offline wrapper.
-- `backend/backend/config.py` — Settings pattern.
-- VectorAI DB client wrapper.
-- `vectorai-db-beta/docker-compose.yml`.
-- `install.sh` / `start.sh` structure.
-- FastAPI project skeleton, deterministic `uuid5` point IDs.
-
-**New dependencies:**
-
+- `models/all-MiniLM-L6-v2/` — bundled embedding model, offline.
+- `backend/embeddings.py` — local offline wrapper.
+- `backend/config.py` — Pydantic Settings pattern.
+- VectorAI DB client (`actian_vectorai`).
 - `h3` (Python) — hex cell indexing.
 - `scikit-learn` — DBSCAN for hotspot clustering, KDTree for AADT snap.
 - `shapely`, `pyproj` — AADT segment geometry handling.
-- `pysolar` — sunset / sunrise computation.
 - `httpx` — OSRM + Open-Meteo clients (async).
-- Frontend: `leaflet`, `react-leaflet`.
+- Frontend: Next.js 15, React 19, Leaflet, protomaps-leaflet, Tailwind CSS.
 
 **Explicitly not new:** NetworkX, OSMnx, a full road graph. We route
 via OSRM (public API or a one-shot self-hosted container) and never
@@ -1050,7 +1043,7 @@ router") doesn't apply. The new claim is tighter:
    read the coaching line aloud, read one CISS excerpt, show the
    AADT intensity ratio. Total: ~90 seconds on stage.
 2. **Repo** — documented, seeded, reproducible with `./install.sh` +
-   `./start.sh`, same pattern as RigSense.
+   `./start.sh`.
 3. **Pitch deck** (≤10 slides) — problem (teen, unfamiliar long
    drive, 20 minutes before keys), the pitch center (*"we don't just
    tell you when to leave — we tell you which route has the fewest
