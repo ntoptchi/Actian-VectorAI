@@ -130,7 +130,7 @@ export function TripView({
 
   const [selection, setSelection] = useState<Selection>(null);
   const [calloutDismissed, setCalloutDismissed] = useState(false);
-  const [sheetSnap, setSheetSnap] = useState<SheetSnap>("peek");
+  const [sheetSnap, setSheetSnap] = useState<SheetSnap>("collapsed");
   const [selectedChipId, setSelectedChipId] = useState<string | null>(null);
 
   const isChosenShowing = chosenId === brief.chosen_route_id;
@@ -221,7 +221,7 @@ export function TripView({
     return null;
   }, [activeChipId, hotspots, insights]);
 
-  const sheetIsFull = sheetSnap === "full";
+  const sheetIsFull = sheetSnap === "full" || sheetSnap === "half";
   const isLoading = phase === "init" || phase === "routes";
 
   if (phase === "error") {
@@ -359,7 +359,7 @@ export function TripView({
             setSelection(s);
             if (s.kind === "hotspot") setSelectedChipId(s.data.hotspot_id);
             if (s.kind === "insight") setSelectedChipId(s.data.insight_id);
-            setSheetSnap("peek");
+            setSheetSnap("collapsed");
           }}
           onChangeAlternate={setChosenId}
         />
