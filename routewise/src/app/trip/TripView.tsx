@@ -48,7 +48,7 @@ export function TripView({
   // Mobile sheet state lives here so the red callout can react to it
   // (fades out when the sheet is expanded to full, preventing the
   // callout from peeking out from behind the sheet edge).
-  const [sheetSnap, setSheetSnap] = useState<SheetSnap>("peek");
+  const [sheetSnap, setSheetSnap] = useState<SheetSnap>("collapsed");
   // Which chip in the mobile tray is "selected" — drives the preview
   // card above the tray. Null = fall back to the default (first
   // hotspot by km, then first news article). Explicit null selection
@@ -119,7 +119,7 @@ export function TripView({
     return null;
   }, [activeChipId, hotspots, newsArticles]);
 
-  const sheetIsFull = sheetSnap === "full";
+  const sheetIsFull = sheetSnap === "full" || sheetSnap === "half";
 
   return (
     <main className="grid flex-1 grid-cols-1 lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_28rem]">
@@ -246,10 +246,7 @@ export function TripView({
             // last-interacted item previewed.
             if (s.kind === "hotspot") setSelectedChipId(s.data.hotspot_id);
             if (s.kind === "news") setSelectedChipId(s.data.article_id);
-            // Collapse the sheet when the user commits to inspecting
-            // an item — the detail card stacks above, and the sheet
-            // being expanded behind it would trap scrolls.
-            setSheetSnap("peek");
+            setSheetSnap("collapsed");
           }}
           onChangeAlternate={setChosenId}
         />
