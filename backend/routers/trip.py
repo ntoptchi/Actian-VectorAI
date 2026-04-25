@@ -69,8 +69,8 @@ PRE_TRIP_CHECKLIST: list[str] = [
 # How heavily we weight safety when picking the chosen route.
 # 0.0 = always-fastest (Google Maps default).
 # 1.0 = pick the safest at any time cost.
-# 0.4 lands "+5min for -25% risk" inside the chosen-route band.
-SAFETY_LAMBDA = 0.4
+# 2.0 = safety-first: the safest route wins unless it's dramatically longer.
+SAFETY_LAMBDA = 2.0
 
 
 @router.post("/routes", response_model=RoutesOnlyResponse)
@@ -223,6 +223,11 @@ async def _score_alternate(alt: RouteAlternate, query_doc) -> _ScoredAlt:
 
     scored_segs = scoring.score_segments(seg_geoms, crashes)
     risk_score, n_crashes = scoring.aggregate_route_risk(scored_segs)
+    logger.info(
+        "route %s: %.2f crashes/km (%d crashes, %.0f km) → %s",
+        alt.route_id, risk_score, n_crashes,
+        alt.distance_m / 1000, scoring.route_risk_band(risk_score),
+    )
     return _ScoredAlt(alt, scored_segs, risk_score, n_crashes)
 
 
