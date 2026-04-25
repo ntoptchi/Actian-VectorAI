@@ -51,7 +51,7 @@ function SectionHeading({
   return (
     <div className="max-w-2xl">
       <p className="dashboard-eyebrow">{eyebrow}</p>
-      <h2 className="mt-2.5 text-[1.85rem] font-semibold tracking-tight text-white sm:text-[1.9rem]">
+      <h2 className="mt-2.5 text-[1.85rem] font-semibold text-white sm:text-[1.9rem]">
         {title}
       </h2>
       <p className="mt-1.5 max-w-xl text-sm leading-6 text-mist/66">{description}</p>
@@ -178,29 +178,85 @@ function StatusBanner({
   statusTokens: [string, string, string];
 }) {
   return (
-    <div className="dashboard-card dashboard-card-strong p-1">
-      <div className="flex flex-col gap-1 md:grid md:grid-cols-[minmax(272px,auto)_minmax(0,1fr)] md:items-center md:gap-1">
+    <div className="dashboard-card dashboard-card-strong p-3 sm:p-3.5">
+      <div className="flex flex-col gap-3 md:grid md:grid-cols-[minmax(272px,auto)_minmax(0,1fr)] md:items-center">
         <div className="flex flex-wrap items-center gap-2 md:min-w-[286px]">
-          <span className="dashboard-meta rounded-full border border-danger/35 bg-danger/10 px-2.5 py-0.5 text-ember">
+          <span className="dashboard-meta rounded-full border border-danger/35 bg-danger/10 px-2.5 py-1 text-ember">
             {severity}
           </span>
-          <span className="dashboard-meta rounded-full border border-[rgba(120,160,255,0.12)] bg-[rgba(15,23,38,0.72)] px-2.5 py-0.5 text-mist/62">
+          <span className="dashboard-meta rounded-full border border-[rgba(120,160,255,0.12)] bg-[rgba(15,23,38,0.72)] px-2.5 py-1 text-mist/72">
             {asset}
           </span>
         </div>
-        <div className="grid gap-0.5 md:max-w-[22rem] md:justify-self-start">
+        <div className="grid gap-1.5 md:grid-cols-3 md:justify-self-stretch">
           {statusTokens.map((token) => (
             <div
               key={token}
-              className="flex items-center gap-2"
+              className="flex min-w-0 items-center gap-2 rounded-[12px] border border-white/[0.05] bg-white/[0.025] px-2.5 py-1.5"
             >
-              <span className="h-1.5 w-1.5 rounded-full bg-mist/34" />
-              <span className="dashboard-meta-soft text-mist/68">{token}</span>
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-mist/34" />
+              <span className="dashboard-meta-soft min-w-0 truncate text-mist/68">{token}</span>
             </div>
           ))}
         </div>
       </div>
     </div>
+  );
+}
+
+const briefingSteps = [
+  "Scanning telemetry",
+  "Checking safety envelope",
+  "Matching prior incidents",
+  "Preparing briefing",
+];
+
+function BriefingLoader() {
+  return (
+    <main className="grid min-h-screen place-items-center px-4 py-8 text-mist">
+      <section className="briefing-loader dashboard-card dashboard-card-strong w-full max-w-[760px] overflow-hidden p-5 sm:p-6">
+        <div className="relative grid gap-6 md:grid-cols-[220px_minmax(0,1fr)] md:items-center">
+          <div className="briefing-radar relative mx-auto grid h-[190px] w-[190px] place-items-center rounded-full border border-[rgba(120,160,255,0.12)] bg-[rgba(5,7,11,0.34)]">
+            <span className="briefing-ring briefing-ring-one" />
+            <span className="briefing-ring briefing-ring-two" />
+            <span className="briefing-ring briefing-ring-three" />
+            <span className="briefing-sweep" />
+            <span className="briefing-crosshair briefing-crosshair-x" />
+            <span className="briefing-crosshair briefing-crosshair-y" />
+            <span className="relative z-10 flex h-16 w-16 items-center justify-center rounded-full border border-surge/28 bg-surge/10 font-mono text-[11px] uppercase text-surge">
+              Safety
+            </span>
+          </div>
+
+          <div className="min-w-0">
+            <p className="dashboard-eyebrow">Live Safety Briefing</p>
+            <h1 className="mt-4 text-[2rem] font-semibold leading-tight text-white sm:text-[2.4rem]">
+              Analyzing your safety signals
+            </h1>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-mist/68">
+              Preparing a briefing from live telemetry, historical incidents, and response guidance.
+            </p>
+
+            <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+              <div className="briefing-progress h-full rounded-full bg-[linear-gradient(90deg,#14b8a6,#22d3ee,#3b82f6)]" />
+            </div>
+
+            <div className="mt-5 grid gap-2">
+              {briefingSteps.map((step, index) => (
+                <div
+                  key={step}
+                  className="briefing-step flex items-center gap-3 rounded-[12px] border border-white/[0.055] bg-white/[0.025] px-3 py-2"
+                  style={{ animationDelay: `${index * 420}ms` }}
+                >
+                  <span className="briefing-step-dot h-2 w-2 shrink-0 rounded-full bg-cyan" />
+                  <span className="dashboard-meta-soft text-mist/70">{step}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
   );
 }
 
@@ -356,7 +412,7 @@ function BaselineComparisonCard({ anomaly }: { anomaly: Anomaly }) {
 }
 
 function App() {
-  const { state, isLive, lastUpdated } = useLiveDashboard();
+  const { state, isLoading, isLive, error, lastUpdated } = useLiveDashboard();
 
   const metrics = state?.metrics ?? defaultMetrics;
   const alertSummary = state?.alertSummary ?? defaultAlertSummary;
@@ -393,6 +449,8 @@ function App() {
   }, [anomalies]);
 
   const primaryIncident = incidentMatches[0] ?? defaultIncidentMatches[0];
+  const currentAnomaly = anomalies[0] ?? defaultAnomalies[0];
+  const liveStats = state?.stats;
   const orderedMetrics = [
     metrics.find((metric) => metric.label === "Systems affected"),
     metrics.find((metric) => metric.label === "Median restore path"),
@@ -408,43 +466,55 @@ function App() {
         item.label !== "Critical window" &&
         item.label !== "Affected asset" &&
         item.label !== "Top driver",
-    ),
+      ),
   ];
+  const primaryAlert = orderedAlertSummary.find((item) => item.label === "Critical window") ?? orderedAlertSummary[0];
+  const assetAlert = orderedAlertSummary.find((item) => item.label === "Affected asset");
+  const driverAlert = orderedAlertSummary.find((item) => item.label === "Top driver");
+  const statusTokens: [string, string, string] = [
+    primaryAlert?.detail ?? currentAnomaly.signal,
+    primaryIncident ? `${primaryIncident.similarity}% prior-event match` : "Awaiting incident match",
+    liveStats ? `${liveStats.readings_ingested} readings ingested` : "Workflow ready",
+  ];
+
+  if (isLoading) {
+    return <BriefingLoader />;
+  }
 
   return (
     <main className="min-h-screen overflow-hidden text-mist">
       <div className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
-        <div className="relative overflow-hidden rounded-[30px] border border-[rgba(120,160,255,0.1)] bg-[rgba(11,18,32,0.94)] px-4 py-4.5 shadow-glow sm:px-6 sm:py-5.5 lg:px-7 lg:py-6">
+        <div className="relative overflow-hidden rounded-[22px] border border-[rgba(120,160,255,0.1)] bg-[rgba(11,18,32,0.94)] px-4 py-4.5 shadow-glow sm:px-6 sm:py-5.5 lg:px-7 lg:py-6">
           <div className="pointer-events-none absolute inset-0 bg-grid bg-[size:42px_42px] opacity-[0.07]" />
           <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-signal/6 to-transparent" />
-          <div className="pointer-events-none absolute -left-16 top-20 h-52 w-52 rounded-full bg-signal/6 blur-3xl" />
-          <div className="pointer-events-none absolute bottom-0 right-0 h-60 w-60 rounded-full bg-cyan/4 blur-3xl" />
 
           <div className="relative z-10 space-y-9">
             <section className="space-y-3.5">
-              <div className="flex items-center justify-end gap-2 text-[11px] uppercase tracking-[0.18em]">
-                <span
-                  className={`h-1.5 w-1.5 rounded-full ${
-                    isLive ? "bg-surge animate-pulse" : "bg-mist/30"
-                  }`}
-                />
-                <span className={isLive ? "text-surge/80" : "text-mist/40"}>
-                  {isLive ? "Live" : "Offline · fallback data"}
-                </span>
-                {lastUpdated ? (
-                  <span className="text-mist/40">
-                    · {lastUpdated.toLocaleTimeString()}
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="dashboard-eyebrow">RigSense Command View</p>
+                </div>
+                <div className="flex items-center gap-2 rounded-full border border-[rgba(120,160,255,0.1)] bg-[rgba(15,23,38,0.72)] px-3 py-1.5 text-[11px] uppercase tracking-[0em]">
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${
+                      isLive ? "bg-surge animate-pulse" : "bg-mist/30"
+                    }`}
+                  />
+                  <span className={isLive ? "text-surge/80" : "text-mist/48"}>
+                    {isLive ? "Live telemetry" : "Fallback data"}
                   </span>
-                ) : null}
+                  {lastUpdated ? (
+                    <span className="text-mist/40">
+                      {lastUpdated.toLocaleTimeString()}
+                    </span>
+                  ) : null}
+                  {!isLive && error ? <span className="text-mist/34">{error}</span> : null}
+                </div>
               </div>
               <StatusBanner
-                severity="Critical excursion active"
-                asset="Compressor line 3 / north wing"
-                statusTokens={[
-                  "Above tolerance since 21:10",
-                  "High prior-event correlation",
-                  "Workflow open",
-                ]}
+                severity={`${primaryAlert?.severity ?? currentAnomaly.severity} excursion active`}
+                asset={assetAlert?.value ?? currentAnomaly.scope}
+                statusTokens={statusTokens}
               />
 
               <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
@@ -462,12 +532,12 @@ function App() {
                   </div>
 
                   <div className="max-w-[34rem]">
-                    <h1 className="max-w-[12ch] text-[2.12rem] font-bold tracking-tight text-white sm:text-[2.3rem] sm:leading-[1.03]">
+                    <h1 className="max-w-[12ch] text-[2.12rem] font-bold text-white sm:text-[2.3rem] sm:leading-[1.03]">
                       <span className="block whitespace-nowrap">Excursion status</span>
                     </h1>
                     <div className="mt-0.5 max-w-[33rem] space-y-0 text-sm leading-5.5 text-mist/82 sm:text-[0.95rem]">
-                      <p>Compressor L3 remains in sustained breach with elevated thermal load.</p>
-                      <p>Maintain reduced load and inspection readiness until the trace stabilizes.</p>
+                      <p>{currentAnomaly.signal}</p>
+                      <p>{driverAlert ? `${driverAlert.value} remains the dominant driver.` : "Maintain reduced load and inspection readiness until the trace stabilizes."}</p>
                     </div>
                   </div>
 
