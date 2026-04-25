@@ -46,12 +46,15 @@ export async function fetchTripBrief(
   // they're missing is an out-of-date deployment.
   return {
     ...raw,
-    alternates: raw.alternates ?? [],
+    alternates: (raw.alternates ?? []).map((a) => ({
+      ...a,
+      segments: a.segments ?? [],
+    })),
     segments: raw.segments ?? [],
     hotspots: raw.hotspots ?? [],
     pre_trip_checklist: raw.pre_trip_checklist ?? [],
     chosen_route_id: raw.chosen_route_id ?? null,
-    news_articles: raw.news_articles ?? [],
+    insights: raw.insights ?? [],
   } as TripBriefResponse;
 }
 
@@ -66,37 +69,4 @@ export async function fetchHotspotDetail(
 
 export { BackendError };
 
-/**
- * Coerce a user-supplied departure value into an ISO timestamp the backend
- * will accept, or `null` (which the backend treats as "depart now").
- *
- * The landing form uses `<input type="time">`, which posts strings like
- * `"14:30"`. `new Date("14:30")` is "Invalid Date" in every JS runtime, so
- * calling `.toISOString()` on it throws `RangeError: Invalid time value` —
- * which is exactly the bug that surfaced as
- * "Could not reach the RouteWise backend: Invalid time value" on the trip
- * page (the error came from THIS process, not the backend at all).
- *
- * Accepts:
- *   - `HH:MM` or `HH:MM:SS`            -> today at that local time, ISO
- *   - any string `Date` can parse      -> ISO of that
- *   - empty / undefined / unparseable  -> null
- */
-export function parseDepart(input: string | null | undefined): string | null {
-  if (!input) return null;
-  const trimmed = input.trim();
-  if (!trimmed) return null;
-
-  // Plain HH:MM[:SS] from <input type="time"> — anchor to today, local TZ.
-  const timeOnly = /^(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(trimmed);
-  if (timeOnly) {
-    const [, hh, mm, ss] = timeOnly;
-    const now = new Date();
-    now.setHours(Number(hh), Number(mm), Number(ss ?? "0"), 0);
-    return now.toISOString();
-  }
-
-  const d = new Date(trimmed);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toISOString();
-}
+export { parseDepart } from "~/lib/parse-depart";

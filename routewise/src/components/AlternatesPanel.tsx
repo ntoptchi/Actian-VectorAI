@@ -1,6 +1,6 @@
 "use client";
 
-import type { AlternateSummary } from "~/lib/types";
+import type { AlternateSummary, RiskBand } from "~/lib/types";
 
 interface Props {
   alternates: AlternateSummary[];
@@ -8,13 +8,19 @@ interface Props {
   onSelect?: (route_id: string) => void;
 }
 
-const ROUTE_VIA = [
-  "Via Coastal Hwy 101",
-  "Via Interstate 95",
-  "Via 5th Ave Corridor",
-  "Via State Route 27",
-  "Via US-1 N",
-];
+const RISK_DOT_COLOR: Record<RiskBand, string> = {
+  low: "#4ade80",
+  moderate: "#fbbf24",
+  elevated: "#fb923c",
+  high: "#ef4444",
+};
+
+const RISK_LABEL: Record<RiskBand, string> = {
+  low: "Low risk",
+  moderate: "Moderate",
+  elevated: "Elevated",
+  high: "High risk",
+};
 
 function fmtMin(seconds: number): string {
   const total = Math.round(seconds / 60);
@@ -25,29 +31,32 @@ function fmtMin(seconds: number): string {
   return `${m}m`;
 }
 
+function fmtKm(meters: number): string {
+  return `${Math.round(meters / 1000)} km`;
+}
+
 export function AlternatesPanel({ alternates, chosenId, onSelect }: Props) {
   if (alternates.length === 0) {
     return (
-      <div className="rounded-sm bg-paper-3 px-3 py-4 text-xs text-ink-3 ring-1 ring-rule">
+      <div className="rounded-lg bg-paper-3 px-3 py-4 text-xs text-ink-3 ring-1 ring-rule">
         No alternates available.
       </div>
     );
   }
 
-  const chosenIdx = alternates.findIndex((a) => a.route_id === chosenId);
+  const recommendedIdx = alternates.findIndex((a) => a.route_id === chosenId);
 
   return (
-    <ul className="flex flex-col gap-3">
+    <ul className="flex flex-col gap-2.5">
       {alternates.map((a, i) => {
         const isChosen = a.route_id === chosenId;
-        const via = ROUTE_VIA[i] ?? `Alternate ${i + 1}`;
         const isFastest = i === 0;
         const minutesDelta = a.minutes_delta_vs_fastest;
-        const isRecommended = i === chosenIdx;
+        const isRecommended = i === recommendedIdx;
         const matchCaption =
           a.n_crashes === 0
-            ? "No crash history matching tonight's conditions on this route."
-            : `${a.n_crashes} ${a.n_crashes === 1 ? "segment matches" : "segments match"} tonight's conditions along this route.`;
+            ? "No crash history matching current conditions."
+            : `${a.n_crashes} ${a.n_crashes === 1 ? "segment matches" : "segments match"} current conditions.`;
 
         return (
           <li key={a.route_id}>
@@ -55,46 +64,66 @@ export function AlternatesPanel({ alternates, chosenId, onSelect }: Props) {
               type="button"
               onClick={() => onSelect?.(a.route_id)}
               aria-pressed={isChosen}
-              className={`relative flex w-full overflow-hidden rounded-sm bg-paper-3 text-left ring-1 transition ${
+              className={`relative flex w-full overflow-hidden rounded-lg bg-paper-3 text-left ring-1 transition duration-150 ${
                 isChosen
-                  ? "ring-2 ring-ink"
+                  ? "ring-2 ring-ink shadow-sm"
                   : "ring-rule hover:ring-ink/40"
               }`}
             >
-              {/* Left navy rail when chosen — matches mockup 2 */}
               <span
                 aria-hidden
-                className={`w-1 self-stretch ${
+                className={`w-1 self-stretch transition-colors ${
                   isChosen ? "bg-ink" : "bg-transparent"
                 }`}
               />
 
               <div className="flex flex-1 flex-col gap-3 p-4">
                 <div className="flex items-start justify-between gap-3">
-                  <div className="text-lg font-semibold leading-tight text-ink">
-                    {via}
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="h-2 w-2 rounded-full"
+                      style={{ backgroundColor: RISK_DOT_COLOR[a.risk_band] }}
+                    />
+                    <span className="text-base font-semibold leading-tight text-ink">
+                      Route {i + 1}
+                    </span>
+                    <span className="text-xs text-ink-4">
+                      {fmtKm(a.distance_m)}
+                    </span>
                   </div>
-                  {isRecommended && (
+                  {!isChosen && isRecommended && (
                     <span className="shrink-0 rounded-full bg-ink px-2.5 py-0.5 text-[0.6875rem] font-semibold text-paper">
                       Recommended
                     </span>
                   )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 border-t border-rule pt-3">
+                <div className="grid grid-cols-3 gap-3 border-t border-rule pt-3">
                   <Stat
                     label="Time"
                     value={fmtMin(a.duration_s)}
                     sublabel={
                       isFastest
-                        ? undefined
-                        : `${minutesDelta > 0 ? "+" : ""}${minutesDelta.toFixed(0)} min`
+                        ? "Fastest"
+                        : `+${Math.abs(minutesDelta).toFixed(0)} min`
                     }
+                    sublabelTone={isFastest ? "good" : "neutral"}
                   />
                   <Stat
                     label="Matches"
                     value={String(a.n_crashes)}
                     tone={a.n_crashes === 0 ? "good" : "neutral"}
+                  />
+                  <Stat
+                    label="Risk"
+                    value={RISK_LABEL[a.risk_band]}
+                    tone={
+                      a.risk_band === "low"
+                        ? "good"
+                        : a.risk_band === "high"
+                          ? "warn"
+                          : "neutral"
+                    }
                   />
                 </div>
 
@@ -113,33 +142,30 @@ export function AlternatesPanel({ alternates, chosenId, onSelect }: Props) {
 function Stat({
   label,
   value,
-  valueSuffix,
   sublabel,
   tone = "neutral",
+  sublabelTone = "neutral",
 }: {
   label: string;
   value: string;
-  valueSuffix?: string;
   sublabel?: string;
   tone?: "good" | "warn" | "neutral";
+  sublabelTone?: "good" | "warn" | "neutral";
 }) {
   const valueColor =
     tone === "good" ? "text-good" : tone === "warn" ? "text-gold" : "text-ink";
+  const subColor =
+    sublabelTone === "good" ? "text-good" : "text-ink-4";
   return (
     <div className="flex flex-col gap-0.5">
-      <div className="flex items-baseline gap-0.5">
-        <span className={`stat-numeral text-2xl ${valueColor}`}>{value}</span>
-        {valueSuffix && (
-          <span className={`stat-numeral text-base ${valueColor}`}>
-            {valueSuffix}
-          </span>
-        )}
-      </div>
-      <span className="font-mono text-[0.625rem] uppercase tracking-[0.18em] text-ink-3">
+      <span className={`font-display text-lg font-semibold leading-tight ${valueColor}`}>
+        {value}
+      </span>
+      <span className="text-[0.625rem] text-ink-3">
         {label}
       </span>
       {sublabel && (
-        <span className="text-[0.6875rem] text-ink-4">{sublabel}</span>
+        <span className={`text-[0.6875rem] ${subColor}`}>{sublabel}</span>
       )}
     </div>
   );

@@ -10,8 +10,8 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import type {
+  CrashInsight,
   HotspotSummary,
-  NewsArticle,
   TripBriefResponse,
 } from "~/lib/types";
 import { SidebarSections } from "./SidebarSections";
@@ -20,13 +20,13 @@ export type SheetSnap = "collapsed" | "half" | "full";
 
 type Selection =
   | { kind: "hotspot"; data: HotspotSummary }
-  | { kind: "news"; data: NewsArticle };
+  | { kind: "insight"; data: CrashInsight };
 
 interface Props {
   brief: TripBriefResponse;
   chosenId: string | null;
   hotspots: HotspotSummary[];
-  newsArticles: NewsArticle[];
+  insights: CrashInsight[];
   briefingHref: string;
   snap: SheetSnap;
   onSnapChange: (snap: SheetSnap) => void;
@@ -70,7 +70,7 @@ export function MobileRiskSheet({
   brief,
   chosenId,
   hotspots,
-  newsArticles,
+  insights,
   briefingHref,
   snap,
   onSnapChange,
@@ -100,8 +100,6 @@ export function MobileRiskSheet({
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Reset scroll position whenever we leave full state so the tray
-  // content doesn't end up half-scrolled when the user sees it next.
   const prevSnap = useRef(snap);
   useEffect(() => {
     if (prevSnap.current === "full" && snap !== "full") {
@@ -231,7 +229,7 @@ export function MobileRiskSheet({
         {isCollapsed && (
           <CollapsedSummary
             sortedHotspots={sortedHotspots}
-            newsArticles={newsArticles}
+            insights={insights}
             selectedChipId={selectedChipId}
             onSelectChip={onSelectChip}
             onOpenDetail={onOpenDetail}
@@ -255,7 +253,7 @@ export function MobileRiskSheet({
                   brief={brief}
                   chosenId={chosenId}
                   hotspots={hotspots}
-                  newsArticles={newsArticles}
+                  insights={insights}
                   onChangeAlternate={onChangeAlternate}
                   onSelect={onOpenDetail}
                 />
@@ -281,14 +279,14 @@ export function MobileRiskSheet({
  */
 function CollapsedSummary({
   sortedHotspots,
-  newsArticles,
+  insights,
   selectedChipId,
   onSelectChip,
   onOpenDetail,
   onExpand,
 }: {
   sortedHotspots: HotspotSummary[];
-  newsArticles: NewsArticle[];
+  insights: CrashInsight[];
   selectedChipId: string | null;
   onSelectChip: (id: string) => void;
   onOpenDetail: (s: Selection) => void;
@@ -296,13 +294,13 @@ function CollapsedSummary({
 }) {
   const allItems: Array<
     | { kind: "hotspot"; data: HotspotSummary }
-    | { kind: "news"; data: NewsArticle }
+    | { kind: "insight"; data: CrashInsight }
   > = [
     ...sortedHotspots.map(
       (h) => ({ kind: "hotspot" as const, data: h }),
     ),
-    ...newsArticles.map(
-      (n) => ({ kind: "news" as const, data: n }),
+    ...insights.map(
+      (ins) => ({ kind: "insight" as const, data: ins }),
     ),
   ];
 
@@ -314,9 +312,9 @@ function CollapsedSummary({
           {sortedHotspots.length > 0
             ? `${sortedHotspots.length} hotspot${sortedHotspots.length !== 1 ? "s" : ""} ahead`
             : "No hotspots on route"}
-          {newsArticles.length > 0 && (
+          {insights.length > 0 && (
             <span className="text-ink-4">
-              {" "}· {newsArticles.length} article{newsArticles.length !== 1 ? "s" : ""}
+              {" "}· {insights.length} insight{insights.length !== 1 ? "s" : ""}
             </span>
           )}
         </span>
@@ -347,12 +345,12 @@ function CollapsedSummary({
             const id =
               chip.kind === "hotspot"
                 ? chip.data.hotspot_id
-                : chip.data.article_id;
+                : chip.data.insight_id;
             const isSelected = selectedChipId === id;
             const label =
               chip.kind === "hotspot"
                 ? chip.data.label
-                : chip.data.headline;
+                : chipLabel(chip.data);
             const dot =
               chip.kind === "hotspot"
                 ? (chip.data.intensity_ratio ?? 0) >= 2.5
@@ -360,7 +358,7 @@ function CollapsedSummary({
                   : (chip.data.intensity_ratio ?? 0) >= 1.5
                     ? "bg-gold"
                     : "bg-good"
-                : "bg-[#2563eb]";
+                : "bg-gold-strong";
             return (
               <button
                 key={id}
@@ -413,4 +411,16 @@ function Chevron({ up }: { up: boolean }) {
 
 function clamp(n: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, n));
+}
+
+/**
+ * Short chip label for an insight. Prefers a trimmed headline, falling
+ * back to the first risk factor or a generic "Lesson" so the chip
+ * never renders blank even for sparsely-tagged insights.
+ */
+function chipLabel(ins: CrashInsight): string {
+  const h = (ins.headline || "").trim();
+  if (h) return h.length > 40 ? h.slice(0, 40).replace(/\s\S*$/, "") + "…" : h;
+  if (ins.risk_factors[0]) return ins.risk_factors[0].replace(/_/g, " ");
+  return "Lesson";
 }

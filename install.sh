@@ -106,6 +106,21 @@ docker pull williamimoh/actian-vectorai-db:latest >/dev/null
 info "image ready"
 
 # ---------------------------------------------------------------------------
+section "Local map stack (OSRM routing + PMTiles basemap)"
+# ---------------------------------------------------------------------------
+# scripts/setup_local_map.sh is fully idempotent:
+#   * OSRM: skipped if osrm-data/florida-latest.osrm already exists.
+#   * PMTiles: skipped if tiles-data/florida.pmtiles already exists.
+#   * pmtiles CLI: auto-installed into .bin/ on first run, reused after.
+#
+# First-run cost on a cold box is ~5 min for OSRM preprocessing + ~2 min
+# for the PMTiles extract. Both run against real network + Docker, so
+# we surface any failure as a hard error — without these assets the
+# start.sh precheck will refuse to bring the services up.
+bash scripts/setup_local_map.sh \
+  || die "local map setup failed — see output above. Re-run ./install.sh once the issue is resolved."
+
+# ---------------------------------------------------------------------------
 section "Fetching pre-built VDB snapshot (optional fast-path)"
 # ---------------------------------------------------------------------------
 # Maintainers publish a gzipped dump of the fully-embedded collection as a
@@ -119,9 +134,9 @@ section "Fetching pre-built VDB snapshot (optional fast-path)"
 # corrupts whatever segment is currently paged in. We defensively stop any
 # already-running container so re-running install.sh mid-update is safe.
 # The normal `compose up -d` below restarts it.
-if docker compose -f vectorai-db-beta/docker-compose.yml ps -q 2>/dev/null | grep -q .; then
+if docker compose ps -q 2>/dev/null | grep -q .; then
   info "stopping running VDB container before extracting snapshot..."
-  docker compose -f vectorai-db-beta/docker-compose.yml stop >/dev/null 2>&1 || true
+  docker compose stop vectoraidb >/dev/null 2>&1 || true
 fi
 
 set +e
@@ -141,9 +156,9 @@ section "Booting Actian VectorAI DB (one-time, for seeding)"
 # We need the container running to seed it. Bring it up here, leave it up
 # afterwards — start.sh will reuse the same container (compose up -d is a
 # no-op if it's already running).
-docker compose -f vectorai-db-beta/docker-compose.yml up -d
+docker compose up -d vectoraidb
 "$VENV_PY" scripts/wait_vdb.py --timeout 90 \
-  || die "VectorAI DB never came up. Check 'docker compose -f vectorai-db-beta/docker-compose.yml logs'."
+  || die "VectorAI DB never came up. Check 'docker compose logs vectoraidb'."
 
 # ---------------------------------------------------------------------------
 section "Building processed data tables"

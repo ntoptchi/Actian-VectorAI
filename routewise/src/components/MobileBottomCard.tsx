@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { humanizeFactor } from "~/lib/factors";
 import type {
+  CrashInsight,
   HotspotSummary,
-  NewsArticle,
   RiskBand,
   RouteSegment,
 } from "~/lib/types";
@@ -11,7 +12,7 @@ import type {
 type Selection =
   | { kind: "hotspot"; data: HotspotSummary }
   | { kind: "segment"; data: RouteSegment }
-  | { kind: "news"; data: NewsArticle };
+  | { kind: "insight"; data: CrashInsight };
 
 interface Props {
   subject: Selection;
@@ -31,7 +32,7 @@ const RISK_COLOR: Record<RiskBand, string> = {
 function subjectKey(s: Selection): string {
   if (s.kind === "segment") return `seg-${s.data.segment_id}`;
   if (s.kind === "hotspot") return `hs-${s.data.hotspot_id}`;
-  return `news-${s.data.article_id}`;
+  return `insight-${s.data.insight_id}`;
 }
 
 export function MobileBottomCard({
@@ -67,13 +68,12 @@ export function MobileBottomCard({
           <div className="mx-auto h-1 w-8 rounded-full bg-ink-4/40" />
           <button
             type="button"
-            onPointerDown={(e) => {
+            onClick={(e) => {
               e.stopPropagation();
-              e.preventDefault();
               onClose();
             }}
             aria-label="Close"
-            className="absolute right-3 top-2 z-10 grid h-9 w-9 place-items-center rounded-full bg-paper-3 text-ink-3 shadow-sm ring-1 ring-rule transition active:scale-90"
+            className="absolute right-3 top-2 z-10 grid h-9 w-9 place-items-center rounded-full bg-paper-3 text-ink-3 shadow-sm ring-1 ring-rule transition-colors"
           >
             <svg
               width="12"
@@ -104,7 +104,7 @@ export function MobileBottomCard({
           {subject.kind === "hotspot" && (
             <HotspotCard hotspot={subject.data} />
           )}
-          {subject.kind === "news" && <NewsCard article={subject.data} />}
+          {subject.kind === "insight" && <InsightCard insight={subject.data} />}
         </div>
       </div>
     </>
@@ -148,10 +148,13 @@ function SegmentCard({
           </div>
         </div>
         <span
-          className="shrink-0 rounded-sm px-2 py-1 text-[0.625rem] font-bold uppercase tracking-wider"
+          className="shrink-0 rounded px-2 py-1 text-[0.625rem] font-bold uppercase tracking-wider"
           style={{
             backgroundColor: RISK_COLOR[segment.risk_band],
-            color: segment.risk_band === "low" ? "#0b1f44" : "#fff",
+            color:
+              segment.risk_band === "low" || segment.risk_band === "moderate"
+                ? "#0b1f44"
+                : "#fff",
           }}
         >
           {segment.risk_band}
@@ -271,78 +274,141 @@ function HotspotCard({ hotspot }: { hotspot: HotspotSummary }) {
           </p>
         </div>
       )}
+
+      {/* Inline anecdote from the coaching VDB (same data as the
+          right-rail desktop insight block, rendered compactly here). */}
+      {hotspot.insight && <InlineInsightBlock insight={hotspot.insight} />}
     </div>
   );
 }
 
-/* ─────────────── News Card ─────────────── */
+/* ─────────────── Insight Card (standalone) ─────────────── */
 
-function NewsCard({ article }: { article: NewsArticle }) {
-  // The severity pill used to live in the top-right of the headline row,
-  // which put it directly under the absolutely-positioned close (X) button
-  // in the sheet header — on narrow screens they overlapped. Moving the
-  // chip *under* the headline (as a metadata row) side-steps the collision
-  // entirely and matches the stripped-down citation layout used by the
-  // desktop NewsBriefingCard (headline + source + date + external link).
-  const severity =
-    article.severity === "fatal"
-      ? { label: "Fatal", color: "bg-alert text-paper" }
-      : article.severity === "serious"
-        ? { label: "Serious", color: "bg-gold text-paper" }
-        : { label: "Report", color: "bg-[#2563eb]/15 text-[#2563eb]" };
-
+/**
+ * Mobile sheet for a standalone CrashInsight. Same hierarchy as
+ * desktop's InsightBriefingCard: lesson hero, incident summary
+ * secondary, muted source footer. The source line is deliberately
+ * quiet — we're teaching a lesson, not showcasing a news article.
+ */
+function InsightCard({ insight }: { insight: CrashInsight }) {
   return (
     <div className="flex flex-col gap-4 pb-4">
-      <div className="flex flex-col gap-2">
-        {/* Add right-padding on the headline row so it can't tuck under the
-            close button on very narrow devices even as font sizes scale. */}
-        <h3 className="pr-10 text-lg font-semibold leading-tight text-ink">
-          {article.headline}
+      <div>
+        <span className="font-mono text-[0.625rem] font-semibold uppercase tracking-wider text-gold-strong">
+          Lesson from a past crash
+        </span>
+        <h3 className="mt-1 text-lg font-semibold leading-tight text-ink">
+          {insight.headline}
         </h3>
-        <div className="flex flex-wrap items-center gap-2">
-          <span
-            className={`shrink-0 rounded-sm px-2 py-0.5 text-[0.625rem] font-bold uppercase tracking-wider ${severity.color}`}
-          >
-            {severity.label}
-          </span>
-          <span className="text-xs text-ink-3">
-            {article.publisher}
-            {article.publish_date ? ` · ${article.publish_date}` : ""}
-          </span>
-        </div>
       </div>
 
-      {/* Read original — the only action. No excerpt, no location coords,
-          no linked crash IDs: the article is a citation for a data point
-          already in our corpus, so the card stays a headline + source +
-          date + outbound link (matches NewsBriefingCard on desktop). */}
-      {article.article_url ? (
+      {/* THE LESSON — hero */}
+      <div className="rounded-sm border-l-[3px] border-gold-strong bg-[#fbf5ea] p-4">
+        <span className="font-mono text-[0.625rem] font-semibold uppercase tracking-wider text-gold-strong">
+          The Lesson
+        </span>
+        <p className="mt-1.5 text-sm leading-relaxed text-ink">
+          {insight.lesson}
+        </p>
+      </div>
+
+      {/* Incident summary — secondary */}
+      {insight.incident_summary && (
+        <div>
+          <span className="text-[0.625rem] font-semibold uppercase tracking-wider text-ink-3">
+            Incident Summary
+          </span>
+          <p className="mt-1 text-sm leading-relaxed text-ink-2">
+            {insight.incident_summary}
+          </p>
+        </div>
+      )}
+
+      {/* Risk factor chips */}
+      {insight.risk_factors.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {insight.risk_factors.slice(0, 6).map((t) => (
+            <span
+              key={t}
+              className="rounded-sm bg-paper-3 px-2 py-1 font-mono text-[0.625rem] uppercase tracking-wider text-ink-2 ring-1 ring-rule"
+            >
+              {humanizeFactor(t)}
+            </span>
+          ))}
+        </div>
+      )}
+
+      <InsightSourceLine source={insight.source} />
+    </div>
+  );
+}
+
+
+/** Compact version of the desktop InlineInsightBlock. */
+function InlineInsightBlock({ insight }: { insight: CrashInsight }) {
+  return (
+    <div className="rounded-sm border-l-[3px] border-gold-strong bg-[#fbf5ea] p-3">
+      <span className="text-[0.625rem] font-semibold uppercase tracking-wider text-gold-strong">
+        A lesson from a past crash
+      </span>
+      <p className="mt-1 text-sm leading-relaxed text-ink">{insight.lesson}</p>
+      {insight.incident_summary && (
+        <p className="mt-2 border-t border-rule/60 pt-2 text-[0.8125rem] leading-relaxed text-ink-2">
+          {insight.incident_summary}
+        </p>
+      )}
+      <InsightSourceLine source={insight.source} compact />
+    </div>
+  );
+}
+
+function InsightSourceLine({
+  source,
+  compact = false,
+}: {
+  source: CrashInsight["source"];
+  compact?: boolean;
+}) {
+  if (!source.article_url && !source.publisher) return null;
+  const parts: string[] = [];
+  if (source.publisher) parts.push(source.publisher);
+  if (source.publish_date) parts.push(source.publish_date);
+  const line = parts.join(" · ");
+  const body = (
+    <span className="flex items-center gap-1 font-mono text-[0.625rem] uppercase tracking-wider text-ink-3">
+      <span className="text-ink-4">Source</span>
+      {line && <span>· {line}</span>}
+      {source.article_url && (
+        <svg
+          width="10"
+          height="10"
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M6 3H3v10h10v-3" />
+          <path d="M9 2h5v5" />
+          <path d="M14 2L7 9" />
+        </svg>
+      )}
+    </span>
+  );
+  return (
+    <div className={compact ? "mt-2" : "border-t border-rule pt-3"}>
+      {source.article_url ? (
         <a
-          href={article.article_url}
+          href={source.article_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center justify-center gap-2 rounded-sm bg-[#2563eb] px-4 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-paper transition hover:bg-[#1d4ed8]"
+          className="transition active:text-ink"
         >
-          Read original
-          <svg
-            width="12"
-            height="12"
-            viewBox="0 0 16 16"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M6 3H3v10h10v-3" />
-            <path d="M9 2h5v5" />
-            <path d="M14 2L7 9" />
-          </svg>
+          {body}
         </a>
       ) : (
-        <p className="text-xs text-ink-3">
-          Source link unavailable for this article.
-        </p>
+        body
       )}
     </div>
   );
@@ -391,7 +457,7 @@ function RiskBar({
               aria-label={`Segment ${seg.from_km.toFixed(0)}–${seg.to_km.toFixed(0)} km, ${seg.risk_band} risk`}
             >
               {isActive && (
-                <span className="absolute inset-0 ring-2 ring-ink rounded-sm" />
+                <span className="absolute inset-0 ring-2 ring-ink rounded-full" />
               )}
             </button>
           );

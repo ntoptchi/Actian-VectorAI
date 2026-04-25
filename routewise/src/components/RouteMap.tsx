@@ -1,24 +1,43 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import L from "leaflet";
 import {
   MapContainer,
   Polyline,
-  TileLayer,
   Tooltip,
   CircleMarker,
   useMap,
 } from "react-leaflet";
+import { leafletLayer } from "protomaps-leaflet";
 
 import "leaflet/dist/leaflet.css";
+
+const ROUTE_LABEL_STYLE = `
+.route-label.leaflet-tooltip {
+  background: rgba(11,31,68,0.88);
+  color: #fbf6ec;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 10px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.35);
+  font-family: inherit;
+  backdrop-filter: blur(4px);
+}
+.route-label.leaflet-tooltip::before { display: none; }
+.route-label--chosen.leaflet-tooltip {
+  background: rgba(11,31,68,0.95);
+  box-shadow: 0 3px 14px rgba(0,0,0,0.4);
+}
+`;
 
 import { segmentLocationLabel } from "~/lib/segmentLabels";
 import type {
   AlternateSummary,
+  CrashInsight,
   FatigueStop,
   HotspotSummary,
-  NewsArticle,
+  LatLon,
   RiskBand,
   RouteSegment,
 } from "~/lib/types";
@@ -38,87 +57,277 @@ const RISK_GLOW: Record<RiskBand, string> = {
 };
 
 interface Props {
+  origin?: LatLon;
+  destination?: LatLon;
   segments: RouteSegment[];
   alternates: AlternateSummary[];
   chosenRouteId: string | null;
   hotspots: HotspotSummary[];
   stops?: FatigueStop[];
-  newsArticles: NewsArticle[];
+  insights: CrashInsight[];
   onSegmentClick?: (seg: RouteSegment) => void;
   onHotspotClick?: (h: HotspotSummary) => void;
-  onNewsClick?: (n: NewsArticle) => void;
+  onInsightClick?: (i: CrashInsight) => void;
+  onAlternateClick?: (routeId: string) => void;
 }
 
 export default function RouteMap({
+  origin,
+  destination,
   segments,
   alternates,
   chosenRouteId,
   hotspots,
   stops,
-  newsArticles,
+  insights,
   onSegmentClick,
   onHotspotClick,
-  onNewsClick,
+  onInsightClick,
+  onAlternateClick,
 }: Props) {
   const center = useMemo<[number, number]>(() => {
+    if (origin && destination) {
+      return [(origin.lat + destination.lat) / 2, (origin.lon + destination.lon) / 2];
+    }
     const all = segments.flatMap((s) => s.polyline);
     if (all.length === 0) return [27.7663, -82.6404];
     const mid = all[Math.floor(all.length / 2)];
     if (!mid || mid.length < 2) return [27.7663, -82.6404];
     return [mid[1], mid[0]] as [number, number];
-  }, [segments]);
+  }, [origin, destination, segments]);
 
   const bounds = useMemo<L.LatLngBoundsExpression | null>(() => {
     const pts: [number, number][] = segments.flatMap((s) =>
       s.polyline.map(([lon, lat]): [number, number] => [lat, lon]),
     );
-    if (pts.length < 2) return null;
+    if (origin && destination) {
+      pts.push([origin.lat, origin.lon], [destination.lat, destination.lon]);
+    }
+    if (pts.length < 2) {
+      if (origin && destination) {
+        return L.latLngBounds(
+          [origin.lat, origin.lon],
+          [destination.lat, destination.lon],
+        );
+      }
+      return null;
+    }
     return L.latLngBounds(pts);
-  }, [segments]);
+  }, [origin, destination, segments]);
+
+  // Animate risk-colored segments sweeping from origin to destination
+  // when crash data first arrives. Progress 0→1 controls how many
+  // segments are visible; alternates appear only after the sweep ends.
+  const [drawProgress, setDrawProgress] = useState(segments.length > 0 ? 1 : 0);
+  const animatedRef = useRef(false);
+
+  useEffect(() => {
+    if (segments.length > 0 && !animatedRef.current) {
+      animatedRef.current = true;
+      const prefersReduced =
+        typeof window !== "undefined" &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (prefersReduced) {
+        setDrawProgress(1);
+        return;
+      }
+      let start: number | null = null;
+      const DURATION = 800;
+      const tick = (ts: number) => {
+        if (start === null) start = ts;
+        const t = Math.min((ts - start) / DURATION, 1);
+        setDrawProgress(1 - Math.pow(1 - t, 3));
+        if (t < 1) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    }
+  }, [segments.length]);
+
+  const visibleSegCount = Math.ceil(segments.length * drawProgress);
+  const visibleSegments = segments.slice(0, visibleSegCount);
+  const sweepDone = drawProgress >= 1;
 
   return (
     <MapContainer
       center={center}
       zoom={8}
+      minZoom={8}
       scrollWheelZoom
       zoomControl={false}
       className="h-full w-full"
     >
       <MapLayerSwitcher />
+      <style dangerouslySetInnerHTML={{ __html: ROUTE_LABEL_STYLE }} />
       <FitBounds bounds={bounds} />
 
-      {/* Faded alternates underneath */}
-      {alternates
-        .filter((a) => a.route_id !== chosenRouteId)
-        .map((a) => (
-          <Polyline
-            key={`alt-${a.route_id}`}
-            positions={a.polyline.map(([lon, lat]) => [lat, lon])}
-            pathOptions={{
-              color: "#5b8fc4",
-              weight: 3,
-              opacity: 0.55,
-              dashArray: "5 7",
-            }}
-          />
-        ))}
+      {/* Origin / destination markers */}
+      {origin && (
+        <CircleMarker
+          center={[origin.lat, origin.lon]}
+          radius={7}
+          pathOptions={{ color: "#fff", weight: 2.5, fillColor: "#22c55e", fillOpacity: 1 }}
+        >
+          <Tooltip direction="top" offset={[0, -6]}>
+            <span className="font-semibold text-paper">Origin</span>
+          </Tooltip>
+        </CircleMarker>
+      )}
+      {destination && (
+        <CircleMarker
+          center={[destination.lat, destination.lon]}
+          radius={7}
+          pathOptions={{ color: "#fff", weight: 2.5, fillColor: "#ef4444", fillOpacity: 1 }}
+        >
+          <Tooltip direction="top" offset={[0, -6]}>
+            <span className="font-semibold text-paper">Destination</span>
+          </Tooltip>
+        </CircleMarker>
+      )}
 
-      {/* Chosen route — colored per segment with a soft underglow */}
-      {segments.map((seg) => (
+      {/* Non-chosen alternates: appear after the chosen-route sweep finishes */}
+      {sweepDone &&
+        alternates
+          .filter((a) => a.route_id !== chosenRouteId)
+          .flatMap((a) => {
+            const segs = a.segments ?? [];
+            const allPositions = a.polyline.map(
+              ([lon, lat]): [number, number] => [lat, lon],
+            );
+            const midIdx = Math.floor(allPositions.length / 2);
+            const midPoint = allPositions[midIdx] ?? allPositions[0];
+            const mins = Math.round(a.duration_s / 60);
+            const km = Math.round(a.distance_m / 1000);
+
+            const segLines =
+              segs.length > 0
+                ? segs.map((seg) => (
+                    <Polyline
+                      key={`altseg-${a.route_id}-${seg.segment_id}`}
+                      positions={seg.polyline.map(
+                        ([lon, lat]): [number, number] => [lat, lon],
+                      )}
+                      pathOptions={{
+                        color: RISK_COLOR[seg.risk_band],
+                        weight: 3,
+                        opacity: 0.4,
+                        lineCap: "round",
+                        lineJoin: "round",
+                      }}
+                      interactive={false}
+                    />
+                  ))
+                : [
+                    <Polyline
+                      key={`alt-${a.route_id}`}
+                      positions={allPositions}
+                      pathOptions={{
+                        color: "#5b8fc4",
+                        weight: 3,
+                        opacity: 0.35,
+                        dashArray: "5 7",
+                      }}
+                      interactive={false}
+                    />,
+                  ];
+
+            return [
+              ...segLines,
+              // Fat invisible hit-target so thin alternate lines are easy to click
+              <Polyline
+                key={`althit-${a.route_id}`}
+                positions={allPositions}
+                pathOptions={{
+                  color: "#000",
+                  weight: 20,
+                  opacity: 0.001,
+                  interactive: true,
+                }}
+                eventHandlers={{
+                  click: () => onAlternateClick?.(a.route_id),
+                }}
+              >
+                <Tooltip sticky direction="top" offset={[0, -10]}>
+                  <div style={{ fontSize: 11, fontWeight: 500 }}>
+                    {km} km · {mins} min ·{" "}
+                    <span style={{ color: RISK_COLOR[a.risk_band] }}>
+                      {RISK_LABEL[a.risk_band]}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 10, opacity: 0.65 }}>
+                    Click to select this route
+                  </div>
+                </Tooltip>
+              </Polyline>,
+              // Persistent summary label at route midpoint
+              midPoint && (
+                <CircleMarker
+                  key={`altlabel-${a.route_id}`}
+                  center={midPoint}
+                  radius={0}
+                  pathOptions={{ opacity: 0, fillOpacity: 0 }}
+                  eventHandlers={{
+                    click: () => onAlternateClick?.(a.route_id),
+                  }}
+                >
+                  <Tooltip
+                    permanent
+                    direction="top"
+                    offset={[0, -4]}
+                    className="route-label"
+                  >
+                    <RouteLabel km={km} mins={mins} band={a.risk_band} />
+                  </Tooltip>
+                </CircleMarker>
+              ),
+            ];
+          })}
+
+      {/* Chosen route summary label at midpoint */}
+      {sweepDone && segments.length > 0 && (() => {
+        const chosenAlt = alternates.find((a) => a.route_id === chosenRouteId);
+        if (!chosenAlt) return null;
+        const pts = chosenAlt.polyline.map(
+          ([lon, lat]): [number, number] => [lat, lon],
+        );
+        const mid = pts[Math.floor(pts.length / 2)];
+        if (!mid) return null;
+        const mins = Math.round(chosenAlt.duration_s / 60);
+        const km = Math.round(chosenAlt.distance_m / 1000);
+        return (
+          <CircleMarker
+            key="chosen-label"
+            center={mid}
+            radius={0}
+            pathOptions={{ opacity: 0, fillOpacity: 0 }}
+          >
+            <Tooltip
+              permanent
+              direction="top"
+              offset={[0, -4]}
+              className="route-label route-label--chosen"
+            >
+              <RouteLabel km={km} mins={mins} band={chosenAlt.risk_band} chosen />
+            </Tooltip>
+          </CircleMarker>
+        );
+      })()}
+
+      {/* Chosen route — sweeps from origin to destination with risk colors */}
+      {visibleSegments.map((seg) => (
         <Polyline
           key={`glow-${seg.segment_id}`}
           positions={seg.polyline.map(([lon, lat]) => [lat, lon])}
           pathOptions={{
             color: RISK_GLOW[seg.risk_band],
-            weight: 12,
-            opacity: 0.65,
+            weight: 9,
+            opacity: 0.35,
             lineCap: "round",
             lineJoin: "round",
           }}
           interactive={false}
         />
       ))}
-      {segments.map((seg) => (
+      {visibleSegments.map((seg) => (
         <Polyline
           key={seg.segment_id}
           positions={seg.polyline.map(([lon, lat]) => [lat, lon])}
@@ -139,7 +348,7 @@ export default function RouteMap({
           Leaflet drops pointer-events when stroke-opacity is 0, so we
           keep a hairline of opacity (0.001) which still reads as fully
           invisible against the dark map but stays hit-testable. */}
-      {segments.map((seg) => (
+      {sweepDone && segments.map((seg) => (
         <Polyline
           key={`hit-${seg.segment_id}`}
           positions={seg.polyline.map(([lon, lat]) => [lat, lon])}
@@ -161,8 +370,8 @@ export default function RouteMap({
         </Polyline>
       ))}
 
-      {/* Hotspot pins */}
-      {hotspots.map((h) => (
+      {/* Hotspot pins — appear after the route sweep finishes */}
+      {sweepDone && hotspots.map((h) => (
         <CircleMarker
           key={h.hotspot_id}
           center={[h.centroid.lat, h.centroid.lon]}
@@ -186,28 +395,35 @@ export default function RouteMap({
         </CircleMarker>
       ))}
 
-      {/* News article pins — distinct diamond shape via rotated square */}
-      {newsArticles.map((n) => (
+      {/* Insight pins — amber "lesson" markers, distinct from the
+          red hotspot pins so a glance separates "a cluster of crashes
+          here tonight" from "here's a lesson that applies along this
+          stretch". Pin location is the *segment midpoint* from the
+          retrieval service, not the article's original lat/lon, so
+          pins always sit on the route rather than floating off it. */}
+      {sweepDone && insights.map((ins) => (
         <CircleMarker
-          key={n.article_id}
-          center={[n.location.lat, n.location.lon]}
+          key={ins.insight_id}
+          center={[ins.pin_location.lat, ins.pin_location.lon]}
           radius={7}
           pathOptions={{
             color: "#f3ece0",
             weight: 2,
-            fillColor: "#2563eb",
+            fillColor: "#d97706",
             fillOpacity: 0.95,
           }}
           eventHandlers={{
-            click: () => onNewsClick?.(n),
+            click: () => onInsightClick?.(ins),
           }}
         >
-          <Tooltip direction="top" offset={[0, -6]} maxWidth={320}>
-            <div style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 300 }}>
-              <span className="font-semibold text-paper">{n.headline}</span>
-              <span className="text-[0.6875rem] text-paper/70">
-                {" · "}{n.publisher}{n.publish_date ? ` · ${n.publish_date}` : ""} · click to read
-              </span>
+          <Tooltip direction="top" offset={[0, -6]}>
+            <div style={{ maxWidth: 300 }}>
+              <div className="font-semibold text-paper">
+                {ins.headline}
+              </div>
+              <div className="text-[0.6875rem] uppercase tracking-[0.14em] text-paper/70">
+                Lesson from a past crash · click to read
+              </div>
             </div>
           </Tooltip>
         </CircleMarker>
@@ -265,69 +481,87 @@ function SegmentTooltip({
   );
 }
 
-type MapStyle = "terrain" | "satellite";
-
-const MAP_STYLES: Record<MapStyle, { url: string; attribution: string; subdomains?: string }> = {
-  terrain: {
-    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-  },
-  satellite: {
-    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-    attribution: '&copy; Esri &mdash; Esri, Maxar, Earthstar Geographics',
-  },
+const RISK_LABEL: Record<RiskBand, string> = {
+  low: "Low",
+  moderate: "Moderate",
+  elevated: "Elevated",
+  high: "High",
 };
+
+function RouteLabel({
+  km,
+  mins,
+  band,
+  chosen,
+}: {
+  km: number;
+  mins: number;
+  band: RiskBand;
+  chosen?: boolean;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 6,
+        whiteSpace: "nowrap",
+        fontWeight: chosen ? 600 : 500,
+      }}
+    >
+      <span
+        style={{
+          width: 7,
+          height: 7,
+          borderRadius: "50%",
+          backgroundColor: RISK_COLOR[band],
+          flexShrink: 0,
+        }}
+      />
+      <span style={{ fontSize: 11, color: chosen ? "#fbf6ec" : "#cdd5e3" }}>
+        {km} km · {mins} min
+      </span>
+    </div>
+  );
+}
+
+const PMTILES_URL =
+  process.env.NEXT_PUBLIC_PMTILES_URL ??
+  "http://localhost:8080/tiles/florida.pmtiles";
+
+type MapFlavor = "light" | "dark";
 
 function MapLayerSwitcher() {
   const map = useMap();
-  const [style, setStyle] = useState<MapStyle>("terrain");
+  const [flavor, setFlavor] = useState<MapFlavor>("light");
   const [open, setOpen] = useState(false);
-  const [layers, setLayers] = useState<L.TileLayer[]>([]);
+  const [layer, setLayer] = useState<L.Layer | null>(null);
 
   useEffect(() => {
-    layers.forEach((l) => map.removeLayer(l));
+    if (layer) map.removeLayer(layer);
 
-    const cfg = MAP_STYLES[style];
-    const base = L.tileLayer(cfg.url, {
-      attribution: cfg.attribution,
-      maxZoom: 19,
-      ...(cfg.subdomains ? { subdomains: cfg.subdomains } : {}),
+    const base = leafletLayer({
+      url: PMTILES_URL,
+      flavor,
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     });
     base.addTo(map);
     base.bringToBack();
+    setLayer(base);
 
-    const newLayers: L.TileLayer[] = [base];
-
-    // Add a labels overlay on satellite so streets/places are readable
-    if (style === "satellite") {
-      const labels = L.tileLayer(
-        "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}",
-        { maxZoom: 19, pane: "shadowPane" },
-      );
-      labels.addTo(map);
-      newLayers.push(labels);
-
-      const places = L.tileLayer(
-        "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
-        { maxZoom: 19, pane: "shadowPane" },
-      );
-      places.addTo(map);
-      newLayers.push(places);
-    }
-
-    setLayers(newLayers);
     return () => {
-      newLayers.forEach((l) => map.removeLayer(l));
+      map.removeLayer(base);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [style, map]);
+  }, [flavor, map]);
 
-  const pick = useCallback((s: MapStyle) => {
-    setStyle(s);
+  const pick = useCallback((f: MapFlavor) => {
+    setFlavor(f);
     setOpen(false);
   }, []);
 
-  const other: MapStyle = style === "terrain" ? "satellite" : "terrain";
+  const other: MapFlavor = flavor === "light" ? "dark" : "light";
 
   return (
     <div
@@ -358,7 +592,7 @@ function MapLayerSwitcher() {
           }}
           title="Switch map style"
         >
-          {style === "terrain" ? <TerrainIcon /> : <SatelliteIcon />}
+          {flavor === "light" ? <TerrainIcon /> : <DarkIcon />}
         </button>
 
         {/* The other option slides in directly below */}
@@ -386,9 +620,9 @@ function MapLayerSwitcher() {
               justifyContent: "center",
               boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
             }}
-            title={other === "satellite" ? "Satellite" : "Terrain"}
+            title={other === "dark" ? "Dark" : "Light"}
           >
-            {other === "satellite" ? <SatelliteIcon /> : <TerrainIcon />}
+            {other === "dark" ? <DarkIcon /> : <TerrainIcon />}
           </button>
         </div>
       </div>
@@ -405,22 +639,29 @@ function TerrainIcon() {
   );
 }
 
-function SatelliteIcon() {
+function DarkIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e2e8f0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10" />
-      <path d="M12 2a14.5 14.5 0 0 0 0 20" />
-      <path d="M12 2a14.5 14.5 0 0 1 0 20" />
-      <path d="M2 12h20" />
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
     </svg>
   );
 }
 
 function FitBounds({ bounds }: { bounds: L.LatLngBoundsExpression | null }) {
   const map = useMap();
+  const fitted = useRef(false);
   useEffect(() => {
-    if (bounds) {
-      map.fitBounds(bounds, { padding: [60, 60] });
+    if (!bounds) return;
+    const isLg = window.matchMedia("(min-width: 1024px)").matches;
+    const paddingOptions: L.FitBoundsOptions = {
+      paddingTopLeft: [isLg ? 650 : 60, 60] as L.PointTuple,
+      paddingBottomRight: [60, 60] as L.PointTuple,
+    };
+    if (!fitted.current) {
+      map.fitBounds(bounds, paddingOptions);
+      fitted.current = true;
+    } else {
+      map.flyToBounds(bounds, { ...paddingOptions, duration: 0.6 });
     }
   }, [bounds, map]);
   return null;

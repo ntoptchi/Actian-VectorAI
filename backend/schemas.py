@@ -186,18 +186,42 @@ class SeverityMix(BaseModel):
     unknown: int = 0
 
 
-class NewsArticleResponse(BaseModel):
-    """A news article surfaced along the route."""
+class InsightSource(BaseModel):
+    """Citation-level metadata for a :class:`CrashInsight`.
 
-    article_id: str
-    headline: str
-    excerpt: str
-    publisher: str
-    article_url: str
+    Rendered as a muted "Source · Publisher · Date →" line at the bottom
+    of the insight modal. Deliberately kept out of list rows and card
+    headlines so the lesson is the hero, not the article.
+    """
+
+    publisher: str | None = None
+    article_url: str | None = None
     publish_date: str | None = None
-    location: LatLon
-    severity: Severity = "unknown"
-    linked_crash_ids: list[str] = Field(default_factory=list)
+    article_headline: str | None = None
+
+
+class CrashInsight(BaseModel):
+    """One LLM-enriched crash lesson retrieved from ``routewise_coaching``.
+
+    Powers three UI surfaces (hotspot anecdote drawer, map insight pins,
+    right-rail "Lessons from the road" list) with a single shape.
+    """
+
+    insight_id: str
+    # Derived client-side from lesson + dominant factor at retrieval
+    # time. Intentionally *not* the news article headline — that lives
+    # inside ``source.article_headline`` and never surfaces as content.
+    headline: str
+    lesson: str
+    incident_summary: str
+    risk_factors: list[str] = Field(default_factory=list)
+    # Snapped to the nearest route segment's midpoint by the retrieval
+    # service so insights appear where tonight's drive intersects the
+    # historical pattern, rather than at the article's reporting latlon.
+    pin_location: LatLon
+    segment_id: str | None = None
+    similarity: float = 0.0
+    source: InsightSource = Field(default_factory=InsightSource)
 
 
 class HotspotSummary(BaseModel):
@@ -215,6 +239,9 @@ class HotspotSummary(BaseModel):
     severity_mix: SeverityMix
     top_factors: list[FactorWeight] = Field(default_factory=list)
     coaching_line: str
+    # Populated from the routewise_coaching VDB when retrieval succeeds;
+    # `None` means the hotspot fell back to rule-based coaching only.
+    insight: CrashInsight | None = None
 
 
 # --- Routing pivot: per-segment risk + alternates --------------------------
@@ -251,6 +278,10 @@ class AlternateSummary(BaseModel):
     Frontend uses these to render the "+3 min, -38% risk" deltas in the
     alternates panel; the chosen route is identified by
     ``TripBriefResponse.chosen_route_id``.
+
+    ``segments`` carries the per-segment risk breakdown so the map can
+    paint every alternate with risk-band colours (at reduced opacity for
+    non-chosen routes).
     """
 
     route_id: str
@@ -262,6 +293,7 @@ class AlternateSummary(BaseModel):
     n_crashes: int
     minutes_delta_vs_fastest: float
     risk_delta_vs_fastest: float
+    segments: list[RouteSegment] = Field(default_factory=list)
 
 
 class TripBriefResponse(BaseModel):
@@ -278,8 +310,27 @@ class TripBriefResponse(BaseModel):
     alternates: list[AlternateSummary] = Field(default_factory=list)
     segments: list[RouteSegment] = Field(default_factory=list)
 
-    # News articles surfaced along the route.
-    news_articles: list[NewsArticleResponse] = Field(default_factory=list)
+    # Crash lessons surfaced along the route (VDB-retrieved from
+    # routewise_coaching, deduped, snapped to nearest segments). Empty
+    # when the VDB is unavailable or the collection is missing — the
+    # endpoint degrades cleanly in that case.
+    insights: list[CrashInsight] = Field(default_factory=list)
+
+
+# --- /trip/routes fast-path response ----------------------------------------
+
+
+class RouteCandidate(BaseModel):
+    """Lightweight alternate returned by ``POST /trip/routes`` before scoring."""
+
+    route_id: str
+    polyline: list[list[float]]
+    distance_m: float
+    duration_s: float
+
+
+class RoutesOnlyResponse(BaseModel):
+    candidates: list[RouteCandidate] = Field(default_factory=list)
 
 
 # --- /hotspots/{id} response (s6.3) ----------------------------------------

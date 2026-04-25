@@ -4,7 +4,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { ScrollArea } from "~/components/ui/scroll-area";
-import { CITIES, cityLabel, searchCities, type City } from "~/lib/cities";
+import { CITIES, cityLabel, nearestCity, searchCities, type City } from "~/lib/cities";
 import { cn } from "~/lib/utils";
 
 /**
@@ -103,29 +103,11 @@ export function PlanCard() {
     setLocating(true);
     setError(null);
     navigator.geolocation.getCurrentPosition(
-      async (pos) => {
+      (pos) => {
         const lat = pos.coords.latitude;
         const lon = pos.coords.longitude;
-        let name = "Current Location";
-        try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&zoom=10`,
-          );
-          if (res.ok) {
-            const data = await res.json();
-            const addr = data.address || {};
-            name =
-              addr.city ||
-              addr.town ||
-              addr.village ||
-              addr.suburb ||
-              addr.county ||
-              data.display_name?.split(",")[0] ||
-              "Current Location";
-          }
-        } catch {
-          // Fall back to "Current Location" if reverse geocode fails
-        }
+        const match = nearestCity(lat, lon);
+        const name = match?.name ?? "Current Location";
         const here: City = {
           id: `here-${lat.toFixed(4)}-${lon.toFixed(4)}`,
           name,
@@ -268,9 +250,9 @@ export function PlanCard() {
                 ? `See my briefing · ~${Math.round(preview.miles)} mi · ~${formatDuration(preview.driveMin)}`
                 : "See my briefing"}
               {ready && (
-                <kbd className="ml-1 rounded-md border border-paper-3/30 px-1.5 py-0.5 font-mono text-[0.625rem] text-paper-3/70">
-                  ⏎
-                </kbd>
+                <span className="ml-1 text-xs font-normal text-paper-3/60">
+                  Enter
+                </span>
               )}
             </>
           )}
@@ -516,16 +498,13 @@ function CityCombobox({
                     className={cn(
                       "flex cursor-pointer items-center justify-between gap-3 px-4 py-2 text-sm transition-colors",
                       active
-                        ? "bg-ink text-paper-3"
-                        : "text-ink hover:bg-paper-2",
+                        ? "bg-paper-2 text-ink"
+                        : "text-ink hover:bg-paper-2/60",
                     )}
                   >
-                    <span className="truncate">{c.name}</span>
+                    <span className="truncate font-medium">{c.name}</span>
                     <span
-                      className={cn(
-                        "text-xs",
-                        active ? "text-paper-3/70" : "text-ink-4",
-                      )}
+                      className="text-xs text-ink-4"
                     >
                       {c.state}
                     </span>
@@ -592,14 +571,6 @@ function PinIcon() {
     >
       <path d="M7 15s5-5.2 5-9A5 5 0 1 0 2 6c0 3.8 5 9 5 9Z" />
       <circle cx="7" cy="6" r="2" fill="currentColor" />
-    </svg>
-  );
-}
-
-function DiamondIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
-      <path d="M6 0 L12 6 L6 12 L0 6 Z" />
     </svg>
   );
 }

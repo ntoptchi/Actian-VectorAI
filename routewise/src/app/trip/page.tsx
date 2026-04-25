@@ -1,8 +1,6 @@
 import Link from "next/link";
 
 import { SiteHeader } from "~/components/SiteHeader";
-import { BackendError, fetchTripBrief, parseDepart } from "~/lib/api";
-import type { TripBriefResponse } from "~/lib/types";
 
 import { TripView } from "./TripView";
 
@@ -43,47 +41,6 @@ export default async function TripPage({
     );
   }
 
-  let brief: TripBriefResponse | null = null;
-  let error: string | null = null;
-  try {
-    brief = await fetchTripBrief({
-      origin: { lat: olat, lon: olon },
-      destination: { lat: dlat, lon: dlon },
-      timestamp: parseDepart(depart),
-    });
-  } catch (e) {
-    if (e instanceof BackendError) {
-      error = `Backend error (${e.status}): ${e.message}`;
-    } else if (e instanceof Error) {
-      error = `Could not reach the RouteWise backend: ${e.message}`;
-    } else {
-      error = "Unknown error contacting the backend.";
-    }
-  }
-
-  if (error || !brief) {
-    return (
-      <Shell title="Briefing unavailable">
-        <div className="rounded-sm border-l-2 border-alert bg-alert-2/60 px-4 py-3 text-sm text-alert">
-          {error}
-        </div>
-        <p className="text-sm text-ink-3">
-          Is the FastAPI backend running on port 8080? Try{" "}
-          <code className="rounded bg-paper-3 px-1.5 py-0.5 font-mono text-xs">
-            ./start.sh
-          </code>{" "}
-          from the repo root.
-        </p>
-        <Link
-          href="/"
-          className="inline-flex w-fit items-center gap-2 rounded-sm bg-ink px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-paper transition hover:bg-ink-2"
-        >
-          ← Back to home
-        </Link>
-      </Shell>
-    );
-  }
-
   const briefingParams = new URLSearchParams({
     olat: String(olat),
     olon: String(olon),
@@ -96,7 +53,12 @@ export default async function TripPage({
   return (
     <div className="flex min-h-screen flex-col bg-paper lg:h-screen lg:overflow-hidden">
       <SiteHeader variant="flush" active="routes" />
-      <TripView brief={brief} briefingHref={briefingHref} />
+      <TripView
+        origin={{ lat: olat, lon: olon }}
+        destination={{ lat: dlat, lon: dlon }}
+        depart={depart}
+        briefingHref={briefingHref}
+      />
     </div>
   );
 }
