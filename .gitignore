@@ -97,6 +97,9 @@ scraper/data/
 !.env.example
 !**/.env.example
 
+# ---------- Test / Demo ----------
+test/
+
 # ---------- Misc ----------
 .DS_Store
 Thumbs.db
