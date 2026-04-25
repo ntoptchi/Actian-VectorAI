@@ -151,6 +151,7 @@ export default function RouteMap({
     <MapContainer
       center={center}
       zoom={8}
+      minZoom={8}
       scrollWheelZoom
       zoomControl={false}
       className="h-full w-full"
@@ -651,11 +652,16 @@ function FitBounds({ bounds }: { bounds: L.LatLngBoundsExpression | null }) {
   const fitted = useRef(false);
   useEffect(() => {
     if (!bounds) return;
+    const isLg = window.matchMedia("(min-width: 1024px)").matches;
+    const paddingOptions: L.FitBoundsOptions = {
+      paddingTopLeft: [isLg ? 650 : 60, 60] as L.PointTuple,
+      paddingBottomRight: [60, 60] as L.PointTuple,
+    };
     if (!fitted.current) {
-      map.fitBounds(bounds, { padding: [60, 60] });
+      map.fitBounds(bounds, paddingOptions);
       fitted.current = true;
     } else {
-      map.flyToBounds(bounds, { padding: [60, 60], duration: 0.6 });
+      map.flyToBounds(bounds, { ...paddingOptions, duration: 0.6 });
     }
   }, [bounds, map]);
   return null;

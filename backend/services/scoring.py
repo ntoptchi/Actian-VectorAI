@@ -108,7 +108,7 @@ def build_query_doc(
 # --- Retrieval -----------------------------------------------------------
 
 
-_HOUR_WINDOW = 2  # ± hours kept around the trip's hour bucket
+_HOUR_WINDOW = 1  # ± hours kept around the trip's hour bucket
 
 
 def retrieve_crashes_for_cells(
@@ -271,11 +271,11 @@ def route_risk_band(score: float) -> RiskBand:
     "moderate"-"elevated" at peak hours and "low" off-peak. These
     thresholds will need to be re-tuned as the corpus grows.
     """
-    if score >= 0.5:
+    if score >= 3.0:
         return "high"
-    if score >= 0.25:
+    if score >= 1.5:
         return "elevated"
-    if score >= 0.1:
+    if score >= 0.5:
         return "moderate"
     return "low"
 
@@ -284,11 +284,11 @@ def route_risk_band(score: float) -> RiskBand:
 
 
 def _risk_band(n_crashes: int, intensity: float) -> RiskBand:
-    if intensity >= 1.5 or n_crashes >= 8:
+    if intensity >= 2.5 or n_crashes >= 20:
         return "high"
-    if intensity >= 1.0 or n_crashes >= 4:
+    if intensity >= 1.5 or n_crashes >= 10:
         return "elevated"
-    if intensity >= 0.5 or n_crashes >= 2:
+    if intensity >= 0.8 or n_crashes >= 4:
         return "moderate"
     return "low"
 
